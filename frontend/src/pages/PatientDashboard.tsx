@@ -1,59 +1,85 @@
-function PatientDashboard() {
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+export default function PatientDashboard() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto', background: '#f7fafc', minHeight: '100vh' }}>
       <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '2rem',
-          paddingBottom: '1rem',
-          borderBottom: '1px solid #e2e8f0',
+          padding: '1rem 1.5rem',
+          background: '#fff',
+          borderRadius: '12px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
-        <h1 style={{ margin: 0, color: '#1a202c' }}>👤 Patient Dashboard</h1>
-        <a
-          href="/login"
-          style={{ color: '#667eea', textDecoration: 'none', fontWeight: 500 }}
+        <div>
+          <h1 style={{ margin: 0, color: '#1a202c', fontSize: '1.5rem' }}>👤 Patient Dashboard</h1>
+          <p style={{ margin: '0.25rem 0 0', color: '#718096', fontSize: '0.875rem' }}>
+            Welcome, {user?.fullName || 'Patient'}
+          </p>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '0.5rem 1.25rem',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            background: '#fff',
+            color: '#e53e3e',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#fff5f5';
+            e.currentTarget.style.borderColor = '#fc8181';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#fff';
+            e.currentTarget.style.borderColor = '#e2e8f0';
+          }}
         >
           Logout
-        </a>
+        </button>
       </header>
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <h2 style={{ margin: '0 0 1.5rem', color: '#4a5568' }}>Browse Doctors</h2>
-        <p style={{ color: '#a0aec0' }}>
-          Doctor catalog and department browsing will be rendered here.
-        </p>
+      <div style={{ display: 'grid', gap: '1.5rem' }}>
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '1.15rem' }}>Welcome, {user?.fullName}!</h2>
+          <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
+            You are logged in as <strong>Patient</strong>. Browse doctors and join a queue to get started.
+          </p>
+          <div style={{ marginTop: '1rem', padding: '1rem', background: '#ebf8ff', borderRadius: '8px', color: '#2b6cb0', fontSize: '0.875rem' }}>
+            Queue features will be available starting Day 4.
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <h2 style={{ margin: '0 0 1rem', color: '#4a5568', fontSize: '1.15rem' }}>Account Info</h2>
+          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
+            <div><strong>Name:</strong> {user?.fullName}</div>
+            <div><strong>Email:</strong> {user?.email}</div>
+            <div><strong>Role:</strong> {user?.role}</div>
+          </div>
+        </div>
       </div>
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}
-      >
-        <h2 style={{ margin: '0 0 1.5rem', color: '#4a5568' }}>My Queue Status</h2>
-        <p style={{ color: '#a0aec0' }}>
-          Your current queue position, estimated wait time, and triage status will appear here.
-        </p>
-      </div>
-
-      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.875rem' }}>
-        CareQ — SmartOPD AI | Routing Skeleton (No API calls yet)
+      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem' }}>
+        CareQ — SmartOPD AI | Day 2 — Auth Module Complete
       </footer>
     </div>
   );
 }
-
-export default PatientDashboard;

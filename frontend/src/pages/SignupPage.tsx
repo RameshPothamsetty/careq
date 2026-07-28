@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signup } = useAuth();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('PATIENT');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -16,16 +18,13 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
-      const role = localStorage.getItem('careq_user')
-        ? JSON.parse(localStorage.getItem('careq_user')!).role
-        : null;
-      navigate(`/${role?.toLowerCase() || 'patient'}/dashboard`, { replace: true });
+      await signup(fullName, email, password, role);
+      navigate(`/${role.toLowerCase()}/dashboard`, { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Login failed. Please check your credentials.');
+        setError('Signup failed. Please try again.');
       }
     } finally {
       setIsSubmitting(false);
@@ -67,12 +66,12 @@ export default function LoginPage() {
           boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: '0', color: '#667eea', fontSize: '2rem' }}>CareQ</h1>
-          <p style={{ color: '#a0aec0', fontSize: '0.9rem', margin: '0.25rem 0 0' }}>
-            SmartOPD AI — Sign in to continue
-          </p>
-        </div>
+        <h1 style={{ margin: '0 0 0.25rem', textAlign: 'center', color: '#667eea' }}>
+          Create Account
+        </h1>
+        <p style={{ textAlign: 'center', color: '#a0aec0', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Join CareQ — SmartOPD AI
+        </p>
 
         {error && (
           <div
@@ -93,14 +92,47 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Dr. John Doe"
+              required
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = '#667eea')}
+              onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@hospital.com"
+              placeholder="john@hospital.com"
               required
+              style={inputStyle}
+              onFocus={(e) => (e.target.style.borderColor = '#667eea')}
+              onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              required
+              minLength={6}
               style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = '#667eea')}
               onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
@@ -109,18 +141,19 @@ export default function LoginPage() {
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
-              Password
+              I am a...
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
               style={inputStyle}
               onFocus={(e) => (e.target.style.borderColor = '#667eea')}
               onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
-            />
+            >
+              <option value="PATIENT">Patient</option>
+              <option value="DOCTOR">Doctor</option>
+              <option value="ADMIN">Admin</option>
+            </select>
           </div>
 
           <button
@@ -145,14 +178,14 @@ export default function LoginPage() {
               if (!isSubmitting) e.currentTarget.style.background = '#667eea';
             }}
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
+            {isSubmitting ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#a0aec0' }}>
-          Don't have an account?{' '}
-          <Link to="/signup" style={{ color: '#667eea', textDecoration: 'none', fontWeight: 500 }}>
-            Create one
+          Already have an account?{' '}
+          <Link to="/login" style={{ color: '#667eea', textDecoration: 'none', fontWeight: 500 }}>
+            Sign in
           </Link>
         </p>
       </div>
