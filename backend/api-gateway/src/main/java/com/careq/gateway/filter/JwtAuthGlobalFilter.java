@@ -61,12 +61,28 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
         String token = authHeader.substring(7);
 
-        if (!isTokenValid(token)) {
+        Claims claims;
+        try {
+            claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception e) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        return chain.filter(exchange);
+        // Extract userId and role from JWT claims and forward as headers
+        String userId = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        ServerWebExchange mutatedExchange = exchange.mutate()
+                .request(r -> r.header("X-User-Id", userId)
+                               .header("X-User-Role", role))
+                .build();
+
+        return chain.filter(mutatedExchange);
     }
 
     @Override
@@ -78,16 +94,4 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    private boolean isTokenValid(String token) {
-        try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
 }
