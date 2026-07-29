@@ -10,7 +10,6 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -79,19 +78,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String userId = claims.getSubject();
         String role = claims.get("role", String.class);
 
-        // Use ServerHttpRequestDecorator to reliably add headers before forwarding
-        ServerHttpRequest decoratedRequest = new ServerHttpRequestDecorator(exchange.getRequest()) {
-            @Override
-            public HttpHeaders getHeaders() {
-                HttpHeaders headers = new HttpHeaders(super.getHeaders());
-                headers.add("X-User-Id", userId);
-                headers.add("X-User-Role", role);
-                return HttpHeaders.readOnlyHttpHeaders(headers);
-            }
-        };
+        // Add headers to the request before forwarding to downstream services
+        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                .header("X-User-Id", userId)
+                .header("X-User-Role", role)
+                .build();
 
         ServerWebExchange mutatedExchange = exchange.mutate()
-                .request(decoratedRequest)
+                .request(mutatedRequest)
                 .build();
 
         return chain.filter(mutatedExchange);
