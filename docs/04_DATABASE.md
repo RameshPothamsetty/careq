@@ -1,6 +1,6 @@
-# CareQ — Database Schema (Initial)
+# CareQ — Database Schema (Day 3)
 
-**Version:** 1.0 (Day 1)  
+**Version:** 1.3 (Day 3)  
 **Database:** MySQL 8.x
 
 ---
@@ -9,67 +9,32 @@
 
 ```
 ┌─────────────────┐          ┌─────────────────────┐
-│     users       │          │   patient_profiles   │
+│     users       │          │   user_profiles      │
+│ (auth-service)  │          │  (user-service)      │
 ├─────────────────┤          ├─────────────────────┤
-│ id (PK, UUID)   │──┐       │ id (PK)             │
-│ email (unique)   │  │       │ user_id (FK → users)│
-│ password_hash    │  │       │ date_of_birth       │
-│ full_name        │  │       │ blood_group         │
-│ role (ENUM)      │  │       │ phone               │
-│ is_active        │  │       │ address             │
-│ created_at       │  │       │ emergency_contact   │
-│ updated_at       │  │       └─────────────────────┘
-└─────────────────┘  │       
-                      │       ┌─────────────────────┐
-                      │       │   admin_profiles     │
-                      ├──┐    ├─────────────────────┤
-                      │  │    │ id (PK)             │
-                      │  │    │ user_id (FK → users)│
-                      │  │    │ phone               │
-                      │  │    │ department          │
-                      │  │    └─────────────────────┘
-                      │  │
-                      │  │    ┌─────────────────────┐
-                      │  └────│   doctor_profiles    │
-                      │       ├─────────────────────┤
-                      │       │ id (PK)             │
-                      │       │ user_id (FK → users)│
-                      │       │ specialization       │
-                      │       │ qualifications       │
-                      │       │ experience_years     │
-                      │       │ department_id(FK→dept)│
-                      │       │ consultation_fee     │
-                      │       │ is_available         │
-                      │       └─────────────────────┘
-                      │
-                      │       ┌─────────────────────┐
-                      │       │   departments        │
-                      │       ├─────────────────────┤
-                      │       │ id (PK)             │
-                      │       │ name (unique)        │
-                      │       │ description          │
-                      │       │ is_active            │
-                      │       └─────────────────────┘
-                      │
-                      │       ┌──────────────────────────┐
-                      └───────│     queue_entries         │
-                              ├──────────────────────────┤
-                              │ id (PK)                  │
-                              │ patient_id (FK → users)  │
-                              │ doctor_id (FK → users)   │
-                              │ department_id (FK→dept)  │
-                              │ status (ENUM)            │
-                              │ position                 │
-                              │ triage_level (ENUM)      │
-                              │ triage_reason            │
-                              │ reported_symptoms        │
-                              │ predicted_wait_minutes   │
-                              │ actual_wait_minutes      │
-                              │ joined_at                │
-                              │ started_at               │
-                              │ completed_at             │
-                              └──────────────────────────┘
+│ id (PK, UUID)   │──┐       │ id (PK, BIGINT)     │
+│ email (unique)   │  └───────│ user_id (unique)    │
+│ password_hash    │   ref    │   (plain reference) │
+│ full_name        │          │ phone               │
+│ role (ENUM)      │          │ address             │
+│ is_active        │          │ date_of_birth       │
+│ created_at       │          │ gender              │
+│ updated_at       │          │ profile_picture_url │
+└─────────────────┘          │ role (denormalized) │
+                              │ created_at          │
+                              │ updated_at          │
+                              └─────────────────────┘
+                                      │
+         ┌────────────────────────────┼────────────────────────────┐
+         │                            │                            │
+         ▼                            ▼                            ▼
+┌──────────────────┐       ┌─────────────────────┐      ┌─────────────────────┐
+│ patient_profiles  │       │   doctor_profiles    │      │   admin_profiles     │
+│ (future)          │       │   (Day 4)            │      │   (future)           │
+└──────────────────┘       └─────────────────────┘      └─────────────────────┘
 ```
+
+> **Note:** `user_profiles` is a single unified profile table owned by `user-service`, replacing the previously planned role-specific profile tables. This simpler design was chosen to avoid complex multi-table joins for the common "view my profile" use case. Role-specific detail tables (e.g., `doctor_profiles`) will still be added in later days for role-specific fields.
 
 ---
 
@@ -99,7 +64,27 @@ CREATE TABLE users (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 2. patient_profiles — Extended profile for PATIENT role
+-- 2. user_profiles — Unified profile for all roles
+--     Owned by user-service. userId is a plain reference to
+--     auth-service's users.id (no FK constraint, microservice boundary).
+--     Created lazily on first GET /api/users/me.
+-- ============================================================
+CREATE TABLE user_profiles (
+    id                 BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    user_id            CHAR(36)     NOT NULL UNIQUE,      -- Plain reference to users.id
+    phone              VARCHAR(20),
+    address            TEXT,
+    date_of_birth      DATE,
+    gender             VARCHAR(10),                       -- MALE, FEMALE, OTHER
+    profile_picture_url VARCHAR(500),
+    role               VARCHAR(20) NOT NULL,               -- Denormalized from users.role
+    created_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_user_profiles_role (role)
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- 3. patient_profiles — Extended profile for PATIENT role
 -- ============================================================
 CREATE TABLE patient_profiles (
     id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -113,7 +98,7 @@ CREATE TABLE patient_profiles (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 3. admin_profiles — Extended profile for ADMIN role
+-- 4. admin_profiles — Extended profile for ADMIN role
 -- ============================================================
 CREATE TABLE admin_profiles (
     id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -124,7 +109,7 @@ CREATE TABLE admin_profiles (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 4. departments — Hospital departments (e.g., Cardiology)
+-- 5. departments — Hospital departments (e.g., Cardiology)
 -- ============================================================
 CREATE TABLE departments (
     id          BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -135,7 +120,7 @@ CREATE TABLE departments (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 5. doctor_profiles — Extended profile for DOCTOR role
+-- 6. doctor_profiles — Extended profile for DOCTOR role
 -- ============================================================
 CREATE TABLE doctor_profiles (
     id               BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -153,7 +138,7 @@ CREATE TABLE doctor_profiles (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 6. queue_entries — Core queue tracking with AI predictions
+-- 7. queue_entries — Core queue tracking with AI predictions
 -- ============================================================
 CREATE TABLE queue_entries (
     id                      BIGINT       AUTO_INCREMENT PRIMARY KEY,
@@ -162,13 +147,13 @@ CREATE TABLE queue_entries (
     department_id           BIGINT,
     status                  ENUM('WAITING', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED')
                                         NOT NULL DEFAULT 'WAITING',
-    position                INT          NOT NULL,        -- 1-based position in queue
+    position                INT          NOT NULL,
     triage_level            ENUM('CRITICAL', 'URGENT', 'NORMAL')
                                         NOT NULL DEFAULT 'NORMAL',
-    triage_reason           VARCHAR(500),                 -- Why this triage level was assigned
-    reported_symptoms       TEXT,                          -- Free-text symptoms from patient
-    predicted_wait_minutes  INT,                           -- AI-predicted wait time in minutes
-    actual_wait_minutes     INT,                           -- Actual wait (filled after start)
+    triage_reason           VARCHAR(500),
+    reported_symptoms       TEXT,
+    predicted_wait_minutes  INT,
+    actual_wait_minutes     INT,
     joined_at               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     started_at              TIMESTAMP    NULL,
     completed_at            TIMESTAMP    NULL,
@@ -184,41 +169,14 @@ CREATE TABLE queue_entries (
 
 ---
 
-## 3. Column Rationale: `queue_entries`
+## 3. Table Summary
 
-### `triage_level` (ENUM: CRITICAL / URGENT / NORMAL)
-
-**Why stored as a column:**
-- The triage level is computed once when the patient joins the queue based on their reported symptoms using a rule-based AI engine.
-- Storing it as a column (rather than computing it on every read) allows:
-  - Fast sorting/filtering by urgency on the Doctor's dashboard
-  - Historical audit of triage decisions
-  - Admin reporting on acuity distribution
-- The value is immutable once assigned (can only be overridden by a doctor/admin manually).
-- Indexing this column enables efficient queries like "show all CRITICAL patients across all queues."
-
-### `predicted_wait_minutes` (INT)
-
-**Why stored as a column:**
-- The predicted wait time is computed when the patient joins the queue based on:
-  - Number of patients ahead with their triage levels
-  - Average consultation time per doctor (historical)
-  - Triage-based priority weighting
-- Storing the predicted value allows:
-  - The patient to see their estimated wait time without recomputation
-  - Historical accuracy analysis (compare predicted vs. actual)
-  - The value is updated periodically (e.g., every 30 seconds via a scheduled task or on queue state change) and pushed to the UI via polling
-- `actual_wait_minutes` is filled later when consultation starts, enabling accuracy benchmarking.
-
----
-
-## 4. Entity Relationship Summary
-
-| Table | Primary Key | Foreign Keys | Indexes |
-|-------|-------------|-------------|---------|
-| users | id (UUID) | — | email, role |
-| patient_profiles | id (BIGINT) | user_id → users.id | user_id (unique) |
-| admin_profiles | id (BIGINT) | user_id → users.id | user_id (unique) |
-| departments | id (BIGINT) | — | name (unique) |
-| doctor_profiles | id (BIGINT) | user_id → users.id, department_id → departments.id | specialization, department_id |
-| queue_entries | id (BIGINT) | patient_id → users.id, doctor_id → users.id, department_id → departments.id | doctor_id+status, patient_id, triage_level, position |
+| Table | Service Owner | Primary Key | Reference to users.id | Notes |
+|-------|--------------|-------------|----------------------|-------|
+| users | auth-service | id (UUID) | — | Auth table, JWT identity |
+| user_profiles | user-service | id (BIGINT) | user_id (plain ref) | Lazy-created on first profile access |
+| patient_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
+| admin_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
+| departments | doctor-service | id (BIGINT) | — | Day 4 |
+| doctor_profiles | doctor-service | id (BIGINT) | user_id (FK) | Day 4 |
+| queue_entries | queue-service | id (BIGINT) | patient_id, doctor_id (FK) | Day 5+ |
