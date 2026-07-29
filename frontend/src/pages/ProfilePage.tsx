@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -59,6 +60,7 @@ export default function ProfilePage() {
   const handleEdit = () => {
     if (profile) fillForm(profile);
     setSelectedFile(null);
+    setPreviewUrl(null);
     setIsEditing(true);
     setError('');
     setSuccess('');
@@ -67,6 +69,7 @@ export default function ProfilePage() {
   const handleCancel = () => {
     if (profile) fillForm(profile);
     setSelectedFile(null);
+    setPreviewUrl(null);
     setIsEditing(false);
     setError('');
   };
@@ -78,15 +81,34 @@ export default function ProfilePage() {
     setIsSaving(true);
 
     try {
+      let updatedProfile = profile;
+
+      // Step 1: Upload profile picture if a file was selected
+      if (selectedFile) {
+        try {
+          updatedProfile = await api.uploadProfilePicture(selectedFile);
+        } catch (uploadErr) {
+          setError(uploadErr instanceof Error ? uploadErr.message : 'Failed to upload picture');
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Step 2: Update profile fields
       const payload: Record<string, string> = {};
       if (phone) payload.phone = phone;
       if (address) payload.address = address;
       if (dateOfBirth) payload.dateOfBirth = dateOfBirth;
       if (gender) payload.gender = gender;
 
-      const updated = await api.updateProfile(payload);
-      setProfile(updated);
+      if (Object.keys(payload).length > 0) {
+        updatedProfile = await api.updateProfile(payload);
+      }
+
+      setProfile(updatedProfile);
       setSuccess('Profile updated successfully');
+      setSelectedFile(null);
+      setPreviewUrl(null);
       setIsEditing(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
@@ -104,6 +126,8 @@ export default function ProfilePage() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      // Create a local preview URL
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -144,7 +168,7 @@ export default function ProfilePage() {
         {success && <Alert type="success" message={success} />}
 
         <Card>
-          <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} />
+          <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} previewUrl={previewUrl} />
 
           <div style={{ padding: '0 2rem 2rem' }}>
             <InfoRow label="Phone" value={profile?.phone || 'Not set'} />
@@ -189,8 +213,7 @@ export default function ProfilePage() {
 
       {error && <Alert type="error" message={error} />}
 
-      <Card>
-        <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} />
+      <Card>          <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} previewUrl={previewUrl} />
 
         <form onSubmit={handleSubmit} style={{ padding: '0 2rem 2rem' }}>
           <div style={{ marginBottom: '1.25rem' }}>
@@ -285,9 +308,6 @@ export default function ProfilePage() {
                 {selectedFile ? selectedFile.name : (profile?.profilePictureUrl || 'No file selected')}
               </span>
             </div>
-            <p style={{ margin: '0.3rem 0 0', fontSize: '0.8rem', color: '#a0aec0' }}>
-              File upload to server will be available in a future update. For now, this selects the file locally.
-            </p>
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -379,17 +399,18 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProfileAvatar({ user, profilePictureUrl }: { user: any; profilePictureUrl?: string | null }) {
+function ProfileAvatar({ user, profilePictureUrl, previewUrl }: { user: any; profilePictureUrl?: string | null; previewUrl?: string | null }) {
+  const displayUrl = previewUrl || profilePictureUrl;
   return (
     <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        {profilePictureUrl ? (
+        {displayUrl ? (
           <img
-            src={profilePictureUrl}
+            src={displayUrl}
             alt="Profile"
             style={{
               width: '80px', height: '80px', borderRadius: '50%',
-              objectFit: 'cover',
+              objectFit: 'cover', border: previewUrl ? '3px solid #48bb78' : 'none',
             }}
           />
         ) : (

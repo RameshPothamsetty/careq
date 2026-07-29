@@ -98,6 +98,29 @@ export const api = {
 
   getUserProfileById: (userId: string) =>
     request<UserProfileResponse>(`/api/users/${userId}`),
+
+  uploadProfilePicture: async (file: File): Promise<UserProfileResponse> => {
+    const token = localStorage.getItem('careq_token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/api/users/me/profile-picture`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage = data.message || data.error || 'Failed to upload picture';
+      throw new Error(errorMessage);
+    }
+
+    return data as UserProfileResponse;
+  },
 };
 
 export type { AuthResponse, SignupPayload, LoginPayload, UserProfileResponse, UpdateProfilePayload };
