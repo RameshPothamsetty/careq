@@ -41,10 +41,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // Skip public auth routes
+        // Skip public auth routes and profile pictures (images loaded via <img> tags)
         if (path.startsWith("/api/auth/signup")
                 || path.startsWith("/api/auth/login")
-                || path.startsWith("/api/auth/health")) {
+                || path.startsWith("/api/auth/health")
+                || path.startsWith("/api/users/profile-pictures/")) {
             return chain.filter(exchange);
         }
 
