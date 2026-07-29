@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.security.Security;
 import java.util.UUID;
 
 @Service
@@ -54,8 +55,13 @@ public class FileStorageService {
 
     /**
      * Returns the Path to a stored file by its filename.
+     * Throws SecurityException if the resolved path escapes the upload directory.
      */
     public Path getFilePath(String filename) {
-        return uploadDir.resolve(filename).normalize();
+        Path filePath = uploadDir.resolve(filename).normalize();
+        if (!filePath.startsWith(uploadDir)) {
+            throw new SecurityException("Cannot access file outside upload directory");
+        }
+        return filePath;
     }
 }

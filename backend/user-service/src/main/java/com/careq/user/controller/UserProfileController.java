@@ -49,7 +49,6 @@ public class UserProfileController {
     @PostMapping("/me/profile-picture")
     public ResponseEntity<UserProfileResponseDto> uploadProfilePicture(
             @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-User-Role") String role,
             @RequestParam("file") MultipartFile file) {
 
         if (file.isEmpty()) {
