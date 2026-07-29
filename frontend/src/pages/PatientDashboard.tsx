@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function PatientDashboard() {
   const { user, logout } = useAuth();
@@ -30,30 +30,49 @@ export default function PatientDashboard() {
             Welcome, {user?.fullName || 'Patient'}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '0.5rem 1.25rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            background: '#fff',
-            color: '#e53e3e',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#fff5f5';
-            e.currentTarget.style.borderColor = '#fc8181';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = '#fff';
-            e.currentTarget.style.borderColor = '#e2e8f0';
-          }}
-        >
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Link
+            to="/profile"
+            style={{
+              padding: '0.5rem 1.25rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#4a5568',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              transition: 'all 0.2s',
+            }}
+          >
+            Profile
+          </Link>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: '0.5rem 1.25rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#e53e3e',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#fff5f5';
+              e.currentTarget.style.borderColor = '#fc8181';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#fff';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       <div style={{ display: 'grid', gap: '1.5rem' }}>

@@ -9,6 +9,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -40,10 +41,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // Skip public auth routes
+        // Skip public auth routes and profile pictures (images loaded via <img> tags)
         if (path.startsWith("/api/auth/signup")
                 || path.startsWith("/api/auth/login")
-                || path.startsWith("/api/auth/health")) {
+                || path.startsWith("/api/auth/health")
+                || path.startsWith("/api/users/profile-pictures/")) {
             return chain.filter(exchange);
         }
 
@@ -61,12 +63,33 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
         String token = authHeader.substring(7);
 
-        if (!isTokenValid(token)) {
+        Claims claims;
+        try {
+            claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception e) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
 
-        return chain.filter(exchange);
+        // Extract userId and role from JWT claims and forward as headers
+        String userId = claims.getSubject();
+        String role = claims.get("role", String.class);
+
+        // Add headers to the request before forwarding to downstream services
+        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                .header("X-User-Id", userId)
+                .header("X-User-Role", role)
+                .build();
+
+        ServerWebExchange mutatedExchange = exchange.mutate()
+                .request(mutatedRequest)
+                .build();
+
+        return chain.filter(mutatedExchange);
     }
 
     @Override
@@ -78,16 +101,4 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    private boolean isTokenValid(String token) {
-        try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
 }

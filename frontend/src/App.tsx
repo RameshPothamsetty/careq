@@ -6,6 +6,7 @@ import SignupPage from './pages/SignupPage';
 import PatientDashboard from './pages/PatientDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -16,6 +17,16 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+
+          {/* Profile — accessible to all authenticated users */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected role-based routes */}
           <Route

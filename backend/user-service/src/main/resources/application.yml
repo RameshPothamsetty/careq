@@ -2,6 +2,10 @@ server:
   port: 8082
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
   application:
     name: user-service
   datasource:
@@ -17,6 +21,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+
+app:
+  upload:
+    profile-pictures-dir: uploads/profile-pictures
 
 eureka:
   client:
