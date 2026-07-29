@@ -21,6 +21,25 @@ interface AuthResponse {
   role: string;
 }
 
+interface UserProfileResponse {
+  id: number;
+  userId: string;
+  phone: string | null;
+  address: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  profilePictureUrl: string | null;
+  role: string;
+}
+
+interface UpdateProfilePayload {
+  phone?: string;
+  address?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  profilePictureUrl?: string;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -67,6 +86,18 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  getProfile: () =>
+    request<UserProfileResponse>('/api/users/me'),
+
+  updateProfile: (payload: UpdateProfilePayload) =>
+    request<UserProfileResponse>('/api/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  getUserProfileById: (userId: string) =>
+    request<UserProfileResponse>(`/api/users/${userId}`),
 };
 
-export type { AuthResponse, SignupPayload, LoginPayload };
+export type { AuthResponse, SignupPayload, LoginPayload, UserProfileResponse, UpdateProfilePayload };
