@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.3 (Day 3)  
-**Status:** Updated — User Module Live
+**Version:** 1.4 (Day 4)  
+**Status:** Updated — Doctor/Department Module Live
 
 ---
 
@@ -63,7 +63,7 @@
 | **api-gateway** | Routes external requests to internal services via Eureka discovery; validates JWT tokens; forwards `X-User-Id` and `X-User-Role` headers to downstream services | None | Yes (as a client) |
 | **auth-service** | User registration, login, JWT issuance | `users` | Yes |
 | **user-service** | Profile CRUD for all roles; lazy profile creation on first access; Admin-only user profile lookup | `user_profiles` | Yes |
-| **doctor-service** | Department and Doctor catalog management | `departments`, `doctor_profiles` | Yes |
+| **doctor-service** | Department CRUD, Doctor catalog management, public browsing with filters, availability toggle | `departments`, `doctor_catalog_entries` | Yes |
 | **queue-service** | Queue operations, AI wait-time prediction, AI symptom triage | `queue_entries` | Yes |
 
 ---
