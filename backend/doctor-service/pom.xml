@@ -13,7 +13,7 @@
 
     <artifactId>doctor-service</artifactId>
     <name>CareQ Doctor Service</name>
-    <description>Doctor & Department catalog management</description>
+    <description>Doctor &amp; Department catalog management</description>
 
     <dependencies>
         <dependency>

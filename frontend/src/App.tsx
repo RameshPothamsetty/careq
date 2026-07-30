@@ -33,7 +33,7 @@ function App() {
 
           {/* Protected role-based routes */}
           <Route
-            path="/patient"
+            path="/patient/*"
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PatientDashboard />
