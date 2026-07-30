@@ -33,42 +33,13 @@ export default function AdminDashboard() {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Link
             to="/profile"
-            style={{
-              padding: '0.5rem 1.25rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              background: '#fff',
-              color: '#4a5568',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              textDecoration: 'none',
-              transition: 'all 0.2s',
-            }}
+            style={btnSecondary}
           >
             Profile
           </Link>
           <button
             onClick={handleLogout}
-            style={{
-              padding: '0.5rem 1.25rem',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              background: '#fff',
-              color: '#e53e3e',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#fff5f5';
-              e.currentTarget.style.borderColor = '#fc8181';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#fff';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-            }}
+            style={btnDanger}
           >
             Logout
           </button>
@@ -76,14 +47,58 @@ export default function AdminDashboard() {
       </header>
 
       <div style={{ display: 'grid', gap: '1.5rem' }}>
+        {/* Management Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <Link to="/admin/departments" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '12px',
+                padding: '2rem',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s',
+                cursor: 'pointer',
+                border: '2px solid transparent',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#667eea'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🏥</div>
+              <h3 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.1rem' }}>Manage Departments</h3>
+              <p style={{ margin: 0, color: '#718096', fontSize: '0.85rem' }}>
+                Create, edit, and delete hospital departments
+              </p>
+            </div>
+          </Link>
+
+          <Link to="/admin/doctors" style={{ textDecoration: 'none' }}>
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: '12px',
+                padding: '2rem',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s',
+                cursor: 'pointer',
+                border: '2px solid transparent',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#667eea'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🩺</div>
+              <h3 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.1rem' }}>Manage Doctors</h3>
+              <p style={{ margin: 0, color: '#718096', fontSize: '0.85rem' }}>
+                Add, edit, and manage doctor catalog entries
+              </p>
+            </div>
+          </Link>
+        </div>
+
         <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '1.15rem' }}>Welcome, {user?.fullName}!</h2>
           <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
             You are logged in as an <strong>Admin</strong>. Manage departments, doctors, and monitor queue operations across the hospital.
           </p>
-          <div style={{ marginTop: '1rem', padding: '1rem', background: '#f0fff4', borderRadius: '8px', color: '#276749', fontSize: '0.875rem' }}>
-            Admin management features will be available starting Day 4.
-          </div>
         </div>
 
         <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -97,8 +112,33 @@ export default function AdminDashboard() {
       </div>
 
       <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem' }}>
-        CareQ — SmartOPD AI | Day 2 — Auth Module Complete
+        CareQ — SmartOPD AI | Day 4 — Doctor/Department Module
       </footer>
     </div>
   );
 }
+
+const btnSecondary: React.CSSProperties = {
+  padding: '0.5rem 1.25rem',
+  border: '1px solid #e2e8f0',
+  borderRadius: '8px',
+  background: '#fff',
+  color: '#4a5568',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  textDecoration: 'none',
+  transition: 'all 0.2s',
+};
+
+const btnDanger: React.CSSProperties = {
+  padding: '0.5rem 1.25rem',
+  border: '1px solid #e2e8f0',
+  borderRadius: '8px',
+  background: '#fff',
+  color: '#e53e3e',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  transition: 'all 0.2s',
+};
