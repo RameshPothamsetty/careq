@@ -40,6 +40,45 @@ interface UpdateProfilePayload {
   profilePictureUrl?: string;
 }
 
+interface DepartmentResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+interface DepartmentRequest {
+  name: string;
+  description?: string;
+}
+
+interface DoctorCatalogResponse {
+  id: number;
+  userId: string;
+  departmentId: number;
+  departmentName: string;
+  specialization: string;
+  qualification: string;
+  experienceYears: number;
+  consultationFee: number;
+  avgConsultationTimeMinutes: number;
+  isAvailable: boolean;
+}
+
+interface DoctorCatalogRequest {
+  userId: string;
+  departmentId: number;
+  specialization: string;
+  qualification: string;
+  experienceYears: number;
+  consultationFee: number;
+  avgConsultationTimeMinutes: number;
+}
+
+interface AvailabilityRequest {
+  isAvailable: boolean;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -99,6 +138,67 @@ export const api = {
   getUserProfileById: (userId: string) =>
     request<UserProfileResponse>(`/api/users/${userId}`),
 
+  // ---- Department API ----
+
+  getDepartments: () =>
+    request<DepartmentResponse[]>('/api/departments'),
+
+  getDepartmentById: (id: number) =>
+    request<DepartmentResponse>(`/api/departments/${id}`),
+
+  createDepartment: (payload: DepartmentRequest) =>
+    request<DepartmentResponse>('/api/departments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateDepartment: (id: number, payload: DepartmentRequest) =>
+    request<DepartmentResponse>(`/api/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteDepartment: (id: number) =>
+    request<void>(`/api/departments/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // ---- Doctor Catalog API ----
+
+  getDoctors: (params?: { departmentId?: number; specialization?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.departmentId) query.set('departmentId', String(params.departmentId));
+    if (params?.specialization) query.set('specialization', params.specialization);
+    const qs = query.toString();
+    return request<DoctorCatalogResponse[]>(`/api/doctors${qs ? `?${qs}` : ''}`);
+  },
+
+  getDoctorById: (id: number) =>
+    request<DoctorCatalogResponse>(`/api/doctors/${id}`),
+
+  createDoctor: (payload: DoctorCatalogRequest) =>
+    request<DoctorCatalogResponse>('/api/doctors', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  updateDoctor: (id: number, payload: DoctorCatalogRequest) =>
+    request<DoctorCatalogResponse>(`/api/doctors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  deleteDoctor: (id: number) =>
+    request<void>(`/api/doctors/${id}`, {
+      method: 'DELETE',
+    }),
+
+  toggleAvailability: (payload: AvailabilityRequest) =>
+    request<DoctorCatalogResponse>('/api/doctors/me/availability', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
   uploadProfilePicture: async (file: File): Promise<UserProfileResponse> => {
     const token = localStorage.getItem('careq_token');
     const formData = new FormData();
@@ -123,4 +223,15 @@ export const api = {
   },
 };
 
-export type { AuthResponse, SignupPayload, LoginPayload, UserProfileResponse, UpdateProfilePayload };
+export type {
+  AuthResponse,
+  SignupPayload,
+  LoginPayload,
+  UserProfileResponse,
+  UpdateProfilePayload,
+  DepartmentResponse,
+  DepartmentRequest,
+  DoctorCatalogResponse,
+  DoctorCatalogRequest,
+  AvailabilityRequest,
+};
