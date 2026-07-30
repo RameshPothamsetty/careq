@@ -7,6 +7,9 @@ import PatientDashboard from './pages/PatientDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
+import PatientDoctorBrowser from './pages/PatientDoctorBrowser';
+import AdminDepartmentManager from './pages/AdminDepartmentManager';
+import AdminDoctorManager from './pages/AdminDoctorManager';
 
 function App() {
   return (
@@ -38,6 +41,14 @@ function App() {
             }
           />
           <Route
+            path="/patient/doctors"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <PatientDoctorBrowser />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/doctor/*"
             element={
               <ProtectedRoute allowedRoles={['DOCTOR']}>
@@ -50,6 +61,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/departments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminDepartmentManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/doctors"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminDoctorManager />
               </ProtectedRoute>
             }
           />

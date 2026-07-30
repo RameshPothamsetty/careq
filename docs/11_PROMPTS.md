@@ -24,8 +24,20 @@ _Not archived — authentication module prompt._
 
 ---
 
+---
+
+## Day 4: Doctor / Department Module
+
+**Prompt:** CareQ — Day 4 Prompt (Doctor / Department Module)
+
+**Date Executed:** 2026-07-30
+
+**Branch:** `feature/doctor-service`
+
+**Summary:** Built doctor-service with Department and DoctorCatalogEntry entities, Admin CRUD for both, public doctor browsing with filters (departmentId, specialization), doctor availability toggle via header-based identity. Created docs/05_API_CONTRACT.md with full API contract. Updated React: AdminDashboard with management cards, AdminDepartmentManager (CRUD), AdminDoctorManager (CRUD), PatientDoctorBrowser (filterable listing), DoctorDashboard (availability toggle). Updated database (departments + doctor_catalog_entries tables), architecture (service responsibility), and testing docs.
+
 ## Full Prompt Text
 
 ```
-<insert Day 3 prompt text here — paste the full prompt as given>
+<insert Day 4 prompt text here — paste the full prompt as given>
 ```

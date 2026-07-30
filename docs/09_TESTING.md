@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.3 (Day 3)  
-**Status:** Updated — Auth Module + User Module Tests
+**Version:** 1.4 (Day 4)  
+**Status:** Updated — Auth Module + User Module + Doctor Module Tests
 
 ---
 
@@ -76,7 +76,76 @@ private static final String TEST_ADDRESS = "123 Main St";
 
 ---
 
-## 4. Integration / API Tests (Future Day)
+## 4. Doctor Service Unit Tests (Day 4)
+
+### Test Class: `DepartmentServiceImplTest`
+
+These tests use JUnit 5 with Mockito to test the department service layer in isolation.
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `getAllDepartments_ShouldReturnList` | Fetch all departments | Returns list of all departments |
+| `getDepartmentById_WhenExists_ShouldReturnDepartment` | Valid department ID | Returns department with correct data |
+| `getDepartmentById_WhenNotExists_ShouldThrowException` | Invalid department ID | Throws `DepartmentNotFoundException` |
+| `createDepartment_WithUniqueName_ShouldCreate` | Valid request with unique name | Creates and returns department |
+| `createDepartment_WithDuplicateName_ShouldThrowException` | Duplicate department name | Throws `IllegalArgumentException` |
+| `updateDepartment_WhenExists_ShouldUpdate` | Valid update on existing department | Updates and returns department |
+| `deleteDepartment_WhenExists_ShouldDelete` | Delete existing department | Deletes successfully |
+| `deleteDepartment_WhenNotExists_ShouldThrowException` | Delete non-existent department | Throws `DepartmentNotFoundException` |
+
+### Test Class: `DoctorCatalogServiceImplTest`
+
+These tests verify the doctor catalog service logic including filters and availability toggle.
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `getAllDoctors_WithoutFilters_ShouldReturnAll` | No filters applied | Returns all doctor entries |
+| `getAllDoctors_WithDepartmentFilter_ShouldReturnFiltered` | Filter by departmentId | Returns only doctors in that department |
+| `getAllDoctors_WithSpecializationFilter_ShouldReturnFiltered` | Filter by specialization | Returns only doctors matching specialization (case-insensitive) |
+| `getAllDoctors_WithBothFilters_ShouldReturnFiltered` | Both departmentId and specialization | Returns intersection of both filters |
+| `getDoctorById_WhenExists_ShouldReturnEntry` | Valid doctor ID | Returns doctor with correct data |
+| `getDoctorById_WhenNotExists_ShouldThrowException` | Invalid doctor ID | Throws `DoctorCatalogNotFoundException` |
+| `createDoctor_WithUniqueUserId_ShouldCreate` | Valid request with unique userId | Creates and returns entry |
+| `createDoctor_WithDuplicateUserId_ShouldThrowException` | Duplicate userId | Throws `DuplicateDoctorCatalogEntryException` |
+| `createDoctor_WithInvalidDepartment_ShouldThrowException` | Non-existent departmentId | Throws `IllegalArgumentException` |
+| `updateDoctor_WhenExists_ShouldUpdate` | Valid update on existing entry | Updates and returns entry |
+| `deleteDoctor_WhenExists_ShouldDelete` | Delete existing entry | Deletes successfully |
+| `toggleAvailability_WhenExists_ShouldToggle` | Toggle availability for valid userId | Returns entry with flipped `isAvailable` |
+| `toggleAvailability_WhenNotExists_ShouldThrowException` | Toggle for userId with no catalog entry | Throws `DoctorCatalogNotFoundException` |
+
+### Test Class: `DepartmentControllerTest`
+
+These tests verify controller behavior including Admin-only restrictions.
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `getAllDepartments_ShouldReturn200` | Any authenticated user | Returns 200 OK with list |
+| `createDepartment_AsAdmin_ShouldReturn201` | Admin creates department | Returns 201 Created |
+| `createDepartment_AsNonAdmin_ShouldReturn403` | Patient/Doctor tries to create | Returns 403 Forbidden |
+| `updateDepartment_AsAdmin_ShouldReturn200` | Admin updates department | Returns 200 OK |
+| `deleteDepartment_AsAdmin_ShouldReturn204` | Admin deletes department | Returns 204 No Content |
+
+### Test Class: `DoctorCatalogControllerTest`
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `getAllDoctors_ShouldReturn200` | Any authenticated user | Returns 200 OK with list |
+| `getDoctorById_ShouldReturn200` | Valid ID | Returns 200 OK |
+| `createDoctor_AsAdmin_ShouldReturn201` | Admin creates doctor entry | Returns 201 Created |
+| `createDoctor_AsNonAdmin_ShouldReturn403` | Patient/Doctor tries to create | Returns 403 Forbidden |
+| `toggleAvailability_AsDoctor_ShouldReturn200` | Doctor toggles own availability | Returns 200 OK with updated entry |
+| `toggleAvailability_AsNonDoctor_ShouldReturn403` | Patient/Admin tries to toggle | Returns 403 Forbidden |
+
+### Mock Setup
+
+- `DepartmentRepository` — mocked with Mockito
+- `DoctorCatalogRepository` — mocked with Mockito
+- `DepartmentService` — mocked for controller tests
+- `DoctorCatalogService` — mocked for controller tests
+
+---
+
+## 5. Integration / API Tests (Future Day)
 
 > **Note:** Integration tests requiring a running MySQL instance and full microservice stack will be added on the dedicated testing day later in the checklist. These will include:
 >
@@ -90,7 +159,7 @@ private static final String TEST_ADDRESS = "123 Main St";
 
 ---
 
-## 5. Running Tests
+## 6. Running Tests
 
 ```bash
 # Run all auth-service tests
@@ -111,7 +180,7 @@ mvn test
 
 ---
 
-## 6. Test Coverage Target
+## 7. Test Coverage Target
 
 - **Service layer:** ≥ 70% (ADF Section 9 requirement)
 - **Controller layer:** ≥ 50% (via integration tests on testing day)
