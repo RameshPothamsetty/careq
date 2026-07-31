@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import QueuePageHeader from '../components/QueuePageHeader';
+import AvatarInitials from '../components/ui/AvatarInitials';
+import Button from '../components/ui/Button';
+import { LoadingState } from '../components/ui/States';
 
 interface UserProfile {
   id: number;
@@ -15,8 +18,7 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,6 +36,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfile = async () => {
@@ -83,7 +86,6 @@ export default function ProfilePage() {
     try {
       let updatedProfile = profile;
 
-      // Step 1: Upload profile picture if a file was selected
       if (selectedFile) {
         try {
           updatedProfile = await api.uploadProfilePicture(selectedFile);
@@ -94,7 +96,6 @@ export default function ProfilePage() {
         }
       }
 
-      // Step 2: Update profile fields
       const payload: Record<string, string> = {};
       if (phone) payload.phone = phone;
       if (address) payload.address = address;
@@ -117,355 +118,175 @@ export default function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      // Create a local preview URL
       setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '0.7rem 0.85rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    fontSize: '0.95rem',
-    boxSizing: 'border-box',
-    outline: 'none',
-    transition: 'border-color 0.2s',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'block',
-    marginBottom: '0.3rem',
-    fontWeight: 600,
-    fontSize: '0.85rem',
-    color: '#4a5568',
-  };
-
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', color: '#4a5568' }}>
-        Loading profile...
+      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-4xl">
+          <LoadingState label="Loading profile…" />
+        </div>
       </div>
     );
   }
 
-  // ---- VIEW MODE ----
-  if (!isEditing) {
-    return (
-      <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto', background: '#f7fafc', minHeight: '100vh' }}>
-        <Header user={user} onBack={() => navigate(-1)} onLogout={handleLogout} />
+  const displayUrl = previewUrl || profile?.profilePictureUrl;
 
-        {error && <Alert type="error" message={error} />}
-        {success && <Alert type="success" message={success} />}
-
-        <Card>
-          <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} previewUrl={previewUrl} />
-
-          <div style={{ padding: '0 2rem 2rem' }}>
-            <InfoRow label="Phone" value={profile?.phone || 'Not set'} />
-            <InfoRow label="Email" value={user?.email || ''} />
-            <InfoRow label="Gender" value={profile?.gender || 'Not set'} />
-            <InfoRow label="Date of Birth" value={profile?.dateOfBirth || 'Not set'} />
-            <InfoRow label="Address" value={profile?.address || 'Not set'} />
-            <InfoRow label="Profile Picture" value={profile?.profilePictureUrl || 'Not set'} isLast />
-
-            <div style={{ marginTop: '1.5rem' }}>
-              <button
-                onClick={handleEdit}
-                style={{
-                  padding: '0.75rem 2rem',
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: '#667eea',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#5a67d8'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#667eea'; }}
-              >
-                Edit Profile
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        <Footer />
-      </div>
-    );
-  }
-
-  // ---- EDIT MODE ----
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto', background: '#f7fafc', minHeight: '100vh' }}>
-      <Header user={user} onBack={() => navigate(-1)} onLogout={handleLogout} />
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <QueuePageHeader
+          icon="👤"
+          title="My Profile"
+          subtitle={`Welcome, ${user?.fullName || 'User'}`}
+          dashboardPath={`/${user?.role.toLowerCase() || 'patient'}`}
+          showDashboard={false}
+          backTo={`/${user?.role.toLowerCase() || 'patient'}`}
+        />
 
-      {error && <Alert type="error" message={error} />}
-
-      <Card>          <ProfileAvatar user={user} profilePictureUrl={profile?.profilePictureUrl} previewUrl={previewUrl} />
-
-        <form onSubmit={handleSubmit} style={{ padding: '0 2rem 2rem' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={labelStyle}>Phone</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1234567890"
-              style={inputStyle}
-              autoFocus
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            ⚠ {error}
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
-            <div>
-              <label style={labelStyle}>Gender</label>
-              <select
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                style={inputStyle}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-              >
-                <option value="">Select gender</option>
-                <option value="MALE">Male</option>
-                <option value="FEMALE">Female</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={labelStyle}>Date of Birth</label>
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                style={inputStyle}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-              />
-            </div>
+        )}
+        {success && (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            ✓ {success}
           </div>
+        )}
 
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={labelStyle}>Address</label>
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Enter your address"
-              rows={3}
-              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={labelStyle}>Profile Picture</label>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              padding: '0.7rem 0.85rem', border: '1px solid #e2e8f0',
-              borderRadius: '8px', background: '#fff',
-            }}>
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: '#667eea',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Choose Image
-              </button>
-              <span style={{ color: selectedFile ? '#4a5568' : '#a0aec0', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {selectedFile ? selectedFile.name : (profile?.profilePictureUrl || 'No file selected')}
+        <div className="card overflow-hidden">
+          {/* Avatar header */}
+          <div className="flex flex-col items-center gap-4 border-b border-slate-100 bg-gradient-to-br from-brand-50 to-sky-50 px-6 py-8 sm:flex-row">
+            <AvatarInitials name={user?.fullName || 'U'} size="lg" imgUrl={displayUrl} />
+            <div className="text-center sm:text-left">
+              <h2 className="text-xl font-bold text-slate-800">{user?.fullName}</h2>
+              <p className="mt-0.5 text-sm text-slate-500">{user?.email}</p>
+              <span className="mt-2 inline-flex items-center rounded-full border border-brand-200 bg-brand-100 px-3 py-0.5 text-xs font-semibold text-brand-700">
+                {user?.role}
               </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button
-              type="submit"
-              disabled={isSaving}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '0.95rem',
-                fontWeight: 600,
-                border: 'none',
-                borderRadius: '8px',
-                background: isSaving ? '#a0aec0' : '#48bb78',
-                color: '#fff',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = '#38a169'; }}
-              onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = '#48bb78'; }}
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '0.95rem',
-                fontWeight: 500,
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                background: '#fff',
-                color: '#4a5568',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#f7fafc'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </Card>
+          {/* Body */}
+          {!isEditing ? (
+            <div className="space-y-0 p-6">
+              {[
+                { label: 'Phone', value: profile?.phone || 'Not set' },
+                { label: 'Email', value: user?.email || '' },
+                { label: 'Gender', value: profile?.gender || 'Not set' },
+                { label: 'Date of Birth', value: profile?.dateOfBirth || 'Not set' },
+                { label: 'Address', value: profile?.address || 'Not set' },
+                { label: 'Profile Picture', value: profile?.profilePictureUrl || 'Not set' },
+              ].map((row, i) => (
+                <div
+                  key={row.label}
+                  className={`flex items-center justify-between gap-4 py-3.5 ${i < 5 ? 'border-b border-slate-100' : ''}`}
+                >
+                  <span className="text-sm font-medium text-slate-500">{row.label}</span>
+                  <span
+                    className={`text-sm font-semibold ${row.value === 'Not set' ? 'text-slate-400' : 'text-slate-800'}`}
+                  >
+                    {row.value}
+                  </span>
+                </div>
+              ))}
+              <div className="pt-4">
+                <Button onClick={handleEdit}>Edit Profile</Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-5 p-6">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Phone</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1234567890"
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
 
-      <Footer />
-    </div>
-  );
-}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Gender</label>
+                  <select value={gender} onChange={(e) => setGender(e.target.value)} className="select-field">
+                    <option value="">Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+              </div>
 
-// ---- Sub-components ----
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Address</label>
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter your address"
+                  rows={3}
+                  className="input-field resize-none"
+                />
+              </div>
 
-function Header({ user, onBack, onLogout }: { user: any; onBack: () => void; onLogout: () => void }) {
-  return (
-    <header style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      marginBottom: '2rem', padding: '1rem 1.5rem', background: '#fff',
-      borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    }}>
-      <div>
-        <h1 style={{ margin: 0, color: '#1a202c', fontSize: '1.5rem' }}>👤 My Profile</h1>
-        <p style={{ margin: '0.25rem 0 0', color: '#718096', fontSize: '0.875rem' }}>
-          Welcome, {user?.fullName || 'User'}
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button onClick={onBack} style={btnSecondary}>← Back</button>
-        <button onClick={onLogout} style={btnDanger}>Logout</button>
-      </div>
-    </header>
-  );
-}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Profile Picture</label>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="!py-2 text-xs"
+                  >
+                    Choose Image
+                  </Button>
+                  <span className="truncate text-sm text-slate-400">
+                    {selectedFile ? selectedFile.name : profile?.profilePictureUrl || 'No file selected'}
+                  </span>
+                </div>
+              </div>
 
-function Alert({ type, message }: { type: 'error' | 'success'; message: string }) {
-  const bg = type === 'error' ? '#fed7d7' : '#c6f6d5';
-  const color = type === 'error' ? '#c53030' : '#276749';
-  return (
-    <div style={{ background: bg, color, padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
-      {message}
-    </div>
-  );
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
-      {children}
-    </div>
-  );
-}
-
-function ProfileAvatar({ user, profilePictureUrl, previewUrl }: { user: any; profilePictureUrl?: string | null; previewUrl?: string | null }) {
-  const displayUrl = previewUrl || profilePictureUrl;
-  return (
-    <div style={{ padding: '2rem 2rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-        {displayUrl ? (
-          <img
-            src={displayUrl}
-            alt="Profile"
-            style={{
-              width: '80px', height: '80px', borderRadius: '50%',
-              objectFit: 'cover', border: previewUrl ? '3px solid #48bb78' : 'none',
-            }}
-          />
-        ) : (
-          <div style={{
-            width: '80px', height: '80px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: '2rem', fontWeight: 700,
-          }}>
-            {user?.fullName?.charAt(0) || 'U'}
-          </div>
-        )}
-        <div>
-          <h2 style={{ margin: 0, color: '#1a202c', fontSize: '1.35rem' }}>{user?.fullName}</h2>
-          <p style={{ margin: '0.25rem 0', color: '#718096', fontSize: '0.9rem' }}>{user?.email}</p>
-          <span style={{
-            display: 'inline-block', padding: '0.2rem 0.75rem', borderRadius: '999px',
-            fontSize: '0.75rem', fontWeight: 600, background: '#ebf8ff', color: '#2b6cb0',
-          }}>
-            {user?.role}
-          </span>
+              <div className="flex gap-3 pt-1">
+                <Button type="submit" loading={isSaving}>
+                  {isSaving ? 'Saving…' : 'Save Changes'}
+                </Button>
+                <Button type="button" variant="secondary" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
+
+        <footer className="pt-4 text-center text-xs text-slate-400">
+          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+        </footer>
       </div>
     </div>
   );
 }
-
-function InfoRow({ label, value, isLast }: { label: string; value: string; isLast?: boolean }) {
-  return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '0.85rem 0', borderBottom: isLast ? 'none' : '1px solid #f0f0f0',
-    }}>
-      <span style={{ fontWeight: 500, color: '#4a5568', fontSize: '0.9rem' }}>{label}</span>
-      <span style={{ color: value === 'Not set' ? '#a0aec0' : '#1a202c', fontSize: '0.9rem' }}>{value}</span>
-    </div>
-  );
-}
-
-function Footer() {
-  return (
-    <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem' }}>
-      CareQ — SmartOPD AI | Day 3 — User Module Complete
-    </footer>
-  );
-}
-
-const btnSecondary: React.CSSProperties = {
-  padding: '0.5rem 1rem', border: '1px solid #e2e8f0', borderRadius: '8px',
-  background: '#fff', color: '#4a5568', cursor: 'pointer', fontSize: '0.875rem',
-  transition: 'all 0.2s',
-};
-
-const btnDanger: React.CSSProperties = {
-  padding: '0.5rem 1.25rem', border: '1px solid #e2e8f0', borderRadius: '8px',
-  background: '#fff', color: '#e53e3e', cursor: 'pointer', fontSize: '0.875rem',
-  fontWeight: 500, transition: 'all 0.2s',
-};

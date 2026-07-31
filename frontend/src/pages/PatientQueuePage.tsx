@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { HeartPulse, RefreshCw, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   api,
@@ -7,52 +8,10 @@ import {
   type QueueEntryResponse,
 } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
-import TriageBadge from '../components/TriageBadge';
+import { LiveBadge, StatusTag, Button } from '../components/ui';
+import { LoadingState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
-
-// ─── Small building blocks ────────────────────────────────────────────
-
-function Spinner() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
-      <p className="mt-4 text-sm text-ink-muted">Checking your queue status…</p>
-    </div>
-  );
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="card mx-auto max-w-lg p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-2xl">
-        ⚠️
-      </div>
-      <h2 className="mt-4 text-lg font-bold text-ink">Something went wrong</h2>
-      <p className="mt-1 text-sm text-ink-muted">{message}</p>
-      <button onClick={onRetry} className="btn-primary mt-6">
-        Try again
-      </button>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: QueueEntryResponse['status'] }) {
-  const config = {
-    WAITING: 'bg-sky-100 text-sky-700 border-sky-200',
-    IN_PROGRESS: 'bg-violet-100 text-violet-700 border-violet-200',
-    COMPLETED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    CANCELLED: 'bg-slate-100 text-slate-500 border-slate-200',
-  } as const;
-  return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${config[status]}`}>
-      {status === 'WAITING' && 'In queue'}
-      {status === 'IN_PROGRESS' && 'Consultation in progress'}
-      {status === 'COMPLETED' && 'Completed'}
-      {status === 'CANCELLED' && 'Cancelled'}
-    </span>
-  );
-}
 
 // ─── Live status view (the flagship screen) ───────────────────────────
 
@@ -75,11 +34,16 @@ function LiveStatusView({
     <div className="mx-auto max-w-2xl space-y-5">
       {/* Live indicator */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2 text-xs font-medium text-ink-muted">
-          <span className="h-2.5 w-2.5 animate-pulse-dot rounded-full bg-brand-500" />
-          <span>Live — updating automatically every 10s</span>
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <LiveBadge lastUpdatedSeconds={secondsAgo} />
+          <span>Polling every 10s</span>
         </div>
-        <span className="text-xs font-medium text-ink-muted">Last updated {secondsAgo}s ago</span>
+        {isStale && (
+          <Button variant="secondary" onClick={onRefresh} className="!py-1 text-xs">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Retry
+          </Button>
+        )}
       </div>
 
       {isStale && (
@@ -87,9 +51,6 @@ function LiveStatusView({
           <p className="text-sm font-medium text-amber-700">
             ⚠ Showing the last known status — a refresh just failed.
           </p>
-          <button onClick={onRefresh} className="btn-secondary !py-1.5 text-xs">
-            Retry
-          </button>
         </div>
       )}
 
@@ -115,7 +76,7 @@ function LiveStatusView({
                   : 'Your position in queue'}
             </h2>
           </div>
-          <TriageBadge level={entry.effectiveTriage} className="!bg-white/15 !border-white/25 !text-white" />
+          <StatusTag status={entry.effectiveTriage} className="!bg-white/15 !border-white/25 !text-white" />
         </div>
 
         <div className="relative mt-6 flex items-end gap-8">
@@ -164,34 +125,31 @@ function LiveStatusView({
       {/* Detail card */}
       <div className="card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <StatusPill status={entry.status} />
-          <p className="text-xs text-ink-muted">
+          <StatusTag status={entry.status} />
+          <p className="text-xs text-slate-400">
             Joined at {new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Symptoms reported</p>
-          <p className="mt-1.5 rounded-xl bg-surface p-3.5 text-sm leading-relaxed text-ink">{entry.symptomText}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Symptoms reported</p>
+          <p className="mt-1.5 rounded-xl bg-gray-50 p-3.5 text-sm leading-relaxed text-slate-800">{entry.symptomText}</p>
         </div>
         <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <div className="rounded-xl bg-surface p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">AI triage</p>
-            <p className="mt-1 font-semibold text-ink">{entry.aiSuggestedTriage}</p>
+          <div className="rounded-xl bg-gray-50 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">AI triage</p>
+            <p className="mt-1 font-semibold text-slate-800">{entry.aiSuggestedTriage}</p>
           </div>
-          <div className="rounded-xl bg-surface p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+          <div className="rounded-xl bg-gray-50 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Doctor's final decision
             </p>
-            <p className="mt-1 font-semibold text-ink">{entry.doctorOverrideTriage ?? 'No override yet'}</p>
+            <p className="mt-1 font-semibold text-slate-800">{entry.doctorOverrideTriage ?? 'No override yet'}</p>
           </div>
         </div>
-        <button
-          onClick={onRefresh}
-          className="btn-secondary w-full sm:w-auto"
-          title="Fetch the latest status"
-        >
-          ↻ Refresh now
-        </button>
+        <Button variant="secondary" onClick={onRefresh} className="w-full sm:w-auto" title="Fetch the latest status">
+          <RefreshCw className="h-4 w-4" />
+          Refresh now
+        </Button>
       </div>
     </div>
   );
@@ -253,12 +211,12 @@ function JoinFlow({
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="card p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-100 text-xl">
-            🩺
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-100">
+            <HeartPulse className="h-5 w-5 text-brand-700" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-ink">Join a queue</h2>
-            <p className="text-sm text-ink-muted">
+            <h2 className="text-lg font-bold text-slate-800">Join a queue</h2>
+            <p className="text-sm text-slate-500">
               Pick a doctor, describe your symptoms, and our AI will triage your priority instantly.
             </p>
           </div>
@@ -277,9 +235,9 @@ function JoinFlow({
 
         <div className="mt-6 space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink">Doctor</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Doctor</label>
             {isLoadingDoctors ? (
-              <div className="h-11 animate-pulse rounded-xl bg-slate-100" />
+              <div className="h-11 animate-pulse rounded-xl bg-gray-100" />
             ) : (
               <select
                 value={selectedDoctor}
@@ -295,14 +253,14 @@ function JoinFlow({
               </select>
             )}
             {!isLoadingDoctors && doctors.length === 0 && (
-              <p className="mt-2 text-xs text-ink-muted">
+              <p className="mt-2 text-xs text-slate-400">
                 No doctors are currently accepting new patients.
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink">Symptoms</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Symptoms</label>
             <textarea
               value={symptomText}
               onChange={(e) => setSymptomText(e.target.value)}
@@ -311,13 +269,13 @@ function JoinFlow({
               placeholder="Describe what you're experiencing, e.g. 'Severe chest pain radiating to my left arm for the past hour'"
               className="input-field resize-none"
             />
-            <p className="mt-1 text-right text-xs text-ink-muted">{symptomText.length}/2000</p>
+            <p className="mt-1 text-right text-xs text-slate-400">{symptomText.length}/2000</p>
           </div>
 
-          <button onClick={handleJoin} disabled={isJoining} className="btn-primary w-full py-3 text-base">
+          <Button onClick={handleJoin} loading={isJoining} className="w-full py-3 text-base">
             {isJoining ? 'Running AI triage…' : 'Join Queue →'}
-          </button>
-          <p className="text-center text-xs text-ink-muted">
+          </Button>
+          <p className="text-center text-xs text-slate-400">
             {user?.fullName} · Your position & estimated wait will update live once you're in.
           </p>
         </div>
@@ -371,17 +329,17 @@ export default function PatientQueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface px-4 py-6 sm:px-6">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
-          icon="👤"
+          icon={<UserRound className="h-6 w-6 text-white" />}
           title="My Queue"
           subtitle="Live position, estimated wait & AI triage"
           dashboardPath="/patient"
         />
 
         {isLoading ? (
-          <Spinner />
+          <LoadingState label="Checking your queue status…" />
         ) : error && !status ? (
           <ErrorState message={error} onRetry={() => setRefreshKey((k) => k + 1)} />
         ) : status && status.active && status.entry ? (
@@ -395,7 +353,7 @@ export default function PatientQueuePage() {
           <JoinFlow initialDoctorId={initialDoctorId} onJoined={handleJoined} />
         )}
 
-        <footer className="pt-4 text-center text-xs text-ink-muted">
+        <footer className="pt-4 text-center text-xs text-slate-400">
           CareQ — SmartOPD AI | AI wait-time prediction & symptom triage
         </footer>
       </div>
