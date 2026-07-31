@@ -24,3 +24,25 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+
+# ─────────────────────────────────────────────────────────────
+# AI Symptom Triage — Groq (OpenAI-compatible chat completions)
+# The API key is read strictly from the GROQ_API_KEY environment
+# variable. If it is missing, AiTriageService falls back to
+# NORMAL so a patient can always join the queue.
+# ─────────────────────────────────────────────────────────────
+ai:
+  groq:
+    api-key: ${GROQ_API_KEY:}
+    url: https://api.groq.com/openai/v1/chat/completions
+    model: llama-3.1-8b-instant
+    timeout-seconds: 5
+
+# ─────────────────────────────────────────────────────────────
+# Queue configuration
+# delay-threshold-minutes: a WAITING patient is considered
+# "delayed" in the Admin live overview when their predicted
+# wait exceeds this value.
+# ─────────────────────────────────────────────────────────────
+queue:
+  delay-threshold-minutes: 30
