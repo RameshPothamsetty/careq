@@ -29,3 +29,6 @@ docker/.env
 *.log
 *.tmp
 *.bak
+
+# Runtime uploads (user-service profile pictures)
+uploads/
