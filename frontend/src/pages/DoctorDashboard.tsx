@@ -144,19 +144,27 @@ export default function DoctorDashboard() {
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}
 
-      {/* Queue management placeholder */}
-      <div style={{
-        background: '#fff', borderRadius: '12px', padding: '2rem', marginBottom: '1.5rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      }}>
-        <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '1.15rem' }}>Patient Queue</h2>
-        <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
-          View and manage your patient queue. Start consultations and update patient status.
-        </p>
-        <div style={{ marginTop: '1rem', padding: '1rem', background: '#fffaF0', borderRadius: '8px', color: '#c05621', fontSize: '0.875rem' }}>
-          Queue management features will be available starting Day 5.
+      {/* Queue management card */}
+      <Link to="/doctor/queue" style={{ textDecoration: 'none' }}>
+        <div style={{
+          background: '#fff', borderRadius: '12px', padding: '2rem', marginBottom: '1.5rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s', cursor: 'pointer', border: '2px solid transparent',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0e7c81'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ fontSize: '2.5rem' }}>🕐</div>
+            <div>
+              <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>Live Patient Queue</h2>
+              <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
+                Color-coded AI triage, override controls, call-next & complete
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      </Link>
 
       <div style={{
         background: '#fff', borderRadius: '12px', padding: '2rem',

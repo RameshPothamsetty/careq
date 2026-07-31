@@ -81,12 +81,32 @@ export default function PatientDashboard() {
           </p>
         </div>
 
-        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 1rem', color: '#4a5568', fontSize: '1.15rem' }}>My Queue</h2>
-          <div style={{ padding: '1rem', background: '#ebf8ff', borderRadius: '8px', color: '#2b6cb0', fontSize: '0.875rem' }}>
-            Queue features will be available starting Day 5. You can browse doctors now.
+        {/* My Queue Card */}
+        <Link to="/patient/queue" style={{ textDecoration: 'none' }}>
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              border: '2px solid transparent',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0e7c81'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem' }}>🕐</div>
+              <div>
+                <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>My Queue</h2>
+                <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
+                  Join a queue, see your live position and AI-estimated wait time
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        </Link>
 
         <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <h2 style={{ margin: '0 0 1rem', color: '#4a5568', fontSize: '1.15rem' }}>Account Info</h2>

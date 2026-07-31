@@ -94,6 +94,33 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
+        {/* Live Queue Overview Card */}
+        <Link to="/admin/queue" style={{ textDecoration: 'none' }}>
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              border: '2px solid transparent',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0e7c81'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem' }}>📊</div>
+              <div>
+                <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>Live Queue Overview</h2>
+                <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
+                  Hospital-wide waiting counts, delays & doctor load in real time
+                </p>
+              </div>
+            </div>
+          </div>
+        </Link>
+
         <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '1.15rem' }}>Welcome, {user?.fullName}!</h2>
           <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
