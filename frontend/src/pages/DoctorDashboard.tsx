@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Clock, ArrowRight } from 'lucide-react';
 import { api, type DoctorCatalogResponse } from '../services/api';
+import QueuePageHeader from '../components/QueuePageHeader';
+import { StatusTag, Button } from '../components/ui';
+import { LoadingState } from '../components/ui/States';
 
 export default function DoctorDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [doctorEntry, setDoctorEntry] = useState<DoctorCatalogResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
@@ -14,6 +17,7 @@ export default function DoctorDashboard() {
 
   useEffect(() => {
     fetchDoctorEntry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDoctorEntry = async () => {
@@ -21,11 +25,8 @@ export default function DoctorDashboard() {
     setError('');
     try {
       const doctors = await api.getDoctors();
-      // Find this doctor's entry by matching userId
-      const myEntry = doctors.find(doc => doc.userId === user?.id);
-      if (myEntry) {
-        setDoctorEntry(myEntry);
-      }
+      const myEntry = doctors.find((doc) => doc.userId === user?.id);
+      if (myEntry) setDoctorEntry(myEntry);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load doctor profile');
     } finally {
@@ -38,7 +39,6 @@ export default function DoctorDashboard() {
     setIsToggling(true);
     setError('');
     setSuccess('');
-
     try {
       const updated = await api.toggleAvailability({
         isAvailable: !doctorEntry.isAvailable,
@@ -53,169 +53,106 @@ export default function DoctorDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', color: '#4a5568' }}>
-        Loading...
+      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <LoadingState label="Loading your profile…" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto', background: '#f7fafc', minHeight: '100vh' }}>
-      <header style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginBottom: '2rem', padding: '1rem 1.5rem', background: '#fff',
-        borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      }}>
-        <div>
-          <h1 style={{ margin: 0, color: '#1a202c', fontSize: '1.5rem' }}>🩺 Doctor Dashboard</h1>
-          <p style={{ margin: '0.25rem 0 0', color: '#718096', fontSize: '0.875rem' }}>
-            Welcome, Dr. {user?.fullName || 'Doctor'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Link to="/profile" style={btnSecondary}>Profile</Link>
-          <button onClick={handleLogout} style={btnDanger}>Logout</button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <QueuePageHeader
+          icon="🩺"
+          title="Doctor Dashboard"
+          subtitle={`Welcome, Dr. ${user?.fullName || 'Doctor'}`}
+          dashboardPath="/doctor"
+          showDashboard={false}
+        />
 
-      {/* Availability Toggle Card */}
-      {doctorEntry && (
-        <div style={{
-          background: '#fff', borderRadius: '12px', padding: '2rem', marginBottom: '1.5rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.15rem' }}>
-                {doctorEntry.specialization}
-              </h2>
-              <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
-                {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
-              </p>
-              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#4a5568' }}>
-                <span>💰 Fee: ₹{doctorEntry.consultationFee}</span>
-                <span>⏱ Avg: {doctorEntry.avgConsultationTimeMinutes} min/patient</span>
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            ⚠ {error}
+          </div>
+        )}
+        {success && (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            ✓ {success}
+          </div>
+        )}
+
+        {/* Availability toggle card */}
+        {doctorEntry && (
+          <div className="card p-6">
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-lg font-bold text-slate-800">{doctorEntry.specialization}</h2>
+                  <StatusTag status={doctorEntry.isAvailable ? 'ONLINE' : 'OFFLINE'} />
+                </div>
+                <p className="mt-1 text-sm text-slate-500">
+                  {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
+                </p>
+                <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-500">
+                  <span>💰 Fee: ₹{doctorEntry.consultationFee}</span>
+                  <span>⏱ Avg: {doctorEntry.avgConsultationTimeMinutes} min/patient</span>
+                </div>
               </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem',
-                color: doctorEntry.isAvailable ? '#276749' : '#c53030',
-              }}>
-                {doctorEntry.isAvailable ? '🟢 Online' : '🔴 Offline'}
-              </div>
-              <button
+              <Button
                 onClick={handleToggleAvailability}
-                disabled={isToggling}
-                style={{
-                  padding: '0.6rem 1.5rem', fontSize: '0.9rem', fontWeight: 600,
-                  border: 'none', borderRadius: '8px',
-                  background: isToggling ? '#a0aec0' : (doctorEntry.isAvailable ? '#fc8181' : '#48bb78'),
-                  color: '#fff',
-                  cursor: isToggling ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  minWidth: '120px',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isToggling) {
-                    e.currentTarget.style.background = doctorEntry.isAvailable ? '#f56565' : '#38a169';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isToggling) {
-                    e.currentTarget.style.background = doctorEntry.isAvailable ? '#fc8181' : '#48bb78';
-                  }
-                }}
+                loading={isToggling}
+                className={`shrink-0 ${doctorEntry.isAvailable ? '!bg-red-50 !text-red-700 hover:!bg-red-100' : '!bg-emerald-600 !text-white hover:!bg-emerald-700'}`}
               >
-                {isToggling ? 'Updating...' : doctorEntry.isAvailable ? 'Go Offline' : 'Go Online'}
-              </button>
+                {doctorEntry.isAvailable ? 'Go Offline' : 'Go Online'}
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && <Alert type="error" message={error} />}
-      {success && <Alert type="success" message={success} />}
-
-      {/* Queue management card */}
-      <Link to="/doctor/queue" style={{ textDecoration: 'none' }}>
-        <div style={{
-          background: '#fff', borderRadius: '12px', padding: '2rem', marginBottom: '1.5rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s', cursor: 'pointer', border: '2px solid transparent',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0e7c81'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
+        {/* Queue management card */}
+        <Link
+          to="/doctor/queue"
+          className="card group flex items-center gap-4 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ fontSize: '2.5rem' }}>🕐</div>
-            <div>
-              <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>Live Patient Queue</h2>
-              <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
-                Color-coded AI triage, override controls, call-next & complete
-              </p>
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+            <Clock className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold text-slate-800">Live Patient Queue</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Color-coded AI triage, override controls, call-next & complete
+            </p>
+          </div>
+          <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
+        </Link>
+
+        {/* Account info */}
+        <div className="card p-6">
+          <h2 className="mb-4 text-base font-bold text-slate-800">Account Info</h2>
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p>
+              <p className="mt-1 font-semibold text-slate-800">Dr. {user?.fullName}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</p>
+              <p className="mt-1 font-semibold text-slate-800">Doctor</p>
             </div>
           </div>
         </div>
-      </Link>
 
-      <div style={{
-        background: '#fff', borderRadius: '12px', padding: '2rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      }}>
-        <h2 style={{ margin: '0 0 1rem', color: '#4a5568', fontSize: '1.15rem' }}>Account Info</h2>
-        <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
-          <div><strong>Name:</strong> Dr. {user?.fullName}</div>
-          <div><strong>Email:</strong> {user?.email}</div>
-          <div><strong>Role:</strong> {user?.role}</div>
-        </div>
+        <footer className="pt-4 text-center text-xs text-slate-400">
+          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+        </footer>
       </div>
-
-      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem' }}>
-        CareQ — SmartOPD AI | Day 4 — Doctor/Department Module
-      </footer>
-    </div>
-  );
-}
-
-const btnSecondary: React.CSSProperties = {
-  padding: '0.5rem 1rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
-  background: '#fff',
-  color: '#4a5568',
-  cursor: 'pointer',
-  fontSize: '0.875rem',
-  textDecoration: 'none',
-  display: 'inline-block',
-  transition: 'all 0.2s',
-};
-
-const btnDanger: React.CSSProperties = {
-  padding: '0.5rem 1.25rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
-  background: '#fff',
-  color: '#e53e3e',
-  cursor: 'pointer',
-  fontSize: '0.875rem',
-  fontWeight: 500,
-  transition: 'all 0.2s',
-};
-
-function Alert({ type, message }: { type: 'error' | 'success'; message: string }) {
-  const bg = type === 'error' ? '#fed7d7' : '#c6f6d5';
-  const color = type === 'error' ? '#c53030' : '#276749';
-  return (
-    <div style={{ background: bg, color, padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
-      {message}
     </div>
   );
 }

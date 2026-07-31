@@ -1,151 +1,88 @@
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Search, Clock, ArrowRight } from 'lucide-react';
+import QueuePageHeader from '../components/QueuePageHeader';
+
+const NAV_CARDS = [
+  {
+    to: '/patient/doctors',
+    icon: <Search className="h-6 w-6 text-white" />,
+    title: 'Browse Doctors',
+    desc: 'Find and filter doctors by department and specialization',
+    tint: 'from-brand-500 to-brand-700',
+  },
+  {
+    to: '/patient/queue',
+    icon: <Clock className="h-6 w-6 text-white" />,
+    title: 'My Queue',
+    desc: 'Join a queue, see your live position and AI-estimated wait time',
+    tint: 'from-sky-500 to-sky-700',
+  },
+] as const;
 
 export default function PatientDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+  const { user } = useAuth();
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '900px', margin: '0 auto', background: '#f7fafc', minHeight: '100vh' }}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem',
-          padding: '1rem 1.5rem',
-          background: '#fff',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0, color: '#1a202c', fontSize: '1.5rem' }}>👤 Patient Dashboard</h1>
-          <p style={{ margin: '0.25rem 0 0', color: '#718096', fontSize: '0.875rem' }}>
-            Welcome, {user?.fullName || 'Patient'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Link
-            to="/profile"
-            style={btnStyle}
-          >
-            Profile
-          </Link>
-          <button
-            onClick={handleLogout}
-            style={logoutBtnStyle}
-          >
-            Logout
-          </button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <QueuePageHeader
+          icon="👤"
+          title="Patient Dashboard"
+          subtitle={`Welcome, ${user?.fullName || 'Patient'}`}
+          dashboardPath="/patient"
+          showDashboard={false}
+        />
 
-      <div style={{ display: 'grid', gap: '1.5rem' }}>
-        {/* Doctor Browser Card */}
-        <Link to="/patient/doctors" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '2rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s',
-              cursor: 'pointer',
-              border: '2px solid transparent',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#667eea'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ fontSize: '2.5rem' }}>🔍</div>
-              <div>
-                <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>Browse Doctors</h2>
-                <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
-                  Find and filter doctors by department and specialization
-                </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          {NAV_CARDS.map((card) => (
+            <Link
+              key={card.to}
+              to={card.to}
+              className="card group p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
+            >
+              <div className="flex items-start justify-between">
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tint} shadow-lift`}>
+                  {card.icon}
+                </div>
+                <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
               </div>
-            </div>
-          </div>
-        </Link>
+              <h2 className="mt-4 text-lg font-bold text-slate-800">{card.title}</h2>
+              <p className="mt-1 text-sm text-slate-500">{card.desc}</p>
+            </Link>
+          ))}
+        </div>
 
-        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568', fontSize: '1.15rem' }}>Welcome, {user?.fullName}!</h2>
-          <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0 }}>
-            You are logged in as <strong>Patient</strong>. Browse doctors and join a queue to get started.
+        <div className="card p-6">
+          <h2 className="text-base font-bold text-slate-800">Welcome, {user?.fullName}!</h2>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+            You are logged in as <strong className="text-brand-700">Patient</strong>. Browse doctors and
+            join a queue to get started — your position and AI-estimated wait time will update live.
           </p>
         </div>
 
-        {/* My Queue Card */}
-        <Link to="/patient/queue" style={{ textDecoration: 'none' }}>
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '2rem',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s',
-              cursor: 'pointer',
-              border: '2px solid transparent',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#0e7c81'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ fontSize: '2.5rem' }}>🕐</div>
-              <div>
-                <h2 style={{ margin: '0 0 0.25rem', color: '#1a202c', fontSize: '1.25rem' }}>My Queue</h2>
-                <p style={{ margin: 0, color: '#718096', fontSize: '0.9rem' }}>
-                  Join a queue, see your live position and AI-estimated wait time
-                </p>
-              </div>
+        <div className="card p-6">
+          <h2 className="mb-4 text-base font-bold text-slate-800">Account Info</h2>
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p>
+              <p className="mt-1 font-semibold text-slate-800">{user?.fullName}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</p>
+              <p className="mt-1 font-semibold text-slate-800">Patient</p>
             </div>
           </div>
-        </Link>
-
-        <div style={{ background: '#fff', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 1rem', color: '#4a5568', fontSize: '1.15rem' }}>Account Info</h2>
-          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
-            <div><strong>Name:</strong> {user?.fullName}</div>
-            <div><strong>Email:</strong> {user?.email}</div>
-            <div><strong>Role:</strong> {user?.role}</div>
-          </div>
         </div>
+
+        <footer className="pt-4 text-center text-xs text-slate-400">
+          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+        </footer>
       </div>
-
-      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.8rem' }}>
-        CareQ — SmartOPD AI | Day 4 — Doctor/Department Module
-      </footer>
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: '0.5rem 1.25rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
-  background: '#fff',
-  color: '#4a5568',
-  cursor: 'pointer',
-  fontSize: '0.875rem',
-  fontWeight: 500,
-  textDecoration: 'none',
-  transition: 'all 0.2s',
-};
-
-const logoutBtnStyle: React.CSSProperties = {
-  padding: '0.5rem 1.25rem',
-  border: '1px solid #e2e8f0',
-  borderRadius: '8px',
-  background: '#fff',
-  color: '#e53e3e',
-  cursor: 'pointer',
-  fontSize: '0.875rem',
-  fontWeight: 500,
-  transition: 'all 0.2s',
-};
