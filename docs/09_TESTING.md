@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.4 (Day 4)  
-**Status:** Updated — Auth Module + User Module + Doctor Module Tests
+**Version:** 1.5 (Day 5)  
+**Status:** Updated — Auth + User + Doctor + Queue Module Tests (19 tests, all passing)
 
 ---
 
@@ -145,7 +145,56 @@ These tests verify controller behavior including Admin-only restrictions.
 
 ---
 
-## 5. Integration / API Tests (Future Day)
+## 5. Queue Service Unit Tests (Day 5)
+
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **19 tests, all passing.**
+
+### Test Class: `QueueOrderingServiceTest`
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `orderByEffectivePriority_SortsByTriageThenFifo` | Mixed triage levels | Order is EMERGENCY > HIGH > NORMAL (FIFO) > FOLLOW_UP |
+| `orderByEffectivePriority_FifoWithinSameTriageLevel` | Same level, different joinedAt | Earliest joined first |
+| `orderByEffectivePriority_DoctorOverrideIsFinal` | Doctor overrides NORMAL → EMERGENCY | Overridden entry outranks AI-emergency entry (FIFO within level) |
+| `orderByEffectivePriority_ExcludesCompletedAndCancelled` | COMPLETED/CANCELLED present | Only active entries remain in the ordered list |
+| `effectiveTriage_PrefersDoctorOverride` | Override set / not set | Returns override when present, else AI value |
+| `positionOf_ReturnsOneBasedPosition` | Ordered list | Position 1 = next to be seen |
+| `predictedWaitMinutes_PatientsAheadTimesAvgTime` | Position 3, avg 15 | `(3-1) x 15 = 30`; position 1 → 0; null avg → 0 |
+
+### Test Class: `AiTriageServiceTest` (fallback-to-NORMAL — the critical path)
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `classify_Success_ReturnsAiLevel` | Mock AI returns EMERGENCY | Returns EMERGENCY |
+| `classify_ClientThrows_FallsBackToNormal` | Mock AI throws (timeout/network/5xx) | Returns NORMAL, no exception propagates |
+| `classify_UnparseableResponse_FallsBackToNormal` | Mock AI returns `Optional.empty()` | Returns NORMAL |
+| `classify_ClientReturnsNull_FallsBackToNormal` | Mock AI returns `null` | Returns NORMAL |
+
+> **AI-failure path is a first-class test target** — the fallback is verified by deliberately breaking the AI client, not just by testing the happy path.
+
+### Test Class: `QueueServiceImplTest`
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `joinQueue_Success_ReturnsEntryWithPositionAndPredictedWait` | Feign + AI mocked success | Entry saved, position 1, wait 0, effectiveTriage from AI |
+| `joinQueue_UnavailableDoctor_Throws` | `isAvailable=false` via Feign | Throws `DoctorUnavailableException`, no save |
+| `joinQueue_DuplicateActiveEntry_Throws` | Patient already active for the doctor | Throws `DuplicateQueueEntryException` |
+| `overrideTriage_Success_ChangesEffectiveTriage` | Doctor overrides NORMAL → EMERGENCY | Override persisted, effectiveTriage = EMERGENCY |
+| `overrideTriage_CompletedEntry_Throws` | Override on COMPLETED entry | Throws `InvalidQueueStateException` |
+| `overrideTriage_AnotherDoctor_Throws` | Non-owner doctor tries | Throws `UnauthorizedAccessException` |
+| `callNext_ThenComplete_AdvancesAndFinishesEntry` | WAITING → IN_PROGRESS → COMPLETED | `calledAt`/`completedAt` set; completed entry has no position |
+| `complete_NotInProgress_Throws` | Complete on WAITING entry | Throws `InvalidQueueStateException` |
+
+### Mock Setup
+
+- `TriageAiClient` — mocked (simulates AI success/failure/null)
+- `DoctorServiceClient` (Feign) — mocked (simulates doctor-service responses)
+- `QueueEntryRepository` — mocked with Mockito
+- `QueueOrderingService` — real instance (pure logic)
+
+---
+
+## 6. Integration / API Tests (Future Day)
 
 > **Note:** Integration tests requiring a running MySQL instance and full microservice stack will be added on the dedicated testing day later in the checklist. These will include:
 >
@@ -159,7 +208,7 @@ These tests verify controller behavior including Admin-only restrictions.
 
 ---
 
-## 6. Running Tests
+## 7. Running Tests
 
 ```bash
 # Run all auth-service tests
@@ -170,8 +219,12 @@ mvn test
 cd backend/user-service
 mvn test
 
-# Run a specific test class (user-service)
-mvn test -Dtest=UserProfileServiceImplTest
+# Run queue-service tests (Day 5)
+cd backend/queue-service
+mvn test
+
+# Run a specific test class (queue-service)
+mvn test -Dtest=AiTriageServiceTest
 
 # Run all tests across all modules
 cd backend
@@ -180,7 +233,7 @@ mvn test
 
 ---
 
-## 7. Test Coverage Target
+## 8. Test Coverage Target
 
 - **Service layer:** ≥ 70% (ADF Section 9 requirement)
 - **Controller layer:** ≥ 50% (via integration tests on testing day)
