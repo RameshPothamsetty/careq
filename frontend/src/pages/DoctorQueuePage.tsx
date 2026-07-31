@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckCircle2, PhoneCall, Users, UserCheck, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   api,
@@ -7,33 +8,11 @@ import {
   type TriageLevel,
 } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
-import TriageBadge from '../components/TriageBadge';
+import { StatCard, LiveBadge, StatusTag, AvatarInitials, Button } from '../components/ui';
+import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 const OVERRIDE_OPTIONS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
-
-function Spinner() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600" />
-      <p className="mt-4 text-sm text-ink-muted">Loading your live queue…</p>
-    </div>
-  );
-}
-
-function EmptyQueue() {
-  return (
-    <div className="card mx-auto max-w-lg p-12 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-50 text-3xl">
-        🍃
-      </div>
-      <h2 className="mt-4 text-lg font-bold text-ink">No patients in queue right now</h2>
-      <p className="mt-1.5 text-sm text-ink-muted">
-        New patients will appear here automatically as they join with AI triage.
-      </p>
-    </div>
-  );
-}
 
 function Toast({ message, tone }: { message: string; tone: 'success' | 'error' }) {
   if (!message) return null;
@@ -74,7 +53,6 @@ export default function DoctorQueuePage() {
 
   const fetchQueue = useCallback(async () => {
     try {
-      // Find this doctor's catalog entry by userId (same pattern as DoctorDashboard).
       let myEntry = doctorEntry;
       if (!myEntry) {
         const doctors = await api.getDoctors();
@@ -108,6 +86,8 @@ export default function DoctorQueuePage() {
 
   const firstWaiting = queue.find((e) => e.status === 'WAITING');
   const inProgress = queue.filter((e) => e.status === 'IN_PROGRESS');
+  const waitingCount = queue.filter((e) => e.status === 'WAITING').length;
+  const completedToday = queue.filter((e) => e.status === 'COMPLETED').length;
   const secondsAgo = Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000));
 
   const runAction = async (
@@ -137,15 +117,8 @@ export default function DoctorQueuePage() {
   const handleOverride = (entry: QueueEntryResponse, level: TriageLevel) =>
     runAction(() => api.overrideTriage(entry.id, { triageLevel: level }), `Triage updated to ${level}`, entry.id);
 
-  const stat = (label: string, value: number | string, accent = 'text-ink') => (
-    <div className="card px-5 py-4 text-center">
-      <div className={`text-2xl font-extrabold tracking-tight ${accent}`}>{value}</div>
-      <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">{label}</div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-surface px-4 py-6 sm:px-6">
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🩺"
@@ -156,61 +129,81 @@ export default function DoctorQueuePage() {
 
         {/* Stats row */}
         {!isLoading && !error && (
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
-            {stat('Waiting', queue.filter((e) => e.status === 'WAITING').length, 'text-brand-700')}
-            {stat('In consultation', inProgress.length, 'text-violet-600')}
-            {stat('Total in queue', queue.length, 'text-emerald-600')}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            <StatCard
+              label="Waiting"
+              value={waitingCount}
+              icon={<Users className="h-5 w-5" />}
+              accent="bg-brand-50 text-brand-700"
+            />
+            <StatCard
+              label="In consultation"
+              value={inProgress.length}
+              icon={<UserCheck className="h-5 w-5" />}
+              accent="bg-violet-50 text-violet-700"
+            />
+            <StatCard
+              label="Completed today"
+              value={completedToday}
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              accent="bg-emerald-50 text-emerald-700"
+            />
           </div>
         )}
 
         {/* Live indicator */}
         {!isLoading && !error && (
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2 text-xs font-medium text-ink-muted">
-              <span className="h-2.5 w-2.5 animate-pulse-dot rounded-full bg-brand-500" />
-              <span>Live queue — polling every 10s</span>
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <LiveBadge lastUpdatedSeconds={secondsAgo} />
+              <span>Polling every 10s</span>
             </div>
-            <span className="text-xs font-medium text-ink-muted">Last updated {secondsAgo}s ago</span>
+            {doctorEntry && (
+              <span className="text-xs text-slate-400">
+                ≈{doctorEntry.avgConsultationTimeMinutes} min/patient avg
+              </span>
+            )}
           </div>
         )}
 
         <Toast message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} />
 
-        {error && (
-          <div className="card p-6">
-            <div className="flex items-center gap-2 text-sm font-medium text-red-700">
-              ⚠ {error}
-            </div>
-            <button onClick={() => setRefreshKey((k) => k + 1)} className="btn-primary mt-4">
-              Retry
-            </button>
-          </div>
+        {error && !isLoading && (
+          <ErrorState message={error} onRetry={() => setRefreshKey((k) => k + 1)} />
         )}
 
         {/* Call next action */}
         {!isLoading && !error && firstWaiting && (
           <div className="card flex flex-col items-center justify-between gap-3 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
-            <div>
-              <p className="text-sm font-semibold text-ink">Next patient ready</p>
-              <p className="text-xs text-ink-muted">
-                {shortId(firstWaiting.patientId)} · {firstWaiting.symptomText.slice(0, 60)}
-                {firstWaiting.symptomText.length > 60 ? '…' : ''}
-              </p>
+            <div className="flex items-center gap-3">
+              <AvatarInitials name={shortId(firstWaiting.patientId)} />
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Next patient ready</p>
+                <p className="text-xs text-slate-500">
+                  {shortId(firstWaiting.patientId)} · {firstWaiting.symptomText.slice(0, 60)}
+                  {firstWaiting.symptomText.length > 60 ? '…' : ''}
+                </p>
+              </div>
             </div>
-            <button
+            <Button
               onClick={() => handleCallNext(firstWaiting)}
-              disabled={busyId === firstWaiting.id}
-              className="btn-primary shrink-0 px-6"
+              loading={busyId === firstWaiting.id}
+              className="shrink-0 px-6"
             >
-              {busyId === firstWaiting.id ? 'Calling…' : 'Call Next →'}
-            </button>
+              {!busyId && <PhoneCall className="h-4 w-4" />}
+              Call Next →
+            </Button>
           </div>
         )}
 
         {isLoading ? (
-          <Spinner />
+          <LoadingState label="Loading your live queue…" />
         ) : !error && queue.filter((e) => e.status !== 'COMPLETED').length === 0 ? (
-          <EmptyQueue />
+          <EmptyState
+            icon={<Activity className="h-8 w-8 text-brand-400" />}
+            title="No patients in queue right now"
+            message="New patients will appear here automatically as they join with AI triage."
+          />
         ) : (
           !error && (
             <div className="space-y-3">
@@ -235,13 +228,13 @@ export default function DoctorQueuePage() {
                             }`}
                           >
                             {entry.position ?? '—'}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-ink">{shortId(entry.patientId)}</p>
-                              <TriageBadge level={entry.effectiveTriage} />
-                            </div>
-                            <p className="mt-0.5 text-xs text-ink-muted">
+                          </div>                            <div>
+                              <div className="flex items-center gap-2">
+                                <AvatarInitials name={shortId(entry.patientId)} size="sm" />
+                                <p className="font-bold text-slate-800">{shortId(entry.patientId)}</p>
+                                <StatusTag status={entry.effectiveTriage} />
+                              </div>
+                            <p className="mt-0.5 text-xs text-slate-400">
                               Wait ≈ {entry.predictedWaitMinutes ?? 0} min · AI: {entry.aiSuggestedTriage}
                               {entry.doctorOverrideTriage ? ` → overridden to ${entry.doctorOverrideTriage}` : ''}
                             </p>
@@ -250,8 +243,8 @@ export default function DoctorQueuePage() {
 
                         {/* Symptoms */}
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Symptoms</p>
-                          <p className="mt-1 truncate text-sm text-ink">{entry.symptomText}</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Symptoms</p>
+                          <p className="mt-1 truncate text-sm text-slate-800">{entry.symptomText}</p>
                         </div>
 
                         {/* Actions */}
@@ -271,22 +264,22 @@ export default function DoctorQueuePage() {
                                   </option>
                                 ))}
                               </select>
-                              <button
+                              <Button
                                 onClick={() => handleCallNext(entry)}
-                                disabled={busyId === entry.id}
-                                className="btn-primary !py-1.5 text-xs"
+                                loading={busyId === entry.id}
+                                className="!py-1.5 text-xs"
                               >
-                                {busyId === entry.id ? '…' : 'Call Next'}
-                              </button>
+                                Call Next
+                              </Button>
                             </>
                           ) : (
-                            <button
+                            <Button
                               onClick={() => handleComplete(entry)}
-                              disabled={busyId === entry.id}
-                              className="btn-primary !bg-emerald-600 !py-1.5 text-xs hover:!bg-emerald-700"
+                              loading={busyId === entry.id}
+                              className="!bg-emerald-600 !py-1.5 text-xs hover:!bg-emerald-700"
                             >
-                              {busyId === entry.id ? '…' : 'Complete ✓'}
-                            </button>
+                              Complete ✓
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -297,7 +290,7 @@ export default function DoctorQueuePage() {
           )
         )}
 
-        <footer className="pt-4 text-center text-xs text-ink-muted">
+        <footer className="pt-4 text-center text-xs text-slate-400">
           CareQ — SmartOPD AI | Doctor live queue · color-coded AI triage
         </footer>
       </div>
