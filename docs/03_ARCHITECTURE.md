@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.4 (Day 4)  
-**Status:** Updated — Doctor/Department Module Live
+**Version:** 1.5 (Day 5)  
+**Status:** Updated — Queue Module + AI (Wait-Time Prediction & Symptom Triage) Live
 
 ---
 
@@ -38,8 +38,14 @@
                   │   (port 8084)    │
                   │                  │
                   │  /api/queue/**   │
-                  └────────┬─────────┘
-                           │
+                  │  + AI triage    │
+                  │  (Groq LLM)     │
+                  └───────┬───┬─────┘
+                          │   │  Feign (Eureka lb://doctor-service)
+                          │   └──────────▶  doctor-service
+                          │                 GET /api/doctors/{id}
+                          │                 (avgConsultationTimeMinutes, isAvailable)
+                          │
                   ┌──────────────────┐
                   │  Eureka Server   │
                   │   (port 8761)    │
@@ -152,12 +158,67 @@
 | `/api/users/{id}` | user-service | Yes | ADMIN only | View any profile |
 | `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
 | `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
-| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Day 5+ |
+| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Day 5 — Queue + AI triage |
 | `/api/eureka/**` | eureka-server | No | — (internal) | |
 
 ---
 
-## 6. Lazy Profile Creation Pattern
+## 6. Inter-Service Communication: Feign (Day 5)
+
+**Decision:** `queue-service` reads a doctor's `avgConsultationTimeMinutes` and `isAvailable` **live from `doctor-service`** through a declarative Feign client — never duplicating those fields into its own tables. Two sources of truth are forbidden.
+
+```
+queue-service                    doctor-service (Eureka: lb://doctor-service)
+    │  DoctorServiceClient.getDoctorById(id)            
+    ├──────────────────────────────────────────────────────▶
+    │      GET /api/doctors/{id}   (Feign, no gateway)     
+    │◀──────────────────────────────────────────────────────
+    │      DoctorCatalogResponseDto
+    │        ├─ avgConsultationTimeMinutes  → wait-time formula
+    │        ├─ isAvailable                → join validation
+    │        └─ userId                     → doctor ownership checks
+```
+
+**Details:**
+- `@FeignClient(name = "doctor-service")` — resolved via Eureka, not a hardcoded URL.
+- `doctor-service` has no Spring Security of its own (auth is enforced at the gateway), so direct service-to-service calls are allowed.
+- A `404` from Feign is translated to `DoctorCatalogNotFoundException`; any other Feign failure is translated to `DoctorServiceUnavailableException` (503) so callers get a clean message instead of a raw Feign stack trace.
+
+## 7. AI Integration Point (Day 5)
+
+Symptom triage calls the **Groq API** (OpenAI-compatible chat completions). The AI is a *suggestion only* — the doctor's override is always final.
+
+```
+POST /api/queue/join (patient)
+        │
+        ▼
+  AiTriageService.classifyWithFallback(symptomText)
+        │
+        ▼
+  GroqTriageAiClient  ──▶  POST https://api.groq.com/openai/v1/chat/completions
+        │                    model: llama-3.1-8b-instant
+        │                    auth:  Bearer ${GROQ_API_KEY}  (env var only)
+        │                    json mode → {"triage":"<LEVEL>","reason":"..."}
+        ▼
+  ├─ success  → EMERGENCY | HIGH | NORMAL | FOLLOW_UP
+  └─ failure (timeout / 5xx / bad key / unparseable)
+          └─▶ log warning + fall back to NORMAL   ← a broken AI call
+                                                 never blocks a patient
+        ▼
+  QueueEntry(aiSuggestedTriage)  →  doctorOverrideTriage (nullable, final)
+        ▼
+  Effective triage drives ordering:
+  EMERGENCY > HIGH > NORMAL > FOLLOW_UP, then FIFO by joinedAt
+        ▼
+  predictedWaitMinutes = (patients ahead) x avgConsultationTimeMinutes
+       (recalculated on every read, never cached)
+```
+
+**Config:** `ai.groq.api-key: ${GROQ_API_KEY:}` (empty default → AI disabled gracefully), `ai.groq.model`, `ai.groq.timeout-seconds` (default 5).
+
+---
+
+## 8. Lazy Profile Creation Pattern
 
 **Decision:** `user-service` does NOT get called by `auth-service` during signup. Instead, the first time a logged-in user calls `GET /api/users/me`, if no profile row exists for their `userId`, a default empty profile row is created automatically and returned.
 

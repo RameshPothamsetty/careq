@@ -414,6 +414,7 @@ export default function PatientDoctorBrowser() {
                 <button
                   disabled={!doc.isAvailable}
                   style={doc.isAvailable ? btnSmall : btnSmallDisabled}
+                  onClick={() => navigate(`/patient/queue?doctor=${doc.id}`)}
                   onMouseEnter={(e) => {
                     if (doc.isAvailable) e.currentTarget.style.background = '#5a67d8';
                   }}

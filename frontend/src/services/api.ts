@@ -79,6 +79,68 @@ interface AvailabilityRequest {
   isAvailable: boolean;
 }
 
+// ---- Queue types (Day 5) ----
+
+type TriageLevel = 'EMERGENCY' | 'HIGH' | 'NORMAL' | 'FOLLOW_UP';
+
+type QueueStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+interface JoinQueuePayload {
+  doctorCatalogEntryId: number;
+  symptomText: string;
+}
+
+interface QueueEntryResponse {
+  id: number;
+  patientId: string;
+  doctorCatalogEntryId: number;
+  doctorName: string;
+  departmentName: string;
+  specialization: string;
+  symptomText: string;
+  aiSuggestedTriage: TriageLevel;
+  doctorOverrideTriage: TriageLevel | null;
+  effectiveTriage: TriageLevel;
+  status: QueueStatus;
+  position: number | null;
+  predictedWaitMinutes: number | null;
+  joinedAt: string;
+  calledAt: string | null;
+  completedAt: string | null;
+}
+
+interface QueueStatusResponse {
+  active: boolean;
+  entry: QueueEntryResponse | null;
+}
+
+interface OverrideTriagePayload {
+  triageLevel: TriageLevel;
+}
+
+interface DoctorQueueStats {
+  doctorCatalogEntryId: number;
+  doctorUserId: string;
+  departmentName: string;
+  specialization: string;
+  avgConsultationTimeMinutes: number;
+  isAvailable: boolean;
+  waitingCount: number;
+  inProgressCount: number;
+  delayedCount: number;
+  longestWaitMinutes: number | null;
+}
+
+interface LiveQueueOverview {
+  totalWaiting: number;
+  totalInProgress: number;
+  doctorsOnline: number;
+  doctorsOffline: number;
+  delayedConsultations: number;
+  averageWaitMinutes: number;
+  doctors: DoctorQueueStats[];
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -221,6 +283,39 @@ export const api = {
 
     return data as UserProfileResponse;
   },
+
+  // ---- Queue API (Day 5) ----
+
+  joinQueue: (payload: JoinQueuePayload) =>
+    request<QueueEntryResponse>('/api/queue/join', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getMyQueueStatus: () =>
+    request<QueueStatusResponse>('/api/queue/my-status'),
+
+  getDoctorQueue: (doctorCatalogEntryId: number) =>
+    request<QueueEntryResponse[]>(`/api/queue/doctor/${doctorCatalogEntryId}`),
+
+  overrideTriage: (queueEntryId: number, payload: OverrideTriagePayload) =>
+    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/override-triage`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  callNext: (queueEntryId: number) =>
+    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/call-next`, {
+      method: 'PUT',
+    }),
+
+  completeQueueEntry: (queueEntryId: number) =>
+    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/complete`, {
+      method: 'PUT',
+    }),
+
+  getLiveQueueOverview: () =>
+    request<LiveQueueOverview>('/api/queue/live'),
 };
 
 export type {
@@ -234,4 +329,12 @@ export type {
   DoctorCatalogResponse,
   DoctorCatalogRequest,
   AvailabilityRequest,
+  TriageLevel,
+  QueueStatus,
+  JoinQueuePayload,
+  QueueEntryResponse,
+  QueueStatusResponse,
+  OverrideTriagePayload,
+  DoctorQueueStats,
+  LiveQueueOverview,
 };

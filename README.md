@@ -13,9 +13,9 @@ An AI-powered OPD (Outpatient Department) operations platform that predicts pati
 | Day 1 | Project Scaffold | ✅ Complete |
 | Day 2 | Authentication (JWT, Login, Signup) | ✅ Complete |
 | Day 3 | User Module (Profiles, File Upload) | ✅ Complete |
-| **Day 4** | **Doctor/Department Module** | **✅ Complete** |
-| Day 5 | Queue Service + AI Triage | 📅 Planned |
-| Day 6+ | Doctor Queue Mgmt, Testing, Deployment | 📅 Planned |
+| Day 4 | Doctor/Department Module | ✅ Complete |
+| **Day 5** | **Queue Service + AI Triage (Wait-Time Prediction & Symptom Triage)** | **✅ Complete** |
+| Day 6+ | Deployment, notifications, Phase 2 roadmap | 📅 Planned |
 
 ---
 
@@ -30,6 +30,8 @@ An AI-powered OPD (Outpatient Department) operations platform that predicts pati
 | Database | MySQL 8 |
 | Auth | Spring Security + JWT (HMAC-SHA256) |
 | Build | Maven |
+| AI | Groq (`llama-3.1-8b-instant`) via `GROQ_API_KEY` env var |
+| UI | Tailwind CSS (added Day 5) |
 
 ---
 
@@ -91,6 +93,10 @@ All project documentation is in the [docs/](docs/) folder:
 - Node.js 18+
 - MySQL 8+
 - Maven 3.9+
+- **GROQ_API_KEY** (optional — without it, AI triage gracefully falls back to NORMAL):
+  ```bash
+  export GROQ_API_KEY="your-groq-key"
+  ```
 
 ### Backend (Start in Order)
 
@@ -113,6 +119,9 @@ cd backend/user-service && mvn spring-boot:run
 
 # 6. Start Doctor Service (departments, doctor catalog)
 cd backend/doctor-service && mvn spring-boot:run
+
+# 7. Start Queue Service (queue, AI wait prediction, AI triage)
+cd backend/queue-service && mvn spring-boot:run
 ```
 
 ### Frontend
@@ -146,7 +155,7 @@ bash scripts/seed-data.sh
 
 ---
 
-## API Endpoints (Day 4)
+## API Endpoints (Day 5)
 
 ### Auth Endpoints
 
@@ -186,6 +195,18 @@ bash scripts/seed-data.sh
 | DELETE | `/api/doctors/{id}` | Admin | Delete doctor catalog entry |
 | PUT | `/api/doctors/me/availability` | Doctor | Toggle own availability |
 
+### Queue Endpoints (Day 5)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/queue/join` | Patient | Join a doctor's queue (AI triage runs; falls back to NORMAL on AI failure) |
+| GET | `/api/queue/my-status` | Patient | Live position + freshly recalculated predicted wait (poll every 10s) |
+| GET | `/api/queue/doctor/{doctorCatalogEntryId}` | Doctor/Admin | Live queue ordered by effective triage then FIFO |
+| PUT | `/api/queue/{id}/override-triage` | Doctor/Admin | Doctor's final triage override (reorders the queue) |
+| PUT | `/api/queue/{id}/call-next` | Doctor/Admin | Mark the next patient IN_PROGRESS |
+| PUT | `/api/queue/{id}/complete` | Doctor/Admin | Mark a patient COMPLETED |
+| GET | `/api/queue/live` | Admin | Hospital-wide live overview (summary + per-doctor) |
+
 ---
 
 ## Frontend Pages
@@ -196,8 +217,11 @@ bash scripts/seed-data.sh
 | Signup | `/signup` | Public |
 | Patient Dashboard | `/patient/*` | Patient |
 | Browse Doctors | `/patient/doctors` | Patient |
+| My Queue (join + live status) | `/patient/queue` | Patient |
 | Doctor Dashboard | `/doctor/*` | Doctor |
+| Live Patient Queue | `/doctor/queue` | Doctor |
 | Admin Dashboard | `/admin/*` | Admin |
+| Live Queue Overview | `/admin/queue` | Admin |
 | Manage Departments | `/admin/departments` | Admin |
 | Manage Doctors | `/admin/doctors` | Admin |
 | Profile | `/profile` | All |

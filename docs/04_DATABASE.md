@@ -1,6 +1,6 @@
-# CareQ — Database Schema (Day 4)
+# CareQ — Database Schema (Day 5)
 
-**Version:** 1.4 (Day 4)  
+**Version:** 1.5 (Day 5)  
 **Database:** MySQL 8.x
 
 ---
@@ -160,32 +160,30 @@ CREATE TABLE doctor_catalog_entries (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 7. queue_entries — Core queue tracking with AI predictions
+-- 7. queue_entries — Core queue tracking with AI triage (Day 5)
+--     Owned by queue-service. patientId is a plain reference to
+--     users.id; doctorCatalogEntryId is a plain reference to
+--     doctor_catalog_entries.id (microservice boundary, no FKs).
+--     avgConsultationTimeMinutes is NOT duplicated here — it is
+--     fetched live from doctor-service via Feign (single source
+--     of truth). Position and predicted wait are DERIVED on every
+--     read and are never persisted.
 -- ============================================================
 CREATE TABLE queue_entries (
-    id                      BIGINT       AUTO_INCREMENT PRIMARY KEY,
-    patient_id              CHAR(36)     NOT NULL,
-    doctor_id               CHAR(36)     NOT NULL,
-    department_id           BIGINT,
-    status                  ENUM('WAITING', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED')
-                                        NOT NULL DEFAULT 'WAITING',
-    position                INT          NOT NULL,
-    triage_level            ENUM('CRITICAL', 'URGENT', 'NORMAL')
-                                        NOT NULL DEFAULT 'NORMAL',
-    triage_reason           VARCHAR(500),
-    reported_symptoms       TEXT,
-    predicted_wait_minutes  INT,
-    actual_wait_minutes     INT,
-    joined_at               TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    started_at              TIMESTAMP    NULL,
-    completed_at            TIMESTAMP    NULL,
-    FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (doctor_id)  REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
-    INDEX idx_queue_doctor_status (doctor_id, status),
+    id                       BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    patient_id               CHAR(36)     NOT NULL,          -- users.id (plain ref)
+    doctor_catalog_entry_id  BIGINT       NOT NULL,          -- doctor_catalog_entries.id (plain ref)
+    symptom_text             VARCHAR(2000) NOT NULL,
+    ai_suggested_triage      ENUM('EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP') NOT NULL DEFAULT 'NORMAL',
+    doctor_override_triage   ENUM('EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP') NULL,  -- final when set
+    status                   ENUM('WAITING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'WAITING',
+    joined_at                TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    called_at                TIMESTAMP    NULL,
+    completed_at             TIMESTAMP    NULL,
     INDEX idx_queue_patient (patient_id),
-    INDEX idx_queue_triage (triage_level),
-    INDEX idx_queue_position (doctor_id, position)
+    INDEX idx_queue_doctor_status (doctor_catalog_entry_id, status),
+    INDEX idx_queue_ai_triage (ai_suggested_triage),
+    INDEX idx_queue_override (doctor_override_triage)
 ) ENGINE=InnoDB;
 ```
 
@@ -201,4 +199,4 @@ CREATE TABLE queue_entries (
 | admin_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
 | departments | doctor-service | id (BIGINT) | — | Day 4 — CRUD managed by Admin |
 | doctor_catalog_entries | doctor-service | id (BIGINT) | user_id (plain ref) | Day 4 — Catalog data separate from user_profiles |
-| queue_entries | queue-service | id (BIGINT) | patient_id, doctor_id (FK) | Day 5+ |
+| queue_entries | queue-service | id (BIGINT) | patient_id, doctor_catalog_entry_id (plain refs) | Day 5 — AI triage + wait-time prediction; doctor consultation data NOT duplicated (fetched via Feign) |
