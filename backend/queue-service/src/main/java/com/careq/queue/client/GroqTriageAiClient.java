@@ -95,7 +95,7 @@ public class GroqTriageAiClient implements TriageAiClient {
         Map<String, Object> requestBody = Map.of(
                 "model", model,
                 "temperature", 0.0,
-                "max_tokens", 64,
+                "max_tokens", 256,
                 "response_format", Map.of("type", "json_object"),
                 "messages", List.of(
                         Map.of("role", "system", "content", SYSTEM_PROMPT),
@@ -123,9 +123,10 @@ public class GroqTriageAiClient implements TriageAiClient {
         if (response == null) {
             return Optional.empty();
         }
+        String content = "";
         try {
             JsonNode root = OBJECT_MAPPER.valueToTree(response);
-            String content = root.path("choices").path(0).path("message").path("content").asText("");
+            content = root.path("choices").path(0).path("message").path("content").asText("");
             if (content.isBlank()) {
                 return Optional.empty();
             }
@@ -138,7 +139,10 @@ public class GroqTriageAiClient implements TriageAiClient {
                 return Optional.empty();
             }
         } catch (Exception e) {
-            log.warn("Could not parse Groq triage response: {}", e.getMessage());
+            String preview = content.length() > 200
+                    ? content.substring(0, 200) + "…"
+                    : content;
+            log.warn("Could not parse Groq triage response (content='{}'): {}", preview, e.getMessage());
             return Optional.empty();
         }
     }
