@@ -446,6 +446,259 @@ PUT /api/doctors/me/availability
 
 ---
 
+## Queue Endpoints (`/api/queue`) — Day 5
+
+All queue endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway.
+
+**Triage levels:** `EMERGENCY > HIGH > NORMAL > FOLLOW_UP`. The AI suggests a level (`aiSuggestedTriage`); the doctor can override it (`doctorOverrideTriage`) — the override is final. The effective level drives queue ordering.
+
+**Wait-time formula:** `predictedWaitMinutes = (number of patients ahead in effective queue order) x doctor's avgConsultationTimeMinutes`, recalculated on every read (never cached).
+
+---
+
+### 12. Join Queue (Patient)
+
+```
+POST /api/queue/join
+```
+
+**Auth:** PATIENT
+
+**Headers:** `X-User-Id`, `X-User-Role` (set by gateway)
+
+**Request Body:**
+```json
+{
+  "doctorCatalogEntryId": 1,
+  "symptomText": "Severe chest pain radiating to my left arm for the past hour"
+}
+```
+
+**Validation Rules:**
+| Field | Rule |
+|-------|------|
+| doctorCatalogEntryId | Required, must reference an existing doctor catalog entry |
+| symptomText | Required, max 2000 characters |
+
+**Behavior:**
+- Calls the Groq LLM (model `llama-3.1-8b-instant`) for AI triage. On any AI failure, falls back to `NORMAL` — a broken AI call never blocks a real patient.
+- Rejects if the doctor is unavailable (`isAvailable: false`) → 409.
+- Rejects duplicate active entries for the same doctor → 409.
+
+**Success Response (201):**
+```json
+{
+  "id": 1,
+  "patientId": "550e8400-e29b-41d4-a716-446655440010",
+  "doctorCatalogEntryId": 1,
+  "doctorName": "Interventional Cardiology",
+  "departmentName": "Cardiology",
+  "specialization": "Interventional Cardiology",
+  "symptomText": "Severe chest pain radiating to my left arm for the past hour",
+  "aiSuggestedTriage": "EMERGENCY",
+  "doctorOverrideTriage": null,
+  "effectiveTriage": "EMERGENCY",
+  "status": "WAITING",
+  "position": 1,
+  "predictedWaitMinutes": 0,
+  "joinedAt": "2026-07-31T09:00:00",
+  "calledAt": null,
+  "completedAt": null
+}
+```
+
+**Error Responses:**
+- `409` — Doctor is currently unavailable
+- `409` — You already have an active queue entry for this doctor
+- `404` — Doctor catalog entry not found
+- `400` — Validation failed
+- `503` — Doctor service temporarily unavailable
+
+---
+
+### 13. My Queue Status (Patient)
+
+```
+GET /api/queue/my-status
+```
+
+**Auth:** PATIENT
+
+**Description:** Returns the patient's own current queue entry with a freshly recalculated position and predicted wait time. Recalculated on every read — not cached.
+
+**Success Response (200) — active entry:**
+```json
+{
+  "active": true,
+  "entry": {
+    "id": 1,
+    "status": "WAITING",
+    "position": 3,
+    "predictedWaitMinutes": 30,
+    "effectiveTriage": "HIGH",
+    "symptomText": "...",
+    "joinedAt": "2026-07-31T09:00:00"
+  }
+}
+```
+
+**Success Response (200) — not in queue:**
+```json
+{
+  "active": false,
+  "entry": null
+}
+```
+
+---
+
+### 14. Doctor's Live Queue (Doctor/Admin)
+
+```
+GET /api/queue/doctor/{doctorCatalogEntryId}
+```
+
+**Auth:** DOCTOR (own queue only) or ADMIN (any)
+
+**Path Variables:**
+| Name | Type | Description |
+|------|------|-------------|
+| doctorCatalogEntryId | Long | Doctor catalog entry ID |
+
+**Description:** Returns that doctor's live queue (WAITING + IN_PROGRESS entries), ordered by effective triage level then FIFO by `joinedAt`. Each entry includes a derived `position` (1 = next to be seen) and `predictedWaitMinutes`.
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": 5,
+    "status": "IN_PROGRESS",
+    "position": 1,
+    "predictedWaitMinutes": 0,
+    "effectiveTriage": "EMERGENCY",
+    "aiSuggestedTriage": "EMERGENCY",
+    "doctorOverrideTriage": null
+  },
+  {
+    "id": 8,
+    "status": "WAITING",
+    "position": 2,
+    "predictedWaitMinutes": 15,
+    "effectiveTriage": "HIGH"
+  }
+]
+```
+
+**Error Responses:** `403` (another doctor's queue), `404` (unknown doctor), `503` (doctor service down).
+
+---
+
+### 15. Override Triage (Doctor)
+
+```
+PUT /api/queue/{id}/override-triage
+```
+
+**Auth:** DOCTOR (owner of the queue) or ADMIN
+
+**Path Variables:**
+| Name | Type | Description |
+|------|------|-------------|
+| id | Long | Queue entry ID |
+
+**Request Body:**
+```json
+{
+  "triageLevel": "EMERGENCY"
+}
+```
+
+**Validation Rules:** `triageLevel` required — one of `EMERGENCY`, `HIGH`, `NORMAL`, `FOLLOW_UP`.
+
+**Behavior:** Sets `doctorOverrideTriage` (final). The queue reorders on the next read. Cannot override a COMPLETED/CANCELLED/IN_PROGRESS entry → 400.
+
+**Success Response (200):** Updated `QueueEntryResponseDto` with `doctorOverrideTriage` and new `effectiveTriage`.
+
+**Error Responses:** `400` (wrong status), `403` (not the owning doctor), `404` (entry not found).
+
+---
+
+### 16. Call Next (Doctor)
+
+```
+PUT /api/queue/{id}/call-next
+```
+
+**Auth:** DOCTOR (owner of the queue) or ADMIN
+
+**Path Variables:**
+| Name | Type | Description |
+|------|------|-------------|
+| id | Long | Queue entry ID (the next WAITING patient to call) |
+
+**Behavior:** Marks the entry `IN_PROGRESS` and sets `calledAt`. Only valid for a `WAITING` entry → 400 otherwise.
+
+**Success Response (200):** Updated entry with `status: "IN_PROGRESS"` and `calledAt` set.
+
+---
+
+### 17. Complete Consultation (Doctor)
+
+```
+PUT /api/queue/{id}/complete
+```
+
+**Auth:** DOCTOR (owner of the queue) or ADMIN
+
+**Path Variables:**
+| Name | Type | Description |
+|------|------|-------------|
+| id | Long | Queue entry ID |
+
+**Behavior:** Marks the entry `COMPLETED` and sets `completedAt`. Only valid for an `IN_PROGRESS` entry → 400 otherwise. Completed entries leave the active queue; remaining patients' waits are recalculated on next read.
+
+**Success Response (200):** Updated entry with `status: "COMPLETED"` and `completedAt` set (`position`/`predictedWaitMinutes` are `null`).
+
+---
+
+### 18. Live Overview (Admin)
+
+```
+GET /api/queue/live
+```
+
+**Auth:** ADMIN
+
+**Description:** Hospital-wide live overview: summary metrics plus a per-doctor breakdown. A WAITING patient counts as **delayed** when their predicted wait exceeds `queue.delay-threshold-minutes` (default 30).
+
+**Success Response (200):**
+```json
+{
+  "totalWaiting": 14,
+  "totalInProgress": 3,
+  "doctorsOnline": 8,
+  "doctorsOffline": 2,
+  "delayedConsultations": 2,
+  "averageWaitMinutes": 22,
+  "doctors": [
+    {
+      "doctorCatalogEntryId": 1,
+      "doctorUserId": "550e8400-e29b-41d4-a716-446655440001",
+      "departmentName": "Cardiology",
+      "specialization": "Interventional Cardiology",
+      "avgConsultationTimeMinutes": 15,
+      "isAvailable": true,
+      "waitingCount": 4,
+      "inProgressCount": 1,
+      "delayedCount": 1,
+      "longestWaitMinutes": 60
+    }
+  ]
+}
+```
+
+---
+
 ## Status Codes Summary
 
 | Code | Meaning |
@@ -453,7 +706,9 @@ PUT /api/doctors/me/availability
 | 200 | Success (GET, PUT) |
 | 201 | Created (POST) |
 | 204 | No Content (DELETE) |
-| 400 | Bad Request / Validation Error / Duplicate |
+| 400 | Bad Request / Validation Error / Invalid state transition |
+| 403 | Forbidden (wrong role / not your queue) |
 | 404 | Not Found |
-| 403 | Forbidden (wrong role) |
+| 409 | Conflict (doctor unavailable, duplicate queue entry) |
 | 401 | Unauthorized (missing/invalid JWT) |
+| 503 | Service Unavailable (doctor-service / AI temporarily down) |
