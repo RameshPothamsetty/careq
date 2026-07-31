@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Activity, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Button from '../components/ui/Button';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -32,126 +34,63 @@ export default function LoginPage() {
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '0.75rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    boxSizing: 'border-box',
-    outline: 'none',
-  };
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: '#fff',
-        padding: '1rem',
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '16px',
-          padding: '2rem',
-          width: '100%',
-          maxWidth: '420px',
-          color: '#1a202c',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: '0', color: '#667eea', fontSize: '2rem' }}>CareQ</h1>
-          <p style={{ color: '#a0aec0', fontSize: '0.9rem', margin: '0.25rem 0 0' }}>
-            SmartOPD AI — Sign in to continue
-          </p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
+      {/* Soft decorative blobs */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-sky-200/30 blur-3xl" />
+
+      <div className="card w-full max-w-md animate-fade-in-up p-8 sm:p-10">
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+            <Activity className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-800">CareQ</h1>
+          <p className="mt-1.5 text-sm text-slate-500">SmartOPD AI — Sign in to continue</p>
         </div>
 
         {error && (
-          <div
-            style={{
-              background: '#fed7d7',
-              color: '#c53030',
-              padding: '0.75rem',
-              borderRadius: '8px',
-              marginBottom: '1rem',
-              fontSize: '0.875rem',
-              textAlign: 'center',
-            }}
-          >
-            {error}
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            ⚠ {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
-              Email
-            </label>
+        <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@hospital.com"
               required
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = '#667eea')}
-              onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+              autoComplete="email"
+              className="input-field"
             />
           </div>
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
-              Password
-            </label>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
               required
-              style={inputStyle}
-              onFocus={(e) => (e.target.style.borderColor = '#667eea')}
-              onBlur={(e) => (e.target.style.borderColor = '#e2e8f0')}
+              autoComplete="current-password"
+              className="input-field"
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              width: '100%',
-              padding: '0.85rem',
-              fontSize: '1rem',
-              fontWeight: 600,
-              border: 'none',
-              borderRadius: '8px',
-              background: isSubmitting ? '#a0aec0' : '#667eea',
-              color: '#fff',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              if (!isSubmitting) e.currentTarget.style.background = '#5a67d8';
-            }}
-            onMouseLeave={(e) => {
-              if (!isSubmitting) e.currentTarget.style.background = '#667eea';
-            }}
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign In'}
-          </button>
+          <Button type="submit" loading={isSubmitting} className="w-full py-3 text-base">
+            {!isSubmitting && <LogIn className="h-4 w-4" />}
+            {isSubmitting ? 'Signing in…' : 'Sign In'}
+          </Button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#a0aec0' }}>
+        <p className="mt-7 text-center text-sm text-slate-500">
           Don't have an account?{' '}
-          <Link to="/signup" style={{ color: '#667eea', textDecoration: 'none', fontWeight: 500 }}>
+          <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline">
             Create one
           </Link>
         </p>
