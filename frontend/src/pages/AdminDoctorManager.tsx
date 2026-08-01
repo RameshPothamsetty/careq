@@ -1,7 +1,14 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Pencil, Plus, Stethoscope, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api, type DoctorCatalogResponse, type DepartmentResponse } from '../services/api';
+import {
+  useGetDoctorsQuery,
+  useGetDepartmentsQuery,
+  useCreateDoctorMutation,
+  useUpdateDoctorMutation,
+  useDeleteDoctorMutation,
+} from '../services/rtk/doctorApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
 import Button from '../components/ui/Button';
 import StatusTag from '../components/ui/StatusTag';
@@ -9,10 +16,13 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 export default function AdminDoctorManager() {
   const { user } = useAuth();
-  const [doctors, setDoctors] = useState<DoctorCatalogResponse[]>([]);
-  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: doctors, isLoading, error: queryError, refetch } = useGetDoctorsQuery();
+  const { data: departments } = useGetDepartmentsQuery();
+  const [createDoctor, { isLoading: isCreating }] = useCreateDoctorMutation();
+  const [updateDoctor, { isLoading: isUpdating }] = useUpdateDoctorMutation();
+  const [deleteDoctor] = useDeleteDoctorMutation();
+
+  const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Form state
@@ -25,31 +35,9 @@ export default function AdminDoctorManager() {
   const [experienceYears, setExperienceYears] = useState('');
   const [consultationFee, setConsultationFee] = useState('');
   const [avgConsultationTimeMinutes, setAvgConsultationTimeMinutes] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    Promise.all([fetchDoctors(), fetchDepartments()]);
-  }, []);
-
-  const fetchDoctors = async () => {
-    try {
-      const data = await api.getDoctors();
-      setDoctors(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load doctors');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const data = await api.getDepartments();
-      setDepartments(data);
-    } catch {
-      // Silently fail - departments might load separately
-    }
-  };
+  const isSaving = isCreating || isUpdating;
+  const error = queryError ? getErrorMessage(queryError) : formError;
 
   const resetForm = () => {
     setEditingId(null);
@@ -61,11 +49,11 @@ export default function AdminDoctorManager() {
     setConsultationFee('');
     setAvgConsultationTimeMinutes('');
     setShowForm(false);
-    setError('');
+    setFormError('');
     setSuccess('');
   };
 
-  const handleEdit = (doc: DoctorCatalogResponse) => {
+  const handleEdit = (doc: NonNullable<typeof doctors>[number]) => {
     setEditingId(doc.id);
     setUserId(doc.userId);
     setDepartmentId(String(doc.departmentId));
@@ -75,22 +63,21 @@ export default function AdminDoctorManager() {
     setConsultationFee(String(doc.consultationFee));
     setAvgConsultationTimeMinutes(String(doc.avgConsultationTimeMinutes));
     setShowForm(true);
-    setError('');
+    setFormError('');
     setSuccess('');
   };
 
   const handleAdd = () => {
     resetForm();
     setShowForm(true);
-    setError('');
+    setFormError('');
     setSuccess('');
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
+    setFormError('');
     setSuccess('');
-    setIsSaving(true);
 
     try {
       const payload = {
@@ -104,32 +91,29 @@ export default function AdminDoctorManager() {
       };
 
       if (editingId) {
-        await api.updateDoctor(editingId, payload);
+        await updateDoctor({ id: editingId, body: payload }).unwrap();
         setSuccess('Doctor catalog entry updated successfully');
       } else {
-        await api.createDoctor(payload);
+        await createDoctor(payload).unwrap();
         setSuccess('Doctor catalog entry created successfully');
       }
 
+      // Mutations invalidate the 'Doctor' tag — the table refetches automatically.
       resetForm();
-      await fetchDoctors();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save doctor');
-    } finally {
-      setIsSaving(false);
+      setFormError(getErrorMessage(err));
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this doctor catalog entry?')) return;
-    setError('');
+    setFormError('');
     setSuccess('');
     try {
-      await api.deleteDoctor(id);
+      await deleteDoctor(id).unwrap();
       setSuccess('Doctor catalog entry deleted successfully');
-      await fetchDoctors();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete doctor');
+      setFormError(getErrorMessage(err));
     }
   };
 
@@ -191,7 +175,7 @@ export default function AdminDoctorManager() {
                     className="select-field"
                   >
                     <option value="">Select department</option>
-                    {departments.map((dept) => (
+                    {(departments ?? []).map((dept) => (
                       <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
@@ -274,9 +258,9 @@ export default function AdminDoctorManager() {
 
         {isLoading ? (
           <LoadingState label="Loading doctors…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={fetchDoctors} />
-        ) : doctors.length === 0 ? (
+        ) : queryError ? (
+          <ErrorState message={getErrorMessage(queryError)} onRetry={refetch} />
+        ) : !doctors || doctors.length === 0 ? (
           <EmptyState
             icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
             title="No doctor catalog entries found"

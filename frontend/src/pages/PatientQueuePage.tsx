@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HeartPulse, RefreshCw, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import {
-  api,
-  type DoctorCatalogResponse,
-  type QueueEntryResponse,
-} from '../services/api';
+import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
+import { useGetMyQueueStatusQuery, useJoinQueueMutation } from '../services/rtk/queueApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
+import type { QueueEntryResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { LiveBadge, StatusTag, Button } from '../components/ui';
 import { LoadingState, ErrorState } from '../components/ui/States';
@@ -165,45 +164,32 @@ function JoinFlow({
   onJoined: (entry: QueueEntryResponse) => void;
 }) {
   const { user } = useAuth();
-  const [doctors, setDoctors] = useState<DoctorCatalogResponse[]>([]);
+  const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery();
+  const [joinQueue, { isLoading: isJoining }] = useJoinQueueMutation();
   const [selectedDoctor, setSelectedDoctor] = useState<string>(initialDoctorId ? String(initialDoctorId) : '');
   const [symptomText, setSymptomText] = useState('');
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
-  const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await api.getDoctors();
-        setDoctors(data.filter((d) => d.isAvailable));
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load doctors');
-      } finally {
-        setIsLoadingDoctors(false);
-      }
-    })();
-  }, []);
+  const doctors = allDoctors?.filter((d) => d.isAvailable) ?? [];
+  const loadError = doctorsError ? getErrorMessage(doctorsError) : '';
 
   const handleJoin = async () => {
     if (!selectedDoctor || !symptomText.trim()) {
       setError('Please choose a doctor and describe your symptoms.');
       return;
     }
-    setIsJoining(true);
     setError('');
     setSuccess('');
     try {
-      const entry = await api.joinQueue({
+      const entry = await joinQueue({
         doctorCatalogEntryId: Number(selectedDoctor),
         symptomText: symptomText.trim(),
-      });
+      }).unwrap();
       setSuccess('Queue joined successfully — AI triage complete.');
       setTimeout(() => onJoined(entry), 900);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to join the queue');
-      setIsJoining(false);
+      setError(getErrorMessage(err));
     }
   };
 
@@ -227,9 +213,9 @@ function JoinFlow({
             ✓ {success}
           </div>
         )}
-        {error && (
+        {(loadError || error) && (
           <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            ⚠ {error}
+            ⚠ {loadError || error}
           </div>
         )}
 
@@ -290,43 +276,36 @@ export default function PatientQueuePage() {
   const [searchParams] = useSearchParams();
   const initialDoctorId = searchParams.get('doctor') ? Number(searchParams.get('doctor')) : null;
 
-  const [status, setStatus] = useState<{ active: boolean; entry: QueueEntryResponse | null } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(Date.now());
-  const [refreshKey, setRefreshKey] = useState(0);
-  const lastUpdatedRef = useRef(lastUpdatedAt);
+  const [joinedEntry, setJoinedEntry] = useState<QueueEntryResponse | null>(null);
+  const joinedAtRef = useRef(0);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const data = await api.getMyQueueStatus();
-      setStatus(data);
-      lastUpdatedRef.current = Date.now();
-      setLastUpdatedAt(lastUpdatedRef.current);
-      setError('');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch queue status');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Initial load + manual refresh
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus, refreshKey]);
-
-  // Poll every 10s — polling only, no WebSockets (decided Phase 2).
-  useEffect(() => {
-    const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+  const {
+    data: status,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    fulfilledTimeStamp,
+  } = useGetMyQueueStatusQuery(undefined, { pollingInterval: POLL_INTERVAL_MS });
 
   const handleJoined = (entry: QueueEntryResponse) => {
-    setStatus({ active: true, entry });
-    lastUpdatedRef.current = Date.now();
-    setLastUpdatedAt(lastUpdatedRef.current);
+    joinedAtRef.current = Date.now();
+    setJoinedEntry(entry);
   };
+
+  // The polled status is authoritative once it reflects the join (its last
+  // successful fetch is newer than when we joined). Until then — right after
+  // joining, or if the initial status fetch failed — show the entry the join
+  // response returned so the screen never flashes back to the join form. Once
+  // the server confirms there is no active entry, the optimistic entry is
+  // dropped (e.g. after the consultation completes).
+  const serverConfirmed = (fulfilledTimeStamp ?? 0) >= joinedAtRef.current;
+  const liveEntry =
+    status?.active && status.entry
+      ? status.entry
+      : joinedEntry && !serverConfirmed
+        ? joinedEntry
+        : null;
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
@@ -338,16 +317,16 @@ export default function PatientQueuePage() {
           dashboardPath="/patient"
         />
 
-        {isLoading ? (
+        {isLoading && !liveEntry ? (
           <LoadingState label="Checking your queue status…" />
-        ) : error && !status ? (
-          <ErrorState message={error} onRetry={() => setRefreshKey((k) => k + 1)} />
-        ) : status && status.active && status.entry ? (
+        ) : isError && !status ? (
+          <ErrorState message={getErrorMessage(error)} onRetry={refetch} />
+        ) : liveEntry ? (
           <LiveStatusView
-            entry={status.entry}
-            lastUpdatedAt={lastUpdatedAt}
-            isStale={!!error}
-            onRefresh={() => setRefreshKey((k) => k + 1)}
+            entry={liveEntry}
+            lastUpdatedAt={fulfilledTimeStamp ?? Date.now()}
+            isStale={isError && !!status}
+            onRefresh={refetch}
           />
         ) : (
           <JoinFlow initialDoctorId={initialDoctorId} onJoined={handleJoined} />

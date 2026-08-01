@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, Building2, Clock, Stethoscope, Users } from 'lucide-react';
-import { api, type LiveQueueOverview } from '../services/api';
+import { useGetLiveQueueOverviewQuery } from '../services/rtk/queueApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatCard, LiveBadge, StatusTag } from '../components/ui';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
@@ -8,35 +8,19 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 const POLL_INTERVAL_MS = 10_000;
 
 export default function AdminQueueOverview() {
-  const [overview, setOverview] = useState<LiveQueueOverview | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(Date.now());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const {
+    data: overview,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    fulfilledTimeStamp,
+  } = useGetLiveQueueOverviewQuery(undefined, { pollingInterval: POLL_INTERVAL_MS });
 
-  const fetchOverview = useCallback(async () => {
-    try {
-      const data = await api.getLiveQueueOverview();
-      setOverview(data);
-      setLastUpdatedAt(Date.now());
-      setError('');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load live overview');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOverview();
-  }, [fetchOverview, refreshKey]);
-
-  useEffect(() => {
-    const interval = setInterval(fetchOverview, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchOverview]);
-
-  const secondsAgo = Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000));
+  const secondsAgo = Math.max(
+    0,
+    Math.round((Date.now() - (fulfilledTimeStamp ?? Date.now())) / 1000),
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
@@ -48,7 +32,7 @@ export default function AdminQueueOverview() {
           dashboardPath="/admin"
         />
 
-        {!isLoading && !error && overview && (
+        {overview && (
           <>
             {/* Live indicator */}
             <div className="flex items-center justify-between px-1">
@@ -57,6 +41,12 @@ export default function AdminQueueOverview() {
                 <span>Refreshing every 10s</span>
               </div>
             </div>
+
+            {isError && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                ⚠ Showing the last known overview — a refresh just failed.
+              </div>
+            )}
 
             {/* Summary cards — the screenshot-worthy part */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 sm:gap-4">
@@ -98,10 +88,10 @@ export default function AdminQueueOverview() {
           </>
         )}
 
-        {isLoading ? (
+        {isLoading && !overview ? (
           <LoadingState label="Loading hospital-wide queue overview…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => setRefreshKey((k) => k + 1)} />
+        ) : isError && !overview ? (
+          <ErrorState message={getErrorMessage(error)} onRetry={refetch} />
         ) : !overview || overview.doctors.length === 0 ? (
           <EmptyState
             icon={<Building2 className="h-8 w-8 text-brand-400" />}

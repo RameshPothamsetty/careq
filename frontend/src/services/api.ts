@@ -1,3 +1,12 @@
+/**
+ * Shared API types + the auth functions used by AuthContext.
+ *
+ * All *server data* endpoints (profile, departments, doctors, queue) moved to
+ * RTK Query slices in ./rtk/ — see docs/03_ARCHITECTURE.md § Frontend State
+ * Management. This file keeps the type contract (re-exported to slices and
+ * screens) plus login/signup, which remain session-state calls owned by
+ * AuthContext.
+ */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 interface SignupPayload {
@@ -175,6 +184,7 @@ async function request<T>(
   return data as T;
 }
 
+/** Auth-only API — session state owned by AuthContext. */
 export const api = {
   signup: (payload: SignupPayload) =>
     request<AuthResponse>('/api/auth/signup', {
@@ -187,135 +197,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-
-  getProfile: () =>
-    request<UserProfileResponse>('/api/users/me'),
-
-  updateProfile: (payload: UpdateProfilePayload) =>
-    request<UserProfileResponse>('/api/users/me', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
-
-  getUserProfileById: (userId: string) =>
-    request<UserProfileResponse>(`/api/users/${userId}`),
-
-  // ---- Department API ----
-
-  getDepartments: () =>
-    request<DepartmentResponse[]>('/api/departments'),
-
-  getDepartmentById: (id: number) =>
-    request<DepartmentResponse>(`/api/departments/${id}`),
-
-  createDepartment: (payload: DepartmentRequest) =>
-    request<DepartmentResponse>('/api/departments', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-
-  updateDepartment: (id: number, payload: DepartmentRequest) =>
-    request<DepartmentResponse>(`/api/departments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
-
-  deleteDepartment: (id: number) =>
-    request<void>(`/api/departments/${id}`, {
-      method: 'DELETE',
-    }),
-
-  // ---- Doctor Catalog API ----
-
-  getDoctors: (params?: { departmentId?: number; specialization?: string }) => {
-    const query = new URLSearchParams();
-    if (params?.departmentId) query.set('departmentId', String(params.departmentId));
-    if (params?.specialization) query.set('specialization', params.specialization);
-    const qs = query.toString();
-    return request<DoctorCatalogResponse[]>(`/api/doctors${qs ? `?${qs}` : ''}`);
-  },
-
-  getDoctorById: (id: number) =>
-    request<DoctorCatalogResponse>(`/api/doctors/${id}`),
-
-  createDoctor: (payload: DoctorCatalogRequest) =>
-    request<DoctorCatalogResponse>('/api/doctors', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-
-  updateDoctor: (id: number, payload: DoctorCatalogRequest) =>
-    request<DoctorCatalogResponse>(`/api/doctors/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
-
-  deleteDoctor: (id: number) =>
-    request<void>(`/api/doctors/${id}`, {
-      method: 'DELETE',
-    }),
-
-  toggleAvailability: (payload: AvailabilityRequest) =>
-    request<DoctorCatalogResponse>('/api/doctors/me/availability', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
-
-  uploadProfilePicture: async (file: File): Promise<UserProfileResponse> => {
-    const token = localStorage.getItem('careq_token');
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch(`${API_BASE_URL}/api/users/me/profile-picture`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      const errorMessage = data.message || data.error || 'Failed to upload picture';
-      throw new Error(errorMessage);
-    }
-
-    return data as UserProfileResponse;
-  },
-
-  // ---- Queue API (Day 5) ----
-
-  joinQueue: (payload: JoinQueuePayload) =>
-    request<QueueEntryResponse>('/api/queue/join', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-
-  getMyQueueStatus: () =>
-    request<QueueStatusResponse>('/api/queue/my-status'),
-
-  getDoctorQueue: (doctorCatalogEntryId: number) =>
-    request<QueueEntryResponse[]>(`/api/queue/doctor/${doctorCatalogEntryId}`),
-
-  overrideTriage: (queueEntryId: number, payload: OverrideTriagePayload) =>
-    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/override-triage`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }),
-
-  callNext: (queueEntryId: number) =>
-    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/call-next`, {
-      method: 'PUT',
-    }),
-
-  completeQueueEntry: (queueEntryId: number) =>
-    request<QueueEntryResponse>(`/api/queue/${queueEntryId}/complete`, {
-      method: 'PUT',
-    }),
-
-  getLiveQueueOverview: () =>
-    request<LiveQueueOverview>('/api/queue/live'),
 };
 
 export type {

@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CheckCircle2, PhoneCall, Users, UserCheck, Activity } from 'lucide-react';
+import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useAuth } from '../context/AuthContext';
+import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import {
-  api,
-  type DoctorCatalogResponse,
-  type QueueEntryResponse,
-  type TriageLevel,
-} from '../services/api';
+  useGetDoctorQueueQuery,
+  useCallNextMutation,
+  useCompleteQueueEntryMutation,
+  useOverrideTriageMutation,
+} from '../services/rtk/queueApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
+import type { QueueEntryResponse, TriageLevel } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatCard, LiveBadge, StatusTag, AvatarInitials, Button } from '../components/ui';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
@@ -35,14 +39,36 @@ function shortId(patientId: string) {
 
 export default function DoctorQueuePage() {
   const { user } = useAuth();
-  const [doctorEntry, setDoctorEntry] = useState<DoctorCatalogResponse | null>(null);
-  const [queue, setQueue] = useState<QueueEntryResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    data: doctors,
+    isLoading: doctorsLoading,
+    error: doctorsError,
+    refetch: refetchDoctors,
+  } = useGetDoctorsQuery();
+
+  // Resolve the doctor's own catalog entry from the shared doctors cache.
+  const myEntry = useMemo(
+    () => doctors?.find((d) => d.userId === user?.id) ?? null,
+    [doctors, user?.id],
+  );
+
+  // The queue query only fires once we know our catalog entry id, then polls.
+  const {
+    data: queue,
+    isLoading: queueLoading,
+    error,
+    refetch,
+    fulfilledTimeStamp,
+  } = useGetDoctorQueueQuery(myEntry ? myEntry.id : skipToken, {
+    pollingInterval: POLL_INTERVAL_MS,
+  });
+
+  const [callNext] = useCallNextMutation();
+  const [completeQueueEntry] = useCompleteQueueEntryMutation();
+  const [overrideTriage] = useOverrideTriageMutation();
+
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(Date.now());
-  const [refreshKey, setRefreshKey] = useState(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (message: string, tone: 'success' | 'error' = 'success') => {
@@ -51,71 +77,60 @@ export default function DoctorQueuePage() {
     toastTimer.current = setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchQueue = useCallback(async () => {
-    try {
-      let myEntry = doctorEntry;
-      if (!myEntry) {
-        const doctors = await api.getDoctors();
-        myEntry = doctors.find((d) => d.userId === user?.id) ?? null;
-        if (myEntry) setDoctorEntry(myEntry);
-        else {
-          setError('No doctor catalog entry found for your account. Ask an admin to create one.');
-          setIsLoading(false);
-          return;
-        }
-      }
-      const data = await api.getDoctorQueue(myEntry.id);
-      setQueue(data);
-      setLastUpdatedAt(Date.now());
-      setError('');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load your queue');
-    } finally {
-      setIsLoading(false);
+  const errorMessage = useMemo(() => {
+    if (doctorsError) return getErrorMessage(doctorsError);
+    if (!doctorsLoading && !myEntry) {
+      return 'No doctor catalog entry found for your account. Ask an admin to create one.';
     }
-  }, [user?.id, doctorEntry]);
+    if (error) return getErrorMessage(error);
+    return '';
+  }, [doctorsError, doctorsLoading, myEntry, error]);
 
-  useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue, refreshKey]);
+  // The queue query may be skipped (no catalog entry yet) or the doctors
+  // query may have failed — retry both so the button always does something.
+  const handleRetry = () => {
+    refetchDoctors();
+    refetch();
+  };
 
-  useEffect(() => {
-    const interval = setInterval(fetchQueue, POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [fetchQueue]);
+  const isLoading = doctorsLoading || (queueLoading && !!myEntry);
 
-  const firstWaiting = queue.find((e) => e.status === 'WAITING');
-  const inProgress = queue.filter((e) => e.status === 'IN_PROGRESS');
-  const waitingCount = queue.filter((e) => e.status === 'WAITING').length;
-  const completedToday = queue.filter((e) => e.status === 'COMPLETED').length;
-  const secondsAgo = Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000));
+  const entries = queue ?? [];
+  const firstWaiting = entries.find((e) => e.status === 'WAITING');
+  const inProgress = entries.filter((e) => e.status === 'IN_PROGRESS');
+  const waitingCount = entries.filter((e) => e.status === 'WAITING').length;
+  const completedToday = entries.filter((e) => e.status === 'COMPLETED').length;
+  const secondsAgo = Math.max(
+    0,
+    Math.round((Date.now() - (fulfilledTimeStamp ?? Date.now())) / 1000),
+  );
 
+  // Mutations invalidate the DoctorQueue tag, so the queue refetches
+  // automatically after every action — no manual refetch needed.
   const runAction = async (
     action: () => Promise<unknown>,
     successMessage: string,
     id: number,
   ) => {
     setBusyId(id);
-    setError('');
     try {
       await action();
-      await fetchQueue();
       showToast(successMessage);
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Action failed', 'error');
+      showToast(getErrorMessage(err), 'error');
     } finally {
       setBusyId(null);
     }
   };
 
   const handleCallNext = (entry: QueueEntryResponse) =>
-    runAction(() => api.callNext(entry.id), `Called ${shortId(entry.patientId)} — consultation started`, entry.id);
+    runAction(() => callNext(entry.id).unwrap(), `Called ${shortId(entry.patientId)} — consultation started`, entry.id);
 
   const handleComplete = (entry: QueueEntryResponse) =>
-    runAction(() => api.completeQueueEntry(entry.id), `Completed ${shortId(entry.patientId)} — queue advanced`, entry.id);
+    runAction(() => completeQueueEntry(entry.id).unwrap(), `Completed ${shortId(entry.patientId)} — queue advanced`, entry.id);
 
   const handleOverride = (entry: QueueEntryResponse, level: TriageLevel) =>
-    runAction(() => api.overrideTriage(entry.id, { triageLevel: level }), `Triage updated to ${level}`, entry.id);
+    runAction(() => overrideTriage({ id: entry.id, triageLevel: level }).unwrap(), `Triage updated to ${level}`, entry.id);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
@@ -123,12 +138,12 @@ export default function DoctorQueuePage() {
         <QueuePageHeader
           icon="🩺"
           title="Live Patient Queue"
-          subtitle={doctorEntry ? `${doctorEntry.specialization} · ${doctorEntry.departmentName}` : 'Your queue'}
+          subtitle={myEntry ? `${myEntry.specialization} · ${myEntry.departmentName}` : 'Your queue'}
           dashboardPath="/doctor"
         />
 
         {/* Stats row */}
-        {!isLoading && !error && (
+        {!isLoading && !errorMessage && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <StatCard
               label="Waiting"
@@ -152,15 +167,15 @@ export default function DoctorQueuePage() {
         )}
 
         {/* Live indicator */}
-        {!isLoading && !error && (
+        {!isLoading && !errorMessage && (
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
               <LiveBadge lastUpdatedSeconds={secondsAgo} />
               <span>Polling every 10s</span>
             </div>
-            {doctorEntry && (
+            {myEntry && (
               <span className="text-xs text-slate-400">
-                ≈{doctorEntry.avgConsultationTimeMinutes} min/patient avg
+                ≈{myEntry.avgConsultationTimeMinutes} min/patient avg
               </span>
             )}
           </div>
@@ -168,12 +183,12 @@ export default function DoctorQueuePage() {
 
         <Toast message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} />
 
-        {error && !isLoading && (
-          <ErrorState message={error} onRetry={() => setRefreshKey((k) => k + 1)} />
+        {errorMessage && !isLoading && (
+          <ErrorState message={errorMessage} onRetry={handleRetry} />
         )}
 
         {/* Call next action */}
-        {!isLoading && !error && firstWaiting && (
+        {!isLoading && !errorMessage && firstWaiting && (
           <div className="card flex flex-col items-center justify-between gap-3 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
             <div className="flex items-center gap-3">
               <AvatarInitials name={shortId(firstWaiting.patientId)} />
@@ -198,16 +213,16 @@ export default function DoctorQueuePage() {
 
         {isLoading ? (
           <LoadingState label="Loading your live queue…" />
-        ) : !error && queue.filter((e) => e.status !== 'COMPLETED').length === 0 ? (
+        ) : !errorMessage && entries.filter((e) => e.status !== 'COMPLETED').length === 0 ? (
           <EmptyState
             icon={<Activity className="h-8 w-8 text-brand-400" />}
             title="No patients in queue right now"
             message="New patients will appear here automatically as they join with AI triage."
           />
         ) : (
-          !error && (
+          !errorMessage && (
             <div className="space-y-3">
-              {queue
+              {entries
                 .filter((e) => e.status !== 'COMPLETED')
                 .map((entry, idx) => {
                   const isTop = entry.status === 'IN_PROGRESS' || idx === 0;
@@ -228,12 +243,13 @@ export default function DoctorQueuePage() {
                             }`}
                           >
                             {entry.position ?? '—'}
-                          </div>                            <div>
-                              <div className="flex items-center gap-2">
-                                <AvatarInitials name={shortId(entry.patientId)} size="sm" />
-                                <p className="font-bold text-slate-800">{shortId(entry.patientId)}</p>
-                                <StatusTag status={entry.effectiveTriage} />
-                              </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <AvatarInitials name={shortId(entry.patientId)} size="sm" />
+                              <p className="font-bold text-slate-800">{shortId(entry.patientId)}</p>
+                              <StatusTag status={entry.effectiveTriage} />
+                            </div>
                             <p className="mt-0.5 text-xs text-slate-400">
                               Wait ≈ {entry.predictedWaitMinutes ?? 0} min · AI: {entry.aiSuggestedTriage}
                               {entry.doctorOverrideTriage ? ` → overridden to ${entry.doctorOverrideTriage}` : ''}
