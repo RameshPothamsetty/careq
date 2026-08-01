@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, FilterX, Stethoscope, Wallet, Clock, Award, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api, type DoctorCatalogResponse, type DepartmentResponse } from '../services/api';
+import { useGetDepartmentsQuery, useGetDoctorsQuery } from '../services/rtk/doctorApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatCard, StatusTag, AvatarInitials, Button } from '../components/ui';
 import { LoadingState, EmptyState } from '../components/ui/States';
@@ -10,53 +11,41 @@ import { LoadingState, EmptyState } from '../components/ui/States';
 export default function PatientDoctorBrowser() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [doctors, setDoctors] = useState<DoctorCatalogResponse[]>([]);
-  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
+  const [searchInput, setSearchInput] = useState('');
   const [searchSpecialization, setSearchSpecialization] = useState('');
-  const [stats, setStats] = useState({ total: 0, available: 0, departments: 0 });
 
+  // Debounce the free-text search so typing fires at most one doctor query per
+  // 300ms pause instead of one per keystroke.
   useEffect(() => {
-    fetchDepartments();
-    fetchDoctors();
-  }, []);
+    const timer = setTimeout(() => setSearchSpecialization(searchInput.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  useEffect(() => {
-    fetchDoctors();
-  }, [selectedDeptId, searchSpecialization]);
+  const { data: allDepartments } = useGetDepartmentsQuery();
+  const departments = allDepartments?.filter((d) => d.isActive) ?? [];
 
-  const fetchDepartments = async () => {
-    try {
-      const data = await api.getDepartments();
-      setDepartments(data.filter((d) => d.isActive));
-    } catch { /* silent */ }
-  };
+  // RTK Query refetches automatically whenever a filter changes.
+  const {
+    data: doctors,
+    isFetching,
+    error,
+  } = useGetDoctorsQuery({
+    departmentId: selectedDeptId ? Number(selectedDeptId) : undefined,
+    specialization: searchSpecialization || undefined,
+  });
 
-  const fetchDoctors = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const params: { departmentId?: number; specialization?: string } = {};
-      if (selectedDeptId) params.departmentId = Number(selectedDeptId);
-      if (searchSpecialization.trim()) params.specialization = searchSpecialization.trim();
-      const data = await api.getDoctors(params);
-      setDoctors(data);
-      setStats({
-        total: data.length,
-        available: data.filter((d) => d.isAvailable).length,
-        departments: new Set(data.map((d) => d.departmentName)).size,
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load doctors');
-    } finally {
-      setIsLoading(false);
-    }
+  const isLoading = isFetching;
+  const total = doctors?.length ?? 0;
+  const stats = {
+    total,
+    available: doctors?.filter((d) => d.isAvailable).length ?? 0,
+    departments: new Set(doctors?.map((d) => d.departmentName) ?? []).size,
   };
 
   const clearFilters = () => {
     setSelectedDeptId('');
+    setSearchInput('');
     setSearchSpecialization('');
   };
 
@@ -71,7 +60,7 @@ export default function PatientDoctorBrowser() {
         />
 
         {/* Stats */}
-        {!isLoading && doctors.length > 0 && (
+        {!isLoading && total > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <StatCard label="Total Doctors" value={stats.total} icon={<Stethoscope className="h-5 w-5" />} />
             <StatCard
@@ -113,8 +102,8 @@ export default function PatientDoctorBrowser() {
               </label>
               <input
                 type="text"
-                value={searchSpecialization}
-                onChange={(e) => setSearchSpecialization(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="e.g. Cardiology"
                 className="input-field !min-w-[220px]"
               />
@@ -128,13 +117,13 @@ export default function PatientDoctorBrowser() {
 
         {error && (
           <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            ⚠ {error}
+            ⚠ {getErrorMessage(error)}
           </div>
         )}
 
         {isLoading ? (
           <LoadingState label="Finding doctors for you…" />
-        ) : doctors.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState
             icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
             title="No doctors found"
@@ -152,7 +141,7 @@ export default function PatientDoctorBrowser() {
         ) : (
           /* Doctor cards */
           <div className="space-y-3">
-            {doctors.map((doc) => (
+            {doctors?.map((doc) => (
               <div
                 key={doc.id}
                 className="card flex flex-col gap-4 p-5 transition-all duration-200 hover:shadow-lift sm:flex-row sm:items-center"

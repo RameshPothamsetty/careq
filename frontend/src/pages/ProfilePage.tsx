@@ -1,30 +1,34 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import {
+  useGetProfileQuery,
+  useUpdateProfileMutation,
+  useUploadProfilePictureMutation,
+} from '../services/rtk/userApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
+import type { UpdateProfilePayload, UserProfileResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import AvatarInitials from '../components/ui/AvatarInitials';
 import Button from '../components/ui/Button';
-import { LoadingState } from '../components/ui/States';
-
-interface UserProfile {
-  id: number;
-  userId: string;
-  phone: string | null;
-  address: string | null;
-  dateOfBirth: string | null;
-  gender: string | null;
-  profilePictureUrl: string | null;
-  role: string;
-}
+import { LoadingState, ErrorState } from '../components/ui/States';
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    data: profile,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useGetProfileQuery(undefined);
+  const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation();
+  const [uploadProfilePicture, { isLoading: isUploading }] =
+    useUploadProfilePictureMutation();
+
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [phone, setPhone] = useState('');
@@ -34,26 +38,7 @@ export default function ProfilePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchProfile = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const data = await api.getProfile();
-      setProfile(data);
-      fillForm(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load profile');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fillForm = (data: UserProfile) => {
+  const fillForm = (data: UserProfileResponse) => {
     setPhone(data.phone || '');
     setAddress(data.address || '');
     setDateOfBirth(data.dateOfBirth || '');
@@ -81,40 +66,31 @@ export default function ProfilePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    setIsSaving(true);
 
     try {
-      let updatedProfile = profile;
-
+      // Picture upload first — the returned profile carries the new URL.
       if (selectedFile) {
-        try {
-          updatedProfile = await api.uploadProfilePicture(selectedFile);
-        } catch (uploadErr) {
-          setError(uploadErr instanceof Error ? uploadErr.message : 'Failed to upload picture');
-          setIsSaving(false);
-          return;
-        }
+        await uploadProfilePicture(selectedFile).unwrap();
       }
 
-      const payload: Record<string, string> = {};
+      const payload: UpdateProfilePayload = {};
       if (phone) payload.phone = phone;
       if (address) payload.address = address;
       if (dateOfBirth) payload.dateOfBirth = dateOfBirth;
       if (gender) payload.gender = gender;
 
       if (Object.keys(payload).length > 0) {
-        updatedProfile = await api.updateProfile(payload);
+        await updateProfile(payload).unwrap();
       }
 
-      setProfile(updatedProfile);
+      // Both mutations invalidate the 'Profile' tag — the query refetches
+      // automatically and the view updates with the fresh data.
       setSuccess('Profile updated successfully');
       setSelectedFile(null);
       setPreviewUrl(null);
       setIsEditing(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile');
-    } finally {
-      setIsSaving(false);
+      setError(getErrorMessage(err));
     }
   };
 
@@ -136,7 +112,18 @@ export default function ProfilePage() {
     );
   }
 
+  if (isError && !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+        <div className="mx-auto max-w-4xl">
+          <ErrorState message={getErrorMessage(queryError)} onRetry={refetch} />
+        </div>
+      </div>
+    );
+  }
+
   const displayUrl = previewUrl || profile?.profilePictureUrl;
+  const isSaving = isUpdating || isUploading;
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
@@ -150,7 +137,12 @@ export default function ProfilePage() {
           backTo={`/${user?.role.toLowerCase() || 'patient'}`}
         />
 
-        {error && (
+        {isError && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            ⚠ {getErrorMessage(queryError)} — showing the last saved profile.
+          </div>
+        )}
+        {error && !isError && (
           <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             ⚠ {error}
           </div>

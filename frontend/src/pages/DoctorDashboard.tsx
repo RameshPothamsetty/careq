@@ -1,55 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { Clock, ArrowRight } from 'lucide-react';
-import { api, type DoctorCatalogResponse } from '../services/api';
+import { useGetDoctorsQuery, useToggleAvailabilityMutation } from '../services/rtk/doctorApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatusTag, Button } from '../components/ui';
 import { LoadingState } from '../components/ui/States';
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
-  const [doctorEntry, setDoctorEntry] = useState<DoctorCatalogResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isToggling, setIsToggling] = useState(false);
-  const [error, setError] = useState('');
+  const { data: doctors, isLoading, error: queryError } = useGetDoctorsQuery();
+  const [toggleAvailability, { isLoading: isToggling }] = useToggleAvailabilityMutation();
+  const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetchDoctorEntry();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchDoctorEntry = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const doctors = await api.getDoctors();
-      const myEntry = doctors.find((doc) => doc.userId === user?.id);
-      if (myEntry) setDoctorEntry(myEntry);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load doctor profile');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const doctorEntry = doctors?.find((doc) => doc.userId === user?.id) ?? null;
+  const error = queryError ? getErrorMessage(queryError) : actionError;
 
   const handleToggleAvailability = async () => {
     if (!doctorEntry) return;
-    setIsToggling(true);
-    setError('');
+    setActionError('');
     setSuccess('');
     try {
-      const updated = await api.toggleAvailability({
+      const updated = await toggleAvailability({
         isAvailable: !doctorEntry.isAvailable,
-      });
-      setDoctorEntry(updated);
+      }).unwrap();
       setSuccess(`You are now ${updated.isAvailable ? 'online' : 'offline'}`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update availability');
-    } finally {
-      setIsToggling(false);
+      setActionError(getErrorMessage(err));
     }
   };
 

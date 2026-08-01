@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { api, type AuthResponse } from '../services/api';
+import { UNAUTHORIZED_EVENT } from '../services/rtk/baseQuery';
+import { resetApiState } from '../store';
 
 interface User {
   id: string;
@@ -69,7 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem('careq_token');
     localStorage.removeItem('careq_user');
+    // Wipe RTK Query caches so the next session never sees this user's data.
+    resetApiState();
   }, []);
+
+  // A 401 from any authenticated endpoint (expired/invalid JWT) is detected
+  // centrally in the RTK Query baseQuery, which fires this event → force
+  // logout so the user is never left stuck on stale cached data. `logout` is
+  // stable, so this listener is registered once.
+  useEffect(() => {
+    window.addEventListener(UNAUTHORIZED_EVENT, logout);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, logout);
+  }, [logout]);
 
   const value: AuthContextType = {
     user,

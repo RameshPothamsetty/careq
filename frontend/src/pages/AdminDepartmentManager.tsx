@@ -1,7 +1,13 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Building2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api, type DepartmentResponse } from '../services/api';
+import {
+  useGetDepartmentsQuery,
+  useCreateDepartmentMutation,
+  useUpdateDepartmentMutation,
+  useDeleteDepartmentMutation,
+} from '../services/rtk/doctorApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
 import Button from '../components/ui/Button';
 import StatusTag from '../components/ui/StatusTag';
@@ -9,9 +15,12 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 export default function AdminDepartmentManager() {
   const { user } = useAuth();
-  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: departments, isLoading, error: queryError, refetch } = useGetDepartmentsQuery();
+  const [createDepartment, { isLoading: isCreating }] = useCreateDepartmentMutation();
+  const [updateDepartment, { isLoading: isUpdating }] = useUpdateDepartmentMutation();
+  const [deleteDepartment] = useDeleteDepartmentMutation();
+
+  const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Form state
@@ -19,31 +28,16 @@ export default function AdminDepartmentManager() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    fetchDepartments();
-  }, []);
+  const isSaving = isCreating || isUpdating;
+  const error = queryError ? getErrorMessage(queryError) : formError;
 
-  const fetchDepartments = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const data = await api.getDepartments();
-      setDepartments(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load departments');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEdit = (dept: DepartmentResponse) => {
+  const handleEdit = (dept: NonNullable<typeof departments>[number]) => {
     setEditingId(dept.id);
     setName(dept.name);
     setDescription(dept.description || '');
     setShowForm(true);
-    setError('');
+    setFormError('');
     setSuccess('');
   };
 
@@ -52,7 +46,7 @@ export default function AdminDepartmentManager() {
     setName('');
     setDescription('');
     setShowForm(true);
-    setError('');
+    setFormError('');
     setSuccess('');
   };
 
@@ -61,45 +55,41 @@ export default function AdminDepartmentManager() {
     setEditingId(null);
     setName('');
     setDescription('');
-    setError('');
+    setFormError('');
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
+    setFormError('');
     setSuccess('');
-    setIsSaving(true);
 
     try {
       if (editingId) {
-        await api.updateDepartment(editingId, { name, description });
+        await updateDepartment({ id: editingId, body: { name, description } }).unwrap();
         setSuccess('Department updated successfully');
       } else {
-        await api.createDepartment({ name, description });
+        await createDepartment({ name, description }).unwrap();
         setSuccess('Department created successfully');
       }
+      // Mutations invalidate the 'Department' tag — the table refetches automatically.
       setShowForm(false);
       setEditingId(null);
       setName('');
       setDescription('');
-      await fetchDepartments();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save department');
-    } finally {
-      setIsSaving(false);
+      setFormError(getErrorMessage(err));
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this department?')) return;
-    setError('');
+    setFormError('');
     setSuccess('');
     try {
-      await api.deleteDepartment(id);
+      await deleteDepartment(id).unwrap();
       setSuccess('Department deleted successfully');
-      await fetchDepartments();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete department');
+      setFormError(getErrorMessage(err));
     }
   };
 
@@ -174,9 +164,9 @@ export default function AdminDepartmentManager() {
 
         {isLoading ? (
           <LoadingState label="Loading departments…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={fetchDepartments} />
-        ) : departments.length === 0 ? (
+        ) : queryError ? (
+          <ErrorState message={getErrorMessage(queryError)} onRetry={refetch} />
+        ) : !departments || departments.length === 0 ? (
           <EmptyState
             icon={<Building2 className="h-8 w-8 text-brand-400" />}
             title="No departments found"

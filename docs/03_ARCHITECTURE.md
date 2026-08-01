@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.5 (Day 5)  
-**Status:** Updated — Queue Module + AI (Wait-Time Prediction & Symptom Triage) Live
+**Version:** 1.6 (Day 6)  
+**Status:** Updated — Frontend state migrated to RTK Query (server-state cache)
 
 ---
 
@@ -11,8 +11,9 @@
                          ┌─────────────────────────────────┐
                          │           React SPA             │
                          │   (Vite + React Router v6)      │
+                         │   (RTK Query server-state)      │
                          └──────────────┬──────────────────┘
-                                        │ HTTP (Axios)
+                                        │ HTTP (fetch / RTK Query)
                                         ▼
                          ┌─────────────────────────────────┐
                          │       API Gateway (port 8080)   │
@@ -227,3 +228,26 @@ POST /api/queue/join (patient)
 - Every user is guaranteed to get a profile on first use without coupling signup to profile creation
 - The `role` field is denormalized into `user_profiles` for query convenience — no cross-service join needed
 - The denormalized role is populated from the `X-User-Role` header on first access and can be updated if needed
+
+---
+
+## 9. Frontend State Management (RTK Query)
+
+**Decision:** all *server data* calls (profile, departments, doctors, queue) run through **RTK Query** slices; the hand-rolled `fetch` helpers were removed from `src/services/api.ts`. `api.ts` now keeps only the shared **type contract** (re-exported to slices and screens) plus `login`/`signup`, which remain session-state calls owned by `AuthContext`.
+
+**File layout:**
+
+| File | Responsibility |
+|------|---------------|
+| `src/store.ts` | Redux store — registers the three slices + middleware; exports typed `useAppDispatch`/`useAppSelector` and `resetApiState()` |
+| `src/services/rtk/baseQuery.ts` | Single shared `fetchBaseQuery` with the JWT injected centrally (`careq_token` from localStorage) + `getErrorMessage()` error normalizer matching the backend `{ message, details }` shape |
+| `src/services/rtk/userApi.ts` | user-service profile endpoints (`GET`/`PUT /api/users/me`, multipart picture upload) |
+| `src/services/rtk/doctorApi.ts` | doctor-service endpoints: department CRUD, doctor catalog browse/CRUD, availability toggle |
+| `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview |
+
+**Key decisions:**
+- **Two kinds of state:** session state (user / role / token) stays in `AuthContext` + localStorage; server data lives in the RTK Query cache. `AuthContext.logout()` calls `resetApiState()` so one session's cached data never leaks into the next.
+- **Tag invalidation instead of manual refetch:** e.g. `joinQueue`, `callNext`, and the admin CRUD mutations `invalidatesTags` the affected lists, so screens update automatically after a write — no `fetchQueue()`-style calls remain.
+- **Polling replaces `setInterval`:** the live queue screens (`PatientQueuePage`, `DoctorQueuePage`, `AdminQueueOverview`) pass `pollingInterval: 10_000` to their query hooks; `dataUpdatedAt` drives the `LiveBadge` staleness indicator, and `refetch()` is the manual refresh.
+- **Dependent queries** (e.g. `DoctorQueuePage` needs the doctor's catalog id before fetching their queue) use the `skipToken` option so the second query only fires once the first resolves.
+- **Centralized auth header:** `baseQuery.prepareHeaders` reads the token from localStorage — the same source of truth `AuthContext` writes on login — keeping the header logic out of every screen.
