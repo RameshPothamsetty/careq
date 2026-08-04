@@ -39,6 +39,9 @@ public interface QueueService {
     /** Doctor marks a patient COMPLETED. */
     QueueEntryResponseDto complete(Long queueEntryId, String requesterUserId, String requesterRole);
 
+    /** Patient leaves the queue before being seen (WAITING only). Admin can cancel any entry. */
+    QueueEntryResponseDto cancel(Long queueEntryId, String requesterUserId, String requesterRole);
+
     /** Admin-only live overview across all doctors. */
     LiveQueueOverviewDto getLiveOverview();
 

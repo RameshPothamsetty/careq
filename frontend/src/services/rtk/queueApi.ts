@@ -83,6 +83,17 @@ export const queueApi = createApi({
       invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
+    // Patient leaves the queue before being seen (WAITING only). The status
+    // refetch then reports no active entry, returning the patient to the join
+    // flow; the cancelled visit also lands in their history.
+    cancelQueueEntry: builder.mutation<QueueEntryResponse, number>({
+      query: (id) => ({
+        url: `/api/queue/${id}/cancel`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
+    }),
+
     getLiveQueueOverview: builder.query<LiveQueueOverview, void>({
       query: () => '/api/queue/live',
       providesTags: ['LiveQueue'],
@@ -113,6 +124,7 @@ export const {
   useOverrideTriageMutation,
   useCallNextMutation,
   useCompleteQueueEntryMutation,
+  useCancelQueueEntryMutation,
   useGetLiveQueueOverviewQuery,
   useGetAnalyticsSummaryQuery,
   useGetDoctorAnalyticsQuery,

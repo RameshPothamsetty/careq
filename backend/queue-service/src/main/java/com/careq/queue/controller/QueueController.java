@@ -120,6 +120,17 @@ public class QueueController {
         return ResponseEntity.ok(queueService.callNext(id, userId, role));
     }
 
+    /** Patient leaves the queue before being seen (WAITING only); admin can cancel any entry. */
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<QueueEntryResponseDto> cancel(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireAnyRole(role, "PATIENT", "ADMIN");
+        return ResponseEntity.ok(queueService.cancel(id, userId, role));
+    }
+
     /** Doctor marks a patient COMPLETED. */
     @PutMapping("/{id}/complete")
     public ResponseEntity<QueueEntryResponseDto> complete(

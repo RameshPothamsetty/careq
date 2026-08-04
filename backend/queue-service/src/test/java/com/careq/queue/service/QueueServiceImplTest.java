@@ -383,6 +383,103 @@ class QueueServiceImplTest {
         assertThat(distribution.get(1).getDepartmentName()).isEqualTo("Neurology");
     }
 
+    // ── Cancel / leave queue (patient-initiated) ───────────────────────
+
+    @Test
+    void cancel_OwnWaitingEntry_SetsCancelled() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("changed plans");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+        entry.setJoinedAt(LocalDateTime.of(2026, 8, 1, 9, 0));
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.save(any(QueueEntry.class))).willAnswer(inv -> inv.getArgument(0));
+
+        QueueEntryResponseDto cancelled = queueService.cancel(1L, PATIENT, "PATIENT");
+
+        assertThat(cancelled.getStatus()).isEqualTo(QueueStatus.CANCELLED);
+        // No longer active — no derived position.
+        assertThat(cancelled.getPosition()).isNull();
+        // Still enriched with doctor details for history UIs.
+        assertThat(cancelled.getDepartmentName()).isEqualTo("Cardiology");
+    }
+
+    @Test
+    void cancel_AnotherPatientsEntry_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, "someone-else", "PATIENT"))
+                .isInstanceOf(UnauthorizedAccessException.class);
+        verify(queueEntryRepository, never()).save(any(QueueEntry.class));
+    }
+
+    @Test
+    void cancel_DoctorRole_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, DOCTOR_USER, "DOCTOR"))
+                .isInstanceOf(UnauthorizedAccessException.class);
+    }
+
+    @Test
+    void cancel_Admin_CanCancelAnyEntry() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId("someone-else");
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.save(any(QueueEntry.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // Admin can cancel any entry (passes verifyPatientAccess).
+        QueueEntryResponseDto cancelled = queueService.cancel(1L, ADMIN, "ADMIN");
+
+        assertThat(cancelled.getStatus()).isEqualTo(QueueStatus.CANCELLED);
+    }
+
+    @Test
+    void cancel_InProgressEntry_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.IN_PROGRESS);
+        entry.setCalledAt(LocalDateTime.of(2026, 8, 1, 9, 10));
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, PATIENT, "PATIENT"))
+                .isInstanceOf(InvalidQueueStateException.class);
+        verify(queueEntryRepository, never()).save(any(QueueEntry.class));
+    }
+
     // ── Patient history (dashboard upgrade) ────────────────────────────
 
     @Test

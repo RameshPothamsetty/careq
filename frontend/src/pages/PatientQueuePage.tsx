@@ -3,7 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { HeartPulse, RefreshCw, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
-import { useGetMyQueueStatusQuery, useJoinQueueMutation } from '../services/rtk/queueApi';
+import {
+  useGetMyQueueStatusQuery,
+  useJoinQueueMutation,
+  useCancelQueueEntryMutation,
+} from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { QueueEntryResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
@@ -19,11 +23,17 @@ function LiveStatusView({
   lastUpdatedAt,
   isStale,
   onRefresh,
+  onCancel,
+  isCancelling,
+  cancelError,
 }: {
   entry: QueueEntryResponse;
   lastUpdatedAt: number;
   isStale: boolean;
   onRefresh: () => void;
+  onCancel: () => void;
+  isCancelling: boolean;
+  cancelError: string;
 }) {
   const isInProgress = entry.status === 'IN_PROGRESS';
   const isCompleted = entry.status === 'COMPLETED';
@@ -145,10 +155,28 @@ function LiveStatusView({
             <p className="mt-1 font-semibold text-slate-800">{entry.doctorOverrideTriage ?? 'No override yet'}</p>
           </div>
         </div>
-        <Button variant="secondary" onClick={onRefresh} className="w-full sm:w-auto" title="Fetch the latest status">
-          <RefreshCw className="h-4 w-4" />
-          Refresh now
-        </Button>
+        {cancelError && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">
+            ⚠ {cancelError}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={onRefresh} className="w-full sm:w-auto" title="Fetch the latest status">
+            <RefreshCw className="h-4 w-4" />
+            Refresh now
+          </Button>
+          {entry.status === 'WAITING' && (
+            <Button
+              variant="danger"
+              onClick={onCancel}
+              loading={isCancelling}
+              className="w-full sm:w-auto"
+              title="Leave the queue before being seen — your spot will be released"
+            >
+              Leave queue
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -282,6 +310,9 @@ export default function PatientQueuePage() {
   const [joinedEntry, setJoinedEntry] = useState<QueueEntryResponse | null>(null);
   const joinedAtRef = useRef(0);
 
+  const [cancelQueueEntry, { isLoading: isCancelling }] = useCancelQueueEntryMutation();
+  const [cancelError, setCancelError] = useState('');
+
   const {
     data: status,
     isLoading,
@@ -310,6 +341,20 @@ export default function PatientQueuePage() {
         ? joinedEntry
         : null;
 
+  const handleCancel = async () => {
+    const target = liveEntry ?? joinedEntry;
+    if (!target) return;
+    if (!window.confirm('Leave the queue? Your position will be released.')) return;
+    setCancelError('');
+    try {
+      await cancelQueueEntry(target.id).unwrap();
+      // The status poll refetches (tag invalidated) and reports no active
+      // entry, which returns the page to the join flow automatically.
+    } catch (err: unknown) {
+      setCancelError(getErrorMessage(err));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -330,6 +375,9 @@ export default function PatientQueuePage() {
             lastUpdatedAt={fulfilledTimeStamp ?? Date.now()}
             isStale={isError && !!status}
             onRefresh={refetch}
+            onCancel={handleCancel}
+            isCancelling={isCancelling}
+            cancelError={cancelError}
           />
         ) : (
           <JoinFlow initialDoctorId={initialDoctorId} onJoined={handleJoined} />

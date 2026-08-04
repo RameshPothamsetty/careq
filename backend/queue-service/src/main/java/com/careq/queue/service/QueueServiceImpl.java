@@ -234,6 +234,32 @@ public class QueueServiceImpl implements QueueService {
     }
 
     @Override
+    @Transactional
+    public QueueEntryResponseDto cancel(Long queueEntryId, String requesterUserId, String requesterRole) {
+        QueueEntry entry = getEntryOrThrow(queueEntryId);
+        verifyPatientAccess(entry, requesterUserId, requesterRole);
+
+        // Only a patient still waiting can leave — a consultation in progress
+        // is finished by the doctor, never cancelled by the patient.
+        if (entry.getStatus() != QueueStatus.WAITING) {
+            throw new InvalidQueueStateException(
+                    "Only a WAITING entry can be cancelled (current status: " + entry.getStatus() + ")");
+        }
+
+        // Fetch the doctor BEFORE mutating (same order as the other mutations)
+        // so a doctor-service failure aborts before any state change — never a
+        // save-then-503 inconsistency.
+        DoctorCatalogResponseDto doctor = fetchDoctor(entry.getDoctorCatalogEntryId());
+
+        entry.setStatus(QueueStatus.CANCELLED);
+        entry = queueEntryRepository.save(entry);
+
+        // CANCELLED is not an active status, so no derived position/wait — the
+        // response is enriched with the doctor's display details for history UIs.
+        return toResponseDto(entry, doctor);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public LiveQueueOverviewDto getLiveOverview() {
         // All doctors (availability comes live from doctor-service).
@@ -462,6 +488,19 @@ public class QueueServiceImpl implements QueueService {
                     orderingService.predictedWaitMinutes(position, doctor.getAvgConsultationTimeMinutes()));
         }
         return dto;
+    }
+
+    /** Verifies a patient only cancels their own entry; ADMIN is allowed everywhere. */
+    private void verifyPatientAccess(QueueEntry entry, String requesterUserId, String requesterRole) {
+        if ("ADMIN".equalsIgnoreCase(requesterRole)) {
+            return;
+        }
+        if (!"PATIENT".equalsIgnoreCase(requesterRole)) {
+            throw new UnauthorizedAccessException("Only the patient or an admin can cancel a queue entry");
+        }
+        if (!entry.getPatientId().equals(requesterUserId)) {
+            throw new UnauthorizedAccessException("You can only cancel your own queue entry");
+        }
     }
 
     /** Verifies a DOCTOR only touches their own queue; ADMIN is allowed everywhere. */

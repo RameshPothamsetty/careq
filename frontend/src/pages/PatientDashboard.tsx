@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import {
@@ -14,7 +14,12 @@ import {
   Wallet,
 } from 'lucide-react';
 import QueuePageHeader from '../components/QueuePageHeader';
-import { useGetMyQueueStatusQuery, useGetMyQueueHistoryQuery } from '../services/rtk/queueApi';
+import {
+  useGetMyQueueStatusQuery,
+  useGetMyQueueHistoryQuery,
+  useCancelQueueEntryMutation,
+} from '../services/rtk/queueApi';
+import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import { LiveBadge, StatusTag, Button, AvatarInitials } from '../components/ui';
 import type { DoctorCatalogResponse, QueueEntryResponse } from '../services/api';
@@ -61,9 +66,15 @@ function visitLabel(iso: string) {
 function MyVisitCard({
   entry,
   lastUpdatedSeconds,
+  onCancel,
+  isCancelling,
+  cancelError,
 }: {
   entry: QueueEntryResponse;
   lastUpdatedSeconds: number;
+  onCancel: () => void;
+  isCancelling: boolean;
+  cancelError: string;
 }) {
   const isInProgress = entry.status === 'IN_PROGRESS';
   const stage = isInProgress ? 1 : 0;
@@ -137,6 +148,24 @@ function MyVisitCard({
           Open My Queue →
         </Link>
       </div>
+
+      {/* Leave queue — only while still waiting; once called, the doctor finishes the visit */}
+      {entry.status === 'WAITING' && (
+        <div className="relative mt-3 flex flex-wrap items-center justify-between gap-2">
+          {cancelError ? (
+            <p className="text-xs font-medium text-red-200">⚠ {cancelError}</p>
+          ) : (
+            <span className="text-xs text-brand-100/80">Changed your mind? You can leave while waiting.</span>
+          )}
+          <button
+            onClick={onCancel}
+            disabled={isCancelling}
+            className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-white/10 disabled:opacity-60"
+          >
+            {isCancelling ? 'Leaving…' : 'Leave queue'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -212,6 +241,8 @@ function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const [cancelQueueEntry, { isLoading: isCancelling }] = useCancelQueueEntryMutation();
+  const [cancelError, setCancelError] = useState('');
   const {
     data: status,
     isLoading,
@@ -267,6 +298,20 @@ export default function PatientDashboard() {
   const recBasedOnVisit =
     !!lastVisitDept && recommended.some((d) => d.departmentName === lastVisitDept);
 
+  const handleCancel = async () => {
+    if (!entry) return;
+    if (!window.confirm('Leave the queue? Your position will be released.')) return;
+    setCancelError('');
+    try {
+      await cancelQueueEntry(entry.id).unwrap();
+      // The status poll refetches (tag invalidated) and reports no active
+      // entry, so the widget flips to "No active visit" and the finished
+      // visit appears under Recent visits.
+    } catch (err: unknown) {
+      setCancelError(getErrorMessage(err));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -292,7 +337,13 @@ export default function PatientDashboard() {
             </Button>
           </div>
         ) : entry ? (
-          <MyVisitCard entry={entry} lastUpdatedSeconds={secondsAgo} />
+          <MyVisitCard
+            entry={entry}
+            lastUpdatedSeconds={secondsAgo}
+            onCancel={handleCancel}
+            isCancelling={isCancelling}
+            cancelError={cancelError}
+          />
         ) : (
           <div className="card flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3.5">
