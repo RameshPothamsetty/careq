@@ -5,6 +5,7 @@ import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
 import com.careq.queue.dto.DepartmentDistributionDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.dto.DoctorCatalogPageDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -379,6 +380,72 @@ class QueueServiceImplTest {
         assertThat(distribution.get(0).getDepartmentName()).isEqualTo("Cardiology");
         assertThat(distribution.get(0).getPatientCount()).isEqualTo(4L);
         assertThat(distribution.get(1).getDepartmentName()).isEqualTo("Neurology");
+    }
+
+    // ── Per-doctor analytics (dashboard upgrade) ──────────────────────
+
+    @Test
+    void getDoctorAnalyticsSummary_EmptyData_ReturnsZeroFilledWindowAndNullTodayScalars() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.countCompletedSince(eq(10L), any())).willReturn(0L);
+        given(queueEntryRepository.avgCalledWaitSince(eq(10L), any())).willReturn(null);
+        given(queueEntryRepository.avgConsultDurationSince(eq(10L), any())).willReturn(null);
+        given(queueEntryRepository.countCompletedPerDaySinceForDoctor(eq(10L), any())).willReturn(List.of());
+        given(queueEntryRepository.avgCalledWaitPerDaySinceForDoctor(eq(10L), any())).willReturn(List.of());
+
+        DoctorAnalyticsSummaryDto summary =
+                queueService.getDoctorAnalyticsSummary(10L, DOCTOR_USER, "DOCTOR");
+
+        assertThat(summary.getPatientsCompletedToday()).isZero();
+        assertThat(summary.getAvgWaitTodayMinutes()).isNull();
+        assertThat(summary.getAvgConsultTimeTodayMinutes()).isNull();
+        assertThat(summary.getPatientsPerDay()).hasSize(7);
+        assertThat(summary.getPatientsPerDay()).allSatisfy(d -> assertThat(d.getCount()).isZero());
+        assertThat(summary.getAvgWaitTimeTrend()).hasSize(7);
+        assertThat(summary.getAvgWaitTimeTrend()).allSatisfy(d -> assertThat(d.getAvgWaitMinutes()).isNull());
+    }
+
+    @Test
+    void getDoctorAnalyticsSummary_PopulatedData_AggregatesAndAllowsAdmin() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String todayStr = today.toString();
+
+        DayCountProjection todayCount = mock(DayCountProjection.class);
+        given(todayCount.getDay()).willReturn(todayStr);
+        given(todayCount.getCnt()).willReturn(4L);
+
+        DayAvgWaitProjection todayWait = mock(DayAvgWaitProjection.class);
+        given(todayWait.getDay()).willReturn(todayStr);
+        given(todayWait.getAvgWait()).willReturn(10.5);
+
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.countCompletedSince(eq(10L), any())).willReturn(4L);
+        given(queueEntryRepository.avgCalledWaitSince(eq(10L), any())).willReturn(10.5);
+        given(queueEntryRepository.avgConsultDurationSince(eq(10L), any())).willReturn(14.0);
+        given(queueEntryRepository.countCompletedPerDaySinceForDoctor(eq(10L), any()))
+                .willReturn(List.of(todayCount));
+        given(queueEntryRepository.avgCalledWaitPerDaySinceForDoctor(eq(10L), any()))
+                .willReturn(List.of(todayWait));
+
+        // Admin can read any doctor's analytics (passes verifyDoctorAccess).
+        DoctorAnalyticsSummaryDto summary =
+                queueService.getDoctorAnalyticsSummary(10L, ADMIN, "ADMIN");
+
+        assertThat(summary.getPatientsCompletedToday()).isEqualTo(4L);
+        assertThat(summary.getAvgWaitTodayMinutes()).isEqualTo(10.5);
+        assertThat(summary.getAvgConsultTimeTodayMinutes()).isEqualTo(14.0);
+        assertThat(summary.getPatientsPerDay().stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getCount()).isEqualTo(4L);
+        assertThat(summary.getAvgWaitTimeTrend().stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getAvgWaitMinutes()).isEqualTo(10.5);
+    }
+
+    @Test
+    void getDoctorAnalyticsSummary_AnotherDoctor_Throws() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+
+        assertThatThrownBy(() -> queueService.getDoctorAnalyticsSummary(10L, "someone-else", "DOCTOR"))
+                .isInstanceOf(UnauthorizedAccessException.class);
     }
 
     @Test

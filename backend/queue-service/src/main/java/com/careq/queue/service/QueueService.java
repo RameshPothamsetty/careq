@@ -1,6 +1,7 @@
 package com.careq.queue.service;
 
 import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -40,4 +41,12 @@ public interface QueueService {
 
     /** Admin-only analytics summary over the last 7 days (patients/day, avg wait trend, department distribution). */
     AnalyticsSummaryDto getAnalyticsSummary();
+
+    /**
+     * Per-doctor analytics (today's scalars + 7-day trends). Doctors can only
+     * read their own entry; admins can read any doctor's.
+     */
+    DoctorAnalyticsSummaryDto getDoctorAnalyticsSummary(Long doctorCatalogEntryId,
+                                                        String requesterUserId,
+                                                        String requesterRole);
 }

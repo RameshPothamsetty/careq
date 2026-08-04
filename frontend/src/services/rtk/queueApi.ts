@@ -8,6 +8,7 @@ import type {
   TriageLevel,
   LiveQueueOverview,
   AnalyticsSummary,
+  DoctorAnalyticsSummary,
 } from '../api';
 
 /**
@@ -87,6 +88,14 @@ export const queueApi = createApi({
       // queue mutation invalidates it — the charts stay fresh.
       providesTags: ['Analytics'],
     }),
+
+    // Per-doctor analytics (dashboard upgrade) — today's scalars + 7-day
+    // trends for one doctor. Shares the Analytics tag so queue mutations
+    // keep the doctor's numbers fresh too.
+    getDoctorAnalytics: builder.query<DoctorAnalyticsSummary, number>({
+      query: (doctorCatalogEntryId) => `/api/queue/doctor/${doctorCatalogEntryId}/analytics`,
+      providesTags: ['Analytics'],
+    }),
   }),
 });
 
@@ -99,4 +108,5 @@ export const {
   useCompleteQueueEntryMutation,
   useGetLiveQueueOverviewQuery,
   useGetAnalyticsSummaryQuery,
+  useGetDoctorAnalyticsQuery,
 } = queueApi;

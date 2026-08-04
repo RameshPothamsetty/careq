@@ -5,6 +5,7 @@ import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
 import com.careq.queue.dto.DepartmentDistributionDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.dto.DoctorQueueStatsDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -327,6 +328,53 @@ public class QueueServiceImpl implements QueueService {
         summary.setPatientsPerDay(patientsPerDay);
         summary.setAvgWaitTimeTrend(avgWaitTrend);
         summary.setDepartmentDistribution(buildDepartmentDistribution(since));
+        return summary;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorAnalyticsSummaryDto getDoctorAnalyticsSummary(Long doctorCatalogEntryId,
+                                                              String requesterUserId,
+                                                              String requesterRole) {
+        // Same ownership rule as the live queue: doctor reads only their own
+        // entry, admin can read any doctor's.
+        DoctorCatalogResponseDto doctor = fetchDoctor(doctorCatalogEntryId);
+        verifyDoctorAccess(doctor, requesterUserId, requesterRole);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfToday = today.atStartOfDay();
+        LocalDateTime since = today.minusDays(6).atStartOfDay();
+
+        DoctorAnalyticsSummaryDto summary = new DoctorAnalyticsSummaryDto();
+        summary.setPatientsCompletedToday(
+                queueEntryRepository.countCompletedSince(doctorCatalogEntryId, startOfToday));
+        summary.setAvgWaitTodayMinutes(
+                queueEntryRepository.avgCalledWaitSince(doctorCatalogEntryId, startOfToday));
+        summary.setAvgConsultTimeTodayMinutes(
+                queueEntryRepository.avgConsultDurationSince(doctorCatalogEntryId, startOfToday));
+
+        // 7-day trends, zero-filled (mirrors the admin analytics window).
+        Map<LocalDate, Long> completedByDay = queueEntryRepository
+                .countCompletedPerDaySinceForDoctor(doctorCatalogEntryId, since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayCountProjection::getCnt, Long::sum));
+        List<DailyPatientCountDto> patientsPerDay = new ArrayList<>();
+        for (LocalDate d = today.minusDays(6); !d.isAfter(today); d = d.plusDays(1)) {
+            patientsPerDay.add(new DailyPatientCountDto(d, completedByDay.getOrDefault(d, 0L)));
+        }
+        summary.setPatientsPerDay(patientsPerDay);
+
+        Map<LocalDate, Double> avgWaitByDay = queueEntryRepository
+                .avgCalledWaitPerDaySinceForDoctor(doctorCatalogEntryId, since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayAvgWaitProjection::getAvgWait));
+        List<DailyAvgWaitDto> avgWaitTrend = new ArrayList<>();
+        for (LocalDate d = today.minusDays(6); !d.isAfter(today); d = d.plusDays(1)) {
+            avgWaitTrend.add(new DailyAvgWaitDto(d, avgWaitByDay.get(d)));
+        }
+        summary.setAvgWaitTimeTrend(avgWaitTrend);
         return summary;
     }
 

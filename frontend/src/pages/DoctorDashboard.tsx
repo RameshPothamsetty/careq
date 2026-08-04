@@ -1,21 +1,58 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { Clock, ArrowRight, PhoneCall, Users, UserCheck, Activity } from 'lucide-react';
+import {
+  Clock,
+  ArrowRight,
+  PhoneCall,
+  Users,
+  UserCheck,
+  Activity,
+  CalendarDays,
+  Building2,
+  Timer,
+} from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  LineChart,
+  Line,
+} from 'recharts';
 import { useGetDoctorsQuery, useToggleAvailabilityMutation } from '../services/rtk/doctorApi';
-import { useGetDoctorQueueQuery, useCallNextMutation } from '../services/rtk/queueApi';
+import {
+  useGetDoctorQueueQuery,
+  useCallNextMutation,
+  useGetDoctorAnalyticsQuery,
+} from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
-import type { QueueEntryResponse } from '../services/api';
+import type { QueueEntryResponse, TriageLevel } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatusTag, Button, StatCard, LiveBadge, AvatarInitials } from '../components/ui';
 import { LoadingState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
+const WAITING_PREVIEW_LIMIT = 5;
+const TRIAGE_LEVELS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
 
 function displayName(entry: QueueEntryResponse) {
   return entry.patientName || `#${entry.patientId.slice(0, 4).toUpperCase()}`;
 }
+
+const formatDay = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+const shortDay = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { day: 'numeric' });
+};
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
@@ -46,6 +83,15 @@ export default function DoctorDashboard() {
     { pollingInterval: POLL_INTERVAL_MS },
   );
 
+  // Personal analytics — refreshed automatically whenever a queue mutation
+  // invalidates the Analytics tag, so today's numbers stay current without
+  // an extra polling loop.
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+  } = useGetDoctorAnalyticsQuery(doctorEntry ? doctorEntry.id : skipToken);
+
   const error = queryError ? getErrorMessage(queryError) : actionError;
   const queueErrorMessage = queueError ? getErrorMessage(queueError) : '';
 
@@ -63,6 +109,42 @@ export default function DoctorDashboard() {
     Math.round((Date.now() - (fulfilledTimeStamp ?? Date.now())) / 1000),
   );
   const showQueue = !!doctorEntry && !queryError;
+
+  // Triage mix of the patients still waiting (in-consultation is already its
+  // own StatCard, so this answers "who still needs urgent attention").
+  const triageMix = useMemo(() => {
+    const counts: Record<TriageLevel, number> = { EMERGENCY: 0, HIGH: 0, NORMAL: 0, FOLLOW_UP: 0 };
+    for (const e of waitingEntries) counts[e.effectiveTriage] += 1;
+    return counts;
+  }, [waitingEntries]);
+
+  // Department context — colleagues in the same department from the catalog
+  // list already loaded for this dashboard (no extra request). Self is
+  // excluded so the figure reads "colleagues online", not a self-inclusive count.
+  const deptDoctors = useMemo(
+    () =>
+      (doctors?.content ?? []).filter(
+        (d) => d.departmentName === doctorEntry?.departmentName && d.userId !== user?.id,
+      ),
+    [doctors, doctorEntry?.departmentName, user?.id],
+  );
+  const onlineInDept = deptDoctors.filter((d) => d.isAvailable).length;
+
+  // Charts: keep null for days with no calls so the line chart draws a gap.
+  const patientData = (analytics?.patientsPerDay ?? []).map((d) => ({
+    ...d,
+    label: formatDay(d.date),
+    day: shortDay(d.date),
+  }));
+  const waitData = (analytics?.avgWaitTimeTrend ?? []).map((d) => ({
+    ...d,
+    label: formatDay(d.date),
+    day: shortDay(d.date),
+    avgWaitMinutes: d.avgWaitMinutes,
+  }));
+  const hasActivity =
+    (analytics?.patientsPerDay ?? []).some((d) => d.count > 0) ||
+    (analytics?.avgWaitTimeTrend ?? []).some((d) => d.avgWaitMinutes !== null);
 
   const handleToggleAvailability = async () => {
     if (!doctorEntry) return;
@@ -160,12 +242,6 @@ export default function DoctorDashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
               <LiveBadge lastUpdatedSeconds={secondsAgo} />
-              <Link
-                to="/doctor/queue"
-                className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700"
-              >
-                Open full queue →
-              </Link>
             </div>
 
             {queueLoading && !queue ? (
@@ -200,6 +276,23 @@ export default function DoctorDashboard() {
                     accent="bg-amber-50 text-amber-700"
                   />
                 </div>
+
+                {/* Triage mix — at a glance, who still needs urgent attention */}
+                {waitingCount > 0 && (
+                  <div className="card flex flex-wrap items-center gap-2 p-4">
+                    <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Triage mix
+                    </span>
+                    {TRIAGE_LEVELS.map((level) =>
+                      triageMix[level] > 0 ? (
+                        <span key={level} className="inline-flex items-center gap-1.5">
+                          <StatusTag status={level} />
+                          <span className="text-sm font-bold text-slate-700">{triageMix[level]}</span>
+                        </span>
+                      ) : null,
+                    )}
+                  </div>
+                )}
 
                 {firstWaiting ? (
                   <div className="card flex flex-col items-center justify-between gap-4 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
@@ -241,8 +334,211 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* Waiting-list preview — the actual patients, capped */}
+                {waitingEntries.length > 0 && (
+                  <div className="card p-5">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                        Waiting list
+                      </h2>
+                      <Link
+                        to="/doctor/queue"
+                        className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700"
+                      >
+                        View all {waitingCount} →
+                      </Link>
+                    </div>
+                    <div className="mt-3 divide-y divide-slate-100">
+                      {waitingEntries.slice(0, WAITING_PREVIEW_LIMIT).map((entry) => (
+                        <div key={entry.id} className="flex items-center gap-3 py-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-sm font-extrabold text-brand-700">
+                            {entry.position ?? '—'}
+                          </div>
+                          <AvatarInitials name={displayName(entry)} size="sm" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-slate-800">
+                              {displayName(entry)}
+                            </p>
+                            <p className="truncate text-xs text-slate-400">{entry.symptomText}</p>
+                          </div>
+                          <StatusTag status={entry.effectiveTriage} />
+                          <span className="w-20 text-right text-xs font-semibold text-slate-500">
+                            ≈{entry.predictedWaitMinutes ?? 0} min
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
+          </div>
+        )}
+
+        {/* Personal analytics — today's numbers + 7-day trends */}
+        {showQueue && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                Your performance
+              </h2>
+              <span className="text-xs text-slate-400">Last 7 days</span>
+            </div>
+
+            {analyticsLoading && !analytics ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+                ))}
+              </div>
+            ) : analyticsError ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                ⚠ Couldn't load your analytics: {getErrorMessage(analyticsError)}
+              </div>
+            ) : analytics ? (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                  <StatCard
+                    label="Completed today"
+                    value={analytics.patientsCompletedToday}
+                    icon={<CalendarDays className="h-5 w-5" />}
+                    accent="bg-cyan-50 text-cyan-700"
+                  />
+                  <StatCard
+                    label="Avg wait today"
+                    value={
+                      analytics.avgWaitTodayMinutes === null
+                        ? '—'
+                        : `${Math.round(analytics.avgWaitTodayMinutes)} min`
+                    }
+                    icon={<Timer className="h-5 w-5" />}
+                    accent="bg-amber-50 text-amber-700"
+                  />
+                  <StatCard
+                    label="Avg consult today"
+                    value={
+                      analytics.avgConsultTimeTodayMinutes === null
+                        ? '—'
+                        : `${Math.round(analytics.avgConsultTimeTodayMinutes)} min`
+                    }
+                    icon={<Clock className="h-5 w-5" />}
+                    accent="bg-violet-50 text-violet-700"
+                  />
+                </div>
+
+                {hasActivity ? (
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <div className="card p-5">
+                      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                        Patients handled per day
+                      </h2>
+                      <div className="mt-3 h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={patientData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis
+                              dataKey="day"
+                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              axisLine={{ stroke: '#e2e8f0' }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              allowDecimals={false}
+                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <Tooltip
+                              cursor={{ fill: '#f1f5f9' }}
+                              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                              labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
+                            />
+                            <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]} fill="#0e7490" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="card p-5">
+                      <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
+                        Average wait time trend
+                      </h2>
+                      <div className="mt-3 h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={waitData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis
+                              dataKey="day"
+                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              axisLine={{ stroke: '#e2e8f0' }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              axisLine={false}
+                              tickLine={false}
+                              unit="m"
+                            />
+                            <Tooltip
+                              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                              formatter={(value) => [`${value} min`, 'Avg wait']}
+                              labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="avgWaitMinutes"
+                              name="Avg wait"
+                              stroke="#7c3aed"
+                              strokeWidth={2.5}
+                              dot={{ r: 3.5, fill: '#7c3aed', strokeWidth: 0 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="card flex items-center gap-4 p-5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100">
+                      <Activity className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      No completed consultations in the last 7 days yet — your daily trend will appear here
+                      as patients are seen.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+
+        {/* Department context */}
+        {showQueue && doctorEntry && (
+          <div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50">
+              <Building2 className="h-5 w-5 text-sky-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-slate-800">
+                  {doctorEntry.departmentName} department
+                </p>
+                <p className="text-xs font-semibold text-slate-500">
+                  {onlineInDept} of {deptDoctors.length} colleagues online
+                </p>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500"
+                  style={{
+                    width: deptDoctors.length ? `${Math.round((onlineInDept / deptDoctors.length) * 100)}%` : '0%',
+                  }}
+                />
+              </div>
+            </div>
           </div>
         )}
 

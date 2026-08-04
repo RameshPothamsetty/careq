@@ -1,6 +1,7 @@
 package com.careq.queue.controller;
 
 import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -57,6 +58,17 @@ public class QueueController {
 
         RoleGuard.requireRole(role, "PATIENT");
         return ResponseEntity.ok(queueService.getMyStatus(userId));
+    }
+
+    /** Per-doctor analytics: today's scalars + 7-day trends. Same ownership rule as the live queue. */
+    @GetMapping("/doctor/{doctorCatalogEntryId}/analytics")
+    public ResponseEntity<DoctorAnalyticsSummaryDto> getDoctorAnalytics(
+            @PathVariable Long doctorCatalogEntryId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        return ResponseEntity.ok(queueService.getDoctorAnalyticsSummary(doctorCatalogEntryId, userId, role));
     }
 
     /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO.
