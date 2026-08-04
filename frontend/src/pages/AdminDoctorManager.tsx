@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Plus, Search, Stethoscope, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, Stethoscope, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useGetDoctorsQuery,
@@ -11,6 +11,7 @@ import {
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { DoctorCatalogResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
+import DoctorDetailDrawer from '../components/DoctorDetailDrawer';
 import Button from '../components/ui/Button';
 import StatusTag from '../components/ui/StatusTag';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
@@ -56,10 +57,15 @@ export default function AdminDoctorManager() {
   const [updateDoctor, { isLoading: isUpdating }] = useUpdateDoctorMutation();
   const [deleteDoctor] = useDeleteDoctorMutation();
 
+  const closeDrawer = useCallback(() => setViewing(null), []);
+
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
 
   // Form state
+  // Doctor detail drawer
+  const [viewing, setViewing] = useState<DoctorCatalogResponse | null>(null);
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
@@ -407,6 +413,15 @@ export default function AdminDoctorManager() {
                         <StatusTag status={doc.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                       </td>
                       <td className="px-5 py-3.5 text-right">
+                        <Button
+                          variant="secondary"
+                          onClick={() => setViewing(doc)}
+                          className="!px-3 !py-1.5 text-xs"
+                          title="View full details and live queue"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View
+                        </Button>{' '}
                         <Button variant="secondary" onClick={() => handleEdit(doc)} className="!px-3 !py-1.5 text-xs">
                           <Pencil className="h-3.5 w-3.5" />
                           Edit
@@ -455,6 +470,9 @@ export default function AdminDoctorManager() {
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>
+
+      {/* Doctor details slide-over with live queue */}
+      {viewing && <DoctorDetailDrawer doctor={viewing} onClose={closeDrawer} />}
     </div>
   );
 }

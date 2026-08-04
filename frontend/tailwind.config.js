@@ -49,12 +49,17 @@ export default {
           '0%': { opacity: '0', transform: 'translateX(24px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
+        'drawer-in': {
+          '0%': { opacity: '0.4', transform: 'translateX(100%)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
       },
       animation: {
         'soft-pulse': 'soft-pulse 2.4s ease-in-out infinite',
         'fade-in-up': 'fade-in-up 0.45s ease-out both',
         'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
         'toast-in': 'toast-in 0.3s ease-out both',
+        'drawer-in': 'drawer-in 0.28s ease-out both',
       },
     },
   },
