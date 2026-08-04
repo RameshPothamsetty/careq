@@ -13,6 +13,7 @@ import DoctorQueuePage from './pages/DoctorQueuePage';
 import AdminQueueOverview from './pages/AdminQueueOverview';
 import AdminDepartmentManager from './pages/AdminDepartmentManager';
 import AdminDoctorManager from './pages/AdminDoctorManager';
+import AdminUserManager from './pages/AdminUserManager';
 
 function App() {
   return (
@@ -104,6 +105,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDoctorManager />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminUserManager />
               </ProtectedRoute>
             }
           />

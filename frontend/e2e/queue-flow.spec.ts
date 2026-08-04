@@ -58,10 +58,12 @@ test.describe.serial('queue happy path (patient join → doctor call-next → co
       'Content-Type': 'application/json',
     };
 
-    const doctors = await (await request.get(`${API_BASE}/api/doctors`, { headers: adminAuth })).json();
-    const arjun = (doctors as Array<{ id: number; specialization: string }>).find(
-      (d) => d.specialization === 'Interventional Cardiology',
-    );
+    // GET /api/doctors is paginated since Day 7a — read the .content array.
+    const doctorsResponse = await request.get(`${API_BASE}/api/doctors?size=100`, { headers: adminAuth });
+    const doctorsPage = (await doctorsResponse.json()) as {
+      content: Array<{ id: number; specialization: string }>;
+    };
+    const arjun = doctorsPage.content.find((d) => d.specialization === 'Interventional Cardiology');
     expect(arjun, 'seeded dr. arjun catalog entry').toBeTruthy();
 
     const queue = await (

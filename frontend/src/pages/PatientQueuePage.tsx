@@ -164,14 +164,15 @@ function JoinFlow({
   onJoined: (entry: QueueEntryResponse) => void;
 }) {
   const { user } = useAuth();
-  const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery();
+  // A single generous page keeps every available doctor in the dropdown.
+  const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery({ size: 100 });
   const [joinQueue, { isLoading: isJoining }] = useJoinQueueMutation();
   const [selectedDoctor, setSelectedDoctor] = useState<string>(initialDoctorId ? String(initialDoctorId) : '');
   const [symptomText, setSymptomText] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const doctors = allDoctors?.filter((d) => d.isAvailable) ?? [];
+  const doctors = (allDoctors?.content ?? []).filter((d) => d.isAvailable);
   const loadError = doctorsError ? getErrorMessage(doctorsError) : '';
 
   const handleJoin = async () => {
@@ -185,6 +186,8 @@ function JoinFlow({
       const entry = await joinQueue({
         doctorCatalogEntryId: Number(selectedDoctor),
         symptomText: symptomText.trim(),
+        // Captured so the doctor's live queue can show real patient names (Day 7a).
+        patientName: user?.fullName || undefined,
       }).unwrap();
       setSuccess('Queue joined successfully — AI triage complete.');
       setTimeout(() => onJoined(entry), 900);
@@ -233,7 +236,7 @@ function JoinFlow({
                 <option value="">Select a doctor…</option>
                 {doctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    {doc.specialization} — {doc.departmentName} (≈{doc.avgConsultationTimeMinutes} min)
+                    {doc.name || doc.specialization} — {doc.specialization} ({doc.departmentName}, ≈{doc.avgConsultationTimeMinutes} min)
                   </option>
                 ))}
               </select>

@@ -125,9 +125,9 @@ export default function AdminQueueOverview() {
                       className="border-b border-slate-50 transition-colors last:border-0 hover:bg-brand-50/40"
                     >
                       <td className="px-5 py-4">
-                        <p className="font-semibold text-slate-800">{doc.specialization}</p>
+                        <p className="font-semibold text-slate-800">{doc.doctorName || doc.specialization}</p>
                         <p className="text-xs text-slate-400">
-                          {doc.departmentName} · ≈{doc.avgConsultationTimeMinutes} min/patient
+                          {doc.specialization} · {doc.departmentName} · ≈{doc.avgConsultationTimeMinutes} min/patient
                         </p>
                       </td>
                       <td className="px-5 py-4">

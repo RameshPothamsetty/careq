@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, PhoneCall, Users, UserCheck, Activity } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Clock, PhoneCall, Search, Users, UserCheck, Activity } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useAuth } from '../context/AuthContext';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
@@ -17,6 +17,12 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 const OVERRIDE_OPTIONS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
+// The doctor's own catalog entry is resolved from the shared doctors cache — a
+// big page guarantees their entry is present no matter how large the catalog is.
+const ALL_DOCTORS_PAGE_SIZE = 1000;
+// The queue query is server-side filtered by patient name; the search box
+// debounces so typing fires at most one request per pause.
+const SEARCH_DEBOUNCE_MS = 300;
 
 function Toast({ message, tone }: { message: string; tone: 'success' | 'error' }) {
   if (!message) return null;
@@ -37,6 +43,10 @@ function shortId(patientId: string) {
   return `#${patientId.slice(0, 4).toUpperCase()}`;
 }
 
+function displayName(entry: QueueEntryResponse) {
+  return entry.patientName || shortId(entry.patientId);
+}
+
 export default function DoctorQueuePage() {
   const { user } = useAuth();
   const {
@@ -44,24 +54,37 @@ export default function DoctorQueuePage() {
     isLoading: doctorsLoading,
     error: doctorsError,
     refetch: refetchDoctors,
-  } = useGetDoctorsQuery();
+  } = useGetDoctorsQuery({ size: ALL_DOCTORS_PAGE_SIZE });
 
   // Resolve the doctor's own catalog entry from the shared doctors cache.
   const myEntry = useMemo(
-    () => doctors?.find((d) => d.userId === user?.id) ?? null,
+    () => doctors?.content.find((d) => d.userId === user?.id) ?? null,
     [doctors, user?.id],
   );
 
+  // Patient-name search box (debounced).
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchQuery(searchInput.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // The queue query only fires once we know our catalog entry id, then polls.
+  // Changing the search string refetches immediately; polling keeps the queue
+  // live while the search is applied server-side.
   const {
     data: queue,
     isLoading: queueLoading,
     error,
     refetch,
     fulfilledTimeStamp,
-  } = useGetDoctorQueueQuery(myEntry ? myEntry.id : skipToken, {
-    pollingInterval: POLL_INTERVAL_MS,
-  });
+  } = useGetDoctorQueueQuery(
+    myEntry ? { doctorCatalogEntryId: myEntry.id, search: searchQuery || undefined } : skipToken,
+    {
+      pollingInterval: POLL_INTERVAL_MS,
+    },
+  );
 
   const [callNext] = useCallNextMutation();
   const [completeQueueEntry] = useCompleteQueueEntryMutation();
@@ -98,8 +121,15 @@ export default function DoctorQueuePage() {
   const entries = queue ?? [];
   const firstWaiting = entries.find((e) => e.status === 'WAITING');
   const inProgress = entries.filter((e) => e.status === 'IN_PROGRESS');
-  const waitingCount = entries.filter((e) => e.status === 'WAITING').length;
-  const completedToday = entries.filter((e) => e.status === 'COMPLETED').length;
+  const waitingEntries = entries.filter((e) => e.status === 'WAITING');
+  const waitingCount = waitingEntries.length;
+  // Derived stat — the queue endpoint returns active entries only, so a
+  // "completed today" count could never populate (it was always 0). The
+  // longest current predicted wait is derivable and clinically useful.
+  const longestWait = waitingEntries.reduce(
+    (max, e) => Math.max(max, e.predictedWaitMinutes ?? 0),
+    0,
+  );
   const secondsAgo = Math.max(
     0,
     Math.round((Date.now() - (fulfilledTimeStamp ?? Date.now())) / 1000),
@@ -124,10 +154,10 @@ export default function DoctorQueuePage() {
   };
 
   const handleCallNext = (entry: QueueEntryResponse) =>
-    runAction(() => callNext(entry.id).unwrap(), `Called ${shortId(entry.patientId)} — consultation started`, entry.id);
+    runAction(() => callNext(entry.id).unwrap(), `Called ${displayName(entry)} — consultation started`, entry.id);
 
   const handleComplete = (entry: QueueEntryResponse) =>
-    runAction(() => completeQueueEntry(entry.id).unwrap(), `Completed ${shortId(entry.patientId)} — queue advanced`, entry.id);
+    runAction(() => completeQueueEntry(entry.id).unwrap(), `Completed ${displayName(entry)} — queue advanced`, entry.id);
 
   const handleOverride = (entry: QueueEntryResponse, level: TriageLevel) =>
     runAction(() => overrideTriage({ id: entry.id, triageLevel: level }).unwrap(), `Triage updated to ${level}`, entry.id);
@@ -158,10 +188,10 @@ export default function DoctorQueuePage() {
               accent="bg-violet-50 text-violet-700"
             />
             <StatCard
-              label="Completed today"
-              value={completedToday}
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              accent="bg-emerald-50 text-emerald-700"
+              label="Longest wait"
+              value={`${longestWait} min`}
+              icon={<Clock className="h-5 w-5" />}
+              accent="bg-amber-50 text-amber-700"
             />
           </div>
         )}
@@ -187,15 +217,36 @@ export default function DoctorQueuePage() {
           <ErrorState message={errorMessage} onRetry={handleRetry} />
         )}
 
+        {/* Patient-name search (server-side filter) */}
+        {!isLoading && !errorMessage && myEntry && (
+          <div className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search patients by name…"
+                className="input-field !pl-10"
+              />
+            </div>
+            {searchQuery && (
+              <span className="text-xs text-slate-400">
+                {waitingCount + inProgress.length} match(es) for “{searchQuery}”
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Call next action */}
         {!isLoading && !errorMessage && firstWaiting && (
           <div className="card flex flex-col items-center justify-between gap-3 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
             <div className="flex items-center gap-3">
-              <AvatarInitials name={shortId(firstWaiting.patientId)} />
+              <AvatarInitials name={displayName(firstWaiting)} />
               <div>
                 <p className="text-sm font-semibold text-slate-800">Next patient ready</p>
                 <p className="text-xs text-slate-500">
-                  {shortId(firstWaiting.patientId)} · {firstWaiting.symptomText.slice(0, 60)}
+                  {displayName(firstWaiting)} · {firstWaiting.symptomText.slice(0, 60)}
                   {firstWaiting.symptomText.length > 60 ? '…' : ''}
                 </p>
               </div>
@@ -213,11 +264,15 @@ export default function DoctorQueuePage() {
 
         {isLoading ? (
           <LoadingState label="Loading your live queue…" />
-        ) : !errorMessage && entries.filter((e) => e.status !== 'COMPLETED').length === 0 ? (
+        ) : !errorMessage && entries.length === 0 ? (
           <EmptyState
             icon={<Activity className="h-8 w-8 text-brand-400" />}
-            title="No patients in queue right now"
-            message="New patients will appear here automatically as they join with AI triage."
+            title={searchQuery ? 'No patients match your search' : 'No patients in queue right now'}
+            message={
+              searchQuery
+                ? `Nothing found for “${searchQuery}” — try a different name.`
+                : 'New patients will appear here automatically as they join with AI triage.'
+            }
           />
         ) : (
           !errorMessage && (
@@ -246,8 +301,8 @@ export default function DoctorQueuePage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <AvatarInitials name={shortId(entry.patientId)} size="sm" />
-                              <p className="font-bold text-slate-800">{shortId(entry.patientId)}</p>
+                              <AvatarInitials name={displayName(entry)} size="sm" />
+                              <p className="font-bold text-slate-800">{displayName(entry)}</p>
                               <StatusTag status={entry.effectiveTriage} />
                             </div>
                             <p className="mt-0.5 text-xs text-slate-400">

@@ -6,11 +6,18 @@ import type {
   DoctorCatalogResponse,
   DoctorCatalogRequest,
   AvailabilityRequest,
+  PaginatedResponse,
 } from '../api';
 
+/** All query params accepted by GET /api/doctors (filters + pagination + sort). */
 export interface DoctorFilterParams {
   departmentId?: number;
   specialization?: string;
+  search?: string;
+  page?: number;
+  size?: number;
+  sortBy?: 'name' | 'consultationFee' | 'experienceYears';
+  sortDirection?: 'asc' | 'desc';
 }
 
 /**
@@ -58,11 +65,16 @@ export const doctorApi = createApi({
     }),
 
     // ── Doctor catalog ─────────────────────────────────────────────
-    getDoctors: builder.query<DoctorCatalogResponse[], DoctorFilterParams | void>({
+    getDoctors: builder.query<PaginatedResponse<DoctorCatalogResponse>, DoctorFilterParams | void>({
       query: (params) => {
         const query = new URLSearchParams();
         if (params?.departmentId) query.set('departmentId', String(params.departmentId));
         if (params?.specialization) query.set('specialization', params.specialization);
+        if (params?.search) query.set('search', params.search);
+        if (params?.page != null) query.set('page', String(params.page));
+        if (params?.size != null) query.set('size', String(params.size));
+        if (params?.sortBy) query.set('sortBy', params.sortBy);
+        if (params?.sortDirection) query.set('sortDirection', params.sortDirection);
         const qs = query.toString();
         return `/api/doctors${qs ? `?${qs}` : ''}`;
       },

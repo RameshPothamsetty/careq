@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Pencil, Plus, Stethoscope, Trash2 } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil, Plus, Search, Stethoscope, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useGetDoctorsQuery,
@@ -9,14 +9,48 @@ import {
   useDeleteDoctorMutation,
 } from '../services/rtk/doctorApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
+import type { DoctorCatalogResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import Button from '../components/ui/Button';
 import StatusTag from '../components/ui/StatusTag';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
+const PAGE_SIZE = 10;
+type SortBy = 'name' | 'consultationFee' | 'experienceYears';
+
+/** Sortable columns: label → API sortBy property. */
+const SORTABLE_COLUMNS: { label: string; sortBy: SortBy; className?: string }[] = [
+  { label: 'Name', sortBy: 'name' },
+  { label: 'Fee', sortBy: 'consultationFee', className: 'text-right' },
+  { label: 'Exp', sortBy: 'experienceYears' },
+];
+
 export default function AdminDoctorManager() {
   const { user } = useAuth();
-  const { data: doctors, isLoading, error: queryError, refetch } = useGetDoctorsQuery();
+
+  // Pagination + search + sort state (all applied server-side).
+  const [page, setPage] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Debounce the search box so typing fires one query per pause.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const { data: pageData, isLoading, error: queryError, refetch } = useGetDoctorsQuery({
+    page,
+    size: PAGE_SIZE,
+    sortBy,
+    sortDirection,
+    search: searchQuery || undefined,
+  });
   const { data: departments } = useGetDepartmentsQuery();
   const [createDoctor, { isLoading: isCreating }] = useCreateDoctorMutation();
   const [updateDoctor, { isLoading: isUpdating }] = useUpdateDoctorMutation();
@@ -28,6 +62,7 @@ export default function AdminDoctorManager() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [name, setName] = useState('');
   const [userId, setUserId] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [specialization, setSpecialization] = useState('');
@@ -38,9 +73,13 @@ export default function AdminDoctorManager() {
 
   const isSaving = isCreating || isUpdating;
   const error = queryError ? getErrorMessage(queryError) : formError;
+  const doctors = pageData?.content ?? [];
+  const totalPages = pageData?.totalPages ?? 1;
+  const totalElements = pageData?.totalElements ?? 0;
 
   const resetForm = () => {
     setEditingId(null);
+    setName('');
     setUserId('');
     setDepartmentId('');
     setSpecialization('');
@@ -53,8 +92,9 @@ export default function AdminDoctorManager() {
     setSuccess('');
   };
 
-  const handleEdit = (doc: NonNullable<typeof doctors>[number]) => {
+  const handleEdit = (doc: DoctorCatalogResponse) => {
     setEditingId(doc.id);
+    setName(doc.name);
     setUserId(doc.userId);
     setDepartmentId(String(doc.departmentId));
     setSpecialization(doc.specialization);
@@ -81,6 +121,7 @@ export default function AdminDoctorManager() {
 
     try {
       const payload = {
+        name,
         userId,
         departmentId: Number(departmentId),
         specialization,
@@ -117,6 +158,36 @@ export default function AdminDoctorManager() {
     }
   };
 
+  const toggleSort = (next: SortBy) => {
+    if (sortBy === next) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(next);
+      setSortDirection('asc');
+    }
+    setPage(0);
+  };
+
+  const SortHeader = ({ column }: { column: (typeof SORTABLE_COLUMNS)[number] }) => (
+    <button
+      type="button"
+      onClick={() => toggleSort(column.sortBy)}
+      className={`inline-flex items-center gap-1 transition-colors hover:text-brand-600 ${column.className ?? ''}`}
+      title={`Sort by ${column.label.toLowerCase()}`}
+    >
+      {column.label}
+      {sortBy === column.sortBy ? (
+        sortDirection === 'asc' ? (
+          <ArrowUp className="h-3 w-3" />
+        ) : (
+          <ArrowDown className="h-3 w-3" />
+        )
+      ) : (
+        <ArrowUp className="h-3 w-3 opacity-30" />
+      )}
+    </button>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -138,12 +209,23 @@ export default function AdminDoctorManager() {
           </div>
         )}
 
+        {/* Toolbar: add button + search */}
         {!showForm && (
-          <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Button onClick={handleAdd}>
               <Plus className="h-4 w-4" />
               Add Doctor Entry
             </Button>
+            <div className="relative sm:w-72">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search name or specialization…"
+                className="input-field !pl-10"
+              />
+            </div>
           </div>
         )}
 
@@ -154,6 +236,17 @@ export default function AdminDoctorManager() {
             </h2>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Name *</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., Dr. Arjun Sharma"
+                    required
+                    className="input-field"
+                  />
+                </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">User ID *</label>
                   <input
@@ -166,6 +259,9 @@ export default function AdminDoctorManager() {
                     className="input-field disabled:bg-gray-50"
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Department *</label>
                   <select
@@ -180,9 +276,6 @@ export default function AdminDoctorManager() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Specialization *</label>
                   <input
@@ -194,6 +287,9 @@ export default function AdminDoctorManager() {
                     className="input-field"
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Qualification *</label>
                   <input
@@ -205,9 +301,6 @@ export default function AdminDoctorManager() {
                     className="input-field"
                   />
                 </div>
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-3">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Experience (Years) *</label>
                   <input
@@ -219,6 +312,9 @@ export default function AdminDoctorManager() {
                     className="input-field"
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">Consultation Fee *</label>
                   <input
@@ -260,11 +356,15 @@ export default function AdminDoctorManager() {
           <LoadingState label="Loading doctors…" />
         ) : queryError ? (
           <ErrorState message={getErrorMessage(queryError)} onRetry={refetch} />
-        ) : !doctors || doctors.length === 0 ? (
+        ) : doctors.length === 0 ? (
           <EmptyState
             icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
-            title="No doctor catalog entries found"
-            message='Click "Add Doctor Entry" to create the first one.'
+            title={searchQuery ? 'No doctors match your search' : 'No doctor catalog entries found'}
+            message={
+              searchQuery
+                ? `Nothing found for “${searchQuery}”.`
+                : 'Click "Add Doctor Entry" to create the first one.'
+            }
           />
         ) : (
           <div className="card overflow-hidden">
@@ -273,10 +373,18 @@ export default function AdminDoctorManager() {
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">ID</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <SortHeader column={SORTABLE_COLUMNS[0]} />
+                    </th>
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">User ID</th>
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Department</th>
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Specialization</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Fee</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <SortHeader column={SORTABLE_COLUMNS[2]} />
+                    </th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <SortHeader column={SORTABLE_COLUMNS[1]} />
+                    </th>
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Avg Time</th>
                     <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
@@ -286,12 +394,14 @@ export default function AdminDoctorManager() {
                   {doctors.map((doc) => (
                     <tr key={doc.id} className="border-b border-slate-50 transition-colors hover:bg-brand-50/40">
                       <td className="px-5 py-3.5 text-slate-400">{doc.id}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-800">{doc.name}</td>
                       <td className="px-5 py-3.5 font-mono text-xs text-slate-400">
                         {doc.userId.substring(0, 8)}…
                       </td>
                       <td className="px-5 py-3.5 text-slate-800">{doc.departmentName}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-800">{doc.specialization}</td>
-                      <td className="px-5 py-3.5 text-slate-800">₹{doc.consultationFee}</td>
+                      <td className="px-5 py-3.5 text-slate-800">{doc.specialization}</td>
+                      <td className="px-5 py-3.5 text-slate-800">{doc.experienceYears} yrs</td>
+                      <td className="px-5 py-3.5 text-right text-slate-800">₹{doc.consultationFee}</td>
                       <td className="px-5 py-3.5 text-slate-800">{doc.avgConsultationTimeMinutes} min</td>
                       <td className="px-5 py-3.5">
                         <StatusTag status={doc.isAvailable ? 'ONLINE' : 'OFFLINE'} />
@@ -310,6 +420,33 @@ export default function AdminDoctorManager() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination footer */}
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 sm:flex-row">
+              <p className="text-xs text-slate-400">
+                {totalElements} doctor{totalElements === 1 ? '' : 's'} · Page {pageData ? pageData.number + 1 : 1} of {Math.max(totalPages, 1)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  className="!px-3 !py-1.5 text-xs"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Prev
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="!px-3 !py-1.5 text-xs"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
