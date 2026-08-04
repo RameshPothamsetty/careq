@@ -238,8 +238,9 @@ export default function DoctorQueuePage() {
           </div>
         )}
 
-        {/* Call next action */}
-        {!isLoading && !errorMessage && firstWaiting && (
+        {/* Call next action — hidden while a patient-name search is active, so
+            the hero never targets a search match instead of the actual next patient. */}
+        {!isLoading && !errorMessage && !searchQuery && firstWaiting && (
           <div className="card flex flex-col items-center justify-between gap-3 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
             <div className="flex items-center gap-3">
               <AvatarInitials name={displayName(firstWaiting)} />
