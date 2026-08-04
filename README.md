@@ -18,9 +18,15 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 - **Browse doctors** — search/filter by department and specialization, see fees, experience and live availability
 - **Join a queue in seconds** — describe symptoms in plain language; the AI assigns an urgency level instantly
 - **Live status screen** — big position + estimated wait that updates every 10 seconds, with a joined → called → completed progress flow
+- **Live dashboard** — a "My visit" widget showing position, estimated wait and a joined → called → completed progress bar right on the dashboard, polling live
+- **Recent visits & recommendations** — your visit history with statuses and timestamps, plus doctor recommendations based on your last visit's department (continuity of care)
+- **Leave the queue** — cancel your own waiting entry anytime; cancelled visits appear in your history
 - **Profile** — manage phone, address, DOB, gender, and profile picture
 
 ### 🩺 Doctor
+- **Live dashboard** — waiting / in-consultation / longest-wait stats, a "next patient ready" hero with call-next right on the dashboard, triage mix at a glance, and a waiting-list preview
+- **Personal analytics** — patients completed today, average wait and consult time, plus 7-day patient-load and wait-trend charts (Recharts)
+- **Department context** — see how many of your department colleagues are online right now
 - **Live patient queue** — every patient's name, symptoms, AI triage badge, real queue position and predicted wait, polling every 10s
 - **Search your queue by patient name** to find a specific patient fast
 - **Triage override** — the doctor's clinical judgment is final and reorders the queue
@@ -28,6 +34,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 
 ### ⚙️ Admin
 - **Manage departments & doctors** — full CRUD with search, server-side pagination and sortable columns
+- **Doctor detail drawer** — click any doctor for the full record (qualification, fees, experience) plus their live queue snapshot
 - **User directory** — paginated, searchable (name/email) list of every registered user
 - **Live queue overview** — hospital-wide summary cards (waiting, in-consultation, doctors online, delayed, avg wait) and a per-doctor breakdown
 - **Analytics dashboard** — 7-day charts (Recharts): patients handled per day, average wait-time trend, and queue distribution by department, with summary stat cards and graceful empty states
@@ -169,6 +176,7 @@ Creates the admin, one test patient, 10 doctors **with named catalog entries**, 
 | Day 6 | Frontend Integration (RTK Query, route guards, E2E) | ✅ Complete |
 | **Day 7a** | **Week 1 Stabilization & v0.1 Release** | ✅ Complete |
 | **Day 7b** | **Advanced Features (Analytics Dashboard + Notifications)** | ✅ Complete |
+| **Post-7b** | **Dashboard & UX Enhancement Pass** — live doctor dashboard (stats, call-next hero, personal analytics, department context), live patient dashboard (My-visit widget, recent visits + recommendations), leave-queue, admin doctor detail drawer | ✅ Complete |
 | Days 8–15 | Deployment, hardening, Phase 2 roadmap | 📅 Planned |
 
 ---
