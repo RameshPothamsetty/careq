@@ -9,6 +9,14 @@ import jakarta.validation.constraints.Size;
  */
 public class JoinQueueRequestDto {
 
+    /**
+     * Patient's display name, sent by the frontend from the auth session so
+     * the doctor's queue view can show real names (added Day 7a). Optional —
+     * legacy clients that omit it get null and the UI falls back to an ID.
+     */
+    @Size(max = 255, message = "patientName must not exceed 255 characters")
+    private String patientName;
+
     @NotNull(message = "doctorCatalogEntryId is required")
     private Long doctorCatalogEntryId;
 
@@ -17,6 +25,14 @@ public class JoinQueueRequestDto {
     private String symptomText;
 
     public JoinQueueRequestDto() {
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
     public Long getDoctorCatalogEntryId() {

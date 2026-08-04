@@ -26,6 +26,10 @@ app:
   upload:
     profile-pictures-dir: uploads/profile-pictures
 
+# Pagination bound for the admin user list (GET /api/users, Day 7a)
+user-list:
+  max-page-size: 100
+
 eureka:
   client:
     service-url:

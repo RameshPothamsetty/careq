@@ -93,6 +93,7 @@ public class QueueServiceImpl implements QueueService {
         // 5. Persist the entry.
         QueueEntry entry = new QueueEntry();
         entry.setPatientId(patientId);
+        entry.setPatientName(request.getPatientName() == null ? null : request.getPatientName().trim());
         entry.setDoctorCatalogEntryId(request.getDoctorCatalogEntryId());
         entry.setSymptomText(request.getSymptomText().trim());
         entry.setAiSuggestedTriage(triage);
@@ -119,7 +120,7 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId,
+    public List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String search,
                                                       String requesterUserId,
                                                       String requesterRole) {
         DoctorCatalogResponseDto doctor = fetchDoctor(doctorCatalogEntryId);
@@ -129,7 +130,16 @@ public class QueueServiceImpl implements QueueService {
                 doctorCatalogEntryId, QueueOrderingService.ACTIVE_STATUSES);
         List<QueueEntry> ordered = orderingService.orderByEffectivePriority(active);
 
-        return ordered.stream()
+        // Optional patient-name filter (case-insensitive substring). Positions
+        // reported by toResponseDto stay the REAL queue positions — the search
+        // only narrows which rows are returned, never their ordering.
+        java.util.stream.Stream<QueueEntry> stream = ordered.stream();
+        if (search != null && !search.isBlank()) {
+            String q = search.trim().toLowerCase();
+            stream = stream.filter(e -> e.getPatientName() != null
+                    && e.getPatientName().toLowerCase().contains(q));
+        }
+        return stream
                 .map(e -> toResponseDto(e, doctor))
                 .collect(Collectors.toList());
     }

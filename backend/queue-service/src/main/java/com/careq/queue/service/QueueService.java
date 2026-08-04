@@ -19,8 +19,10 @@ public interface QueueService {
     /** Patient's own current position + freshly recalculated predicted wait time. */
     QueueStatusResponseDto getMyStatus(String patientId);
 
-    /** Doctor/Admin view of one doctor's live queue, ordered by effective triage then FIFO. */
-    List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String requesterUserId, String requesterRole);
+    /** Doctor/Admin view of one doctor's live queue, ordered by effective triage then FIFO.
+     *  An optional patient-name search narrows the returned rows. */
+    List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String search,
+                                               String requesterUserId, String requesterRole);
 
     /** Doctor sets the final triage override (triggers reordering on next read). */
     QueueEntryResponseDto overrideTriage(Long queueEntryId, OverrideTriageRequestDto request,

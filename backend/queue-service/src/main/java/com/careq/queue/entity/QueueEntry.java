@@ -36,6 +36,14 @@ public class QueueEntry {
     @Column(name = "patient_id", length = 36, nullable = false)
     private String patientId;
 
+    /**
+     * Patient display name captured at join time (Day 7a). Nullable so rows
+     * created before this column existed still load — the UI falls back to a
+     * short ID when null.
+     */
+    @Column(name = "patient_name", length = 255)
+    private String patientName;
+
     /** Doctor catalog entry id (doctor-service's DoctorCatalogEntry.id). Plain reference — no FK. */
     @Column(name = "doctor_catalog_entry_id", nullable = false)
     private Long doctorCatalogEntryId;
@@ -91,6 +99,14 @@ public class QueueEntry {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
     public String getPatientId() {

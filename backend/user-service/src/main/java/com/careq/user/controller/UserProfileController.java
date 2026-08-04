@@ -8,6 +8,7 @@ import com.careq.user.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -101,6 +102,25 @@ public class UserProfileController {
         } catch (MalformedURLException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    /**
+     * Admin: paginated, searchable user list (by display name or email).
+     * Added Day 7a — this was the missing counterpart to GET /api/users/{id}
+     * and gives the Admin a real user-management view.
+     */
+    @GetMapping
+    public ResponseEntity<Page<UserProfileResponseDto>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestHeader("X-User-Role") String requesterRole) {
+
+        if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
+            throw new UnauthorizedException("Only administrators can view the user list");
+        }
+
+        return ResponseEntity.ok(userProfileService.getAllProfiles(search, page, size));
     }
 
     @GetMapping("/{id}")

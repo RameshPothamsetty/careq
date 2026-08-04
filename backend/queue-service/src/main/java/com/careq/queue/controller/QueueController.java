@@ -60,17 +60,19 @@ public class QueueController {
         return ResponseEntity.ok(queueService.getMyStatus(userId));
     }
 
-    /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO. */
+    /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO.
+     *  Optional {@code search} filters by patient name (case-insensitive substring). */
     @GetMapping("/doctor/{doctorCatalogEntryId}")
     public ResponseEntity<List<QueueEntryResponseDto>> getDoctorQueue(
             @PathVariable Long doctorCatalogEntryId,
+            @RequestParam(required = false) String search,
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
 
         if (!("DOCTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role))) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return ResponseEntity.ok(queueService.getDoctorQueue(doctorCatalogEntryId, userId, role));
+        return ResponseEntity.ok(queueService.getDoctorQueue(doctorCatalogEntryId, search, userId, role));
     }
 
     /** Doctor sets the final triage override; queue reordering happens on next read. */
