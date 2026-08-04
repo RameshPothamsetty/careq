@@ -326,24 +326,24 @@ class QueueServiceImplTest {
 
         DayCountProjection todayCount = mock(DayCountProjection.class);
         given(todayCount.getDay()).willReturn(todayStr);
-        given(todayCount.getCount()).willReturn(3L);
+        given(todayCount.getCnt()).willReturn(3L);
         DayCountProjection yesterdayCount = mock(DayCountProjection.class);
         given(yesterdayCount.getDay()).willReturn(yesterdayStr);
-        given(yesterdayCount.getCount()).willReturn(2L);
+        given(yesterdayCount.getCnt()).willReturn(2L);
 
         DayAvgWaitProjection todayWait = mock(DayAvgWaitProjection.class);
         given(todayWait.getDay()).willReturn(todayStr);
-        given(todayWait.getAvgWaitMinutes()).willReturn(12.5);
+        given(todayWait.getAvgWait()).willReturn(12.5);
         DayAvgWaitProjection yesterdayWait = mock(DayAvgWaitProjection.class);
         given(yesterdayWait.getDay()).willReturn(yesterdayStr);
-        given(yesterdayWait.getAvgWaitMinutes()).willReturn(8.0);
+        given(yesterdayWait.getAvgWait()).willReturn(8.0);
 
         DoctorCountProjection cardio = mock(DoctorCountProjection.class);
         given(cardio.getDoctorCatalogEntryId()).willReturn(10L);
-        given(cardio.getCount()).willReturn(4L);
+        given(cardio.getCnt()).willReturn(4L);
         DoctorCountProjection neuro = mock(DoctorCountProjection.class);
         given(neuro.getDoctorCatalogEntryId()).willReturn(20L);
-        given(neuro.getCount()).willReturn(1L);
+        given(neuro.getCnt()).willReturn(1L);
 
         DoctorCatalogPageDto page = new DoctorCatalogPageDto();
         DoctorCatalogResponseDto cardioDoctor = availableDoctor(); // departmentName = "Cardiology"

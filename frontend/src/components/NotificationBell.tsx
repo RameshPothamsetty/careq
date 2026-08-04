@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 
 const KIND_DOT: Record<string, string> = {
   success: 'bg-emerald-500',
@@ -24,9 +25,16 @@ function timeAgo(ts: number): string {
  * history resets on page refresh (see docs/03_ARCHITECTURE.md).
  */
 export default function NotificationBell() {
+  const { user } = useAuth();
   const { events, unreadCount, markAllRead, clearAll } = useNotifications();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Events are derived from patient queue polling — other roles never
+  // receive any, so don't show them a bell that promises notifications.
+  if (user?.role !== 'PATIENT') {
+    return null;
+  }
 
   // Close the dropdown on outside click.
   useEffect(() => {

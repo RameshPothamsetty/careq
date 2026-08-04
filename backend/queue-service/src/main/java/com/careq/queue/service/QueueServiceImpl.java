@@ -306,7 +306,7 @@ public class QueueServiceImpl implements QueueService {
                 .countCompletedPerDaySince(since)
                 .stream()
                 .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
-                        DayCountProjection::getCount, Long::sum));
+                        DayCountProjection::getCnt, Long::sum));
         List<DailyPatientCountDto> patientsPerDay = new ArrayList<>();
         for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
             patientsPerDay.add(new DailyPatientCountDto(d, completedByDay.getOrDefault(d, 0L)));
@@ -317,7 +317,7 @@ public class QueueServiceImpl implements QueueService {
                 .avgCalledWaitPerDaySince(since)
                 .stream()
                 .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
-                        DayAvgWaitProjection::getAvgWaitMinutes));
+                        DayAvgWaitProjection::getAvgWait));
         List<DailyAvgWaitDto> avgWaitTrend = new ArrayList<>();
         for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
             avgWaitTrend.add(new DailyAvgWaitDto(d, avgWaitByDay.get(d)));
@@ -347,7 +347,7 @@ public class QueueServiceImpl implements QueueService {
             Map<String, Long> countsByDepartment = new HashMap<>();
             for (DoctorCountProjection p : queueEntryRepository.countCompletedPerDoctorSince(since)) {
                 String department = departmentByDoctor.getOrDefault(p.getDoctorCatalogEntryId(), "Unknown");
-                countsByDepartment.merge(department, p.getCount(), Long::sum);
+                countsByDepartment.merge(department, p.getCnt(), Long::sum);
             }
             return countsByDepartment.entrySet()
                     .stream()

@@ -82,11 +82,13 @@ export default function AdminAnalytics() {
   // Empty state: no patient activity in the window at all.
   const hasAnyData = totalPatients > 0 || (data?.departmentDistribution.length ?? 0) > 0;
 
+  // Keep null for days with no calls — Recharts draws a gap (connectNulls
+  // defaults to false) rather than a misleading 0-minute dip.
   const waitData = (data?.avgWaitTimeTrend ?? []).map((d) => ({
     ...d,
     label: formatDay(d.date),
     day: shortDay(d.date),
-    avgWaitMinutes: d.avgWaitMinutes ?? 0,
+    avgWaitMinutes: d.avgWaitMinutes,
   }));
 
   const patientData = (data?.patientsPerDay ?? []).map((d) => ({
