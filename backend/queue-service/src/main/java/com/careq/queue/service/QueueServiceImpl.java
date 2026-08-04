@@ -1,6 +1,10 @@
 package com.careq.queue.service;
 
 import com.careq.queue.client.DoctorServiceClient;
+import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.DailyAvgWaitDto;
+import com.careq.queue.dto.DailyPatientCountDto;
+import com.careq.queue.dto.DepartmentDistributionDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.dto.DoctorQueueStatsDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -18,6 +22,9 @@ import com.careq.queue.exception.DuplicateQueueEntryException;
 import com.careq.queue.exception.InvalidQueueStateException;
 import com.careq.queue.exception.QueueEntryNotFoundException;
 import com.careq.queue.exception.UnauthorizedAccessException;
+import com.careq.queue.repository.DayAvgWaitProjection;
+import com.careq.queue.repository.DayCountProjection;
+import com.careq.queue.repository.DoctorCountProjection;
 import com.careq.queue.repository.QueueEntryRepository;
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -26,8 +33,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -281,6 +291,73 @@ public class QueueServiceImpl implements QueueService {
                 waitingWithPrediction == 0 ? 0 : (int) Math.round((double) totalPredictedWait / waitingWithPrediction));
         overview.setDoctors(statsList);
         return overview;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AnalyticsSummaryDto getAnalyticsSummary() {
+        // Window: the last 7 days inclusive of today.
+        LocalDate today = LocalDate.now();
+        LocalDate start = today.minusDays(6);
+        LocalDateTime since = start.atStartOfDay();
+
+        // 1. Patients handled per day (entries completed that day) — zero-filled.
+        Map<LocalDate, Long> completedByDay = queueEntryRepository
+                .countCompletedPerDaySince(since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayCountProjection::getCount, Long::sum));
+        List<DailyPatientCountDto> patientsPerDay = new ArrayList<>();
+        for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
+            patientsPerDay.add(new DailyPatientCountDto(d, completedByDay.getOrDefault(d, 0L)));
+        }
+
+        // 2. Average wait trend (entries called that day) — null when no calls happened.
+        Map<LocalDate, Double> avgWaitByDay = queueEntryRepository
+                .avgCalledWaitPerDaySince(since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayAvgWaitProjection::getAvgWaitMinutes));
+        List<DailyAvgWaitDto> avgWaitTrend = new ArrayList<>();
+        for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
+            avgWaitTrend.add(new DailyAvgWaitDto(d, avgWaitByDay.get(d)));
+        }
+
+        AnalyticsSummaryDto summary = new AnalyticsSummaryDto();
+        summary.setPatientsPerDay(patientsPerDay);
+        summary.setAvgWaitTimeTrend(avgWaitTrend);
+        summary.setDepartmentDistribution(buildDepartmentDistribution(since));
+        return summary;
+    }
+
+    /**
+     * Department distribution over the analytics window. Completion counts
+     * are aggregated per doctor in SQL, then mapped to department names via
+     * the Feign doctor catalog (single source of truth). If doctor-service
+     * is unreachable the distribution degrades to an empty list rather than
+     * failing the whole analytics response — the time series still work.
+     */
+    private List<DepartmentDistributionDto> buildDepartmentDistribution(LocalDateTime since) {
+        try {
+            Map<Long, String> departmentByDoctor = fetchAllDoctors()
+                    .stream()
+                    .collect(Collectors.toMap(DoctorCatalogResponseDto::getId,
+                            DoctorCatalogResponseDto::getDepartmentName, (a, b) -> a));
+
+            Map<String, Long> countsByDepartment = new HashMap<>();
+            for (DoctorCountProjection p : queueEntryRepository.countCompletedPerDoctorSince(since)) {
+                String department = departmentByDoctor.getOrDefault(p.getDoctorCatalogEntryId(), "Unknown");
+                countsByDepartment.merge(department, p.getCount(), Long::sum);
+            }
+            return countsByDepartment.entrySet()
+                    .stream()
+                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                    .map(e -> new DepartmentDistributionDto(e.getKey(), e.getValue()))
+                    .collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            log.error("Failed to build department distribution (doctor-service down?): {}", e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

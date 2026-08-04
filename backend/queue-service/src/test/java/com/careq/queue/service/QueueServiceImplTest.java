@@ -1,7 +1,12 @@
 package com.careq.queue.service;
 
 import com.careq.queue.client.DoctorServiceClient;
+import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.DailyAvgWaitDto;
+import com.careq.queue.dto.DailyPatientCountDto;
+import com.careq.queue.dto.DepartmentDistributionDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
+import com.careq.queue.dto.DoctorCatalogPageDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
 import com.careq.queue.dto.QueueEntryResponseDto;
@@ -12,6 +17,9 @@ import com.careq.queue.exception.DoctorUnavailableException;
 import com.careq.queue.exception.DuplicateQueueEntryException;
 import com.careq.queue.exception.InvalidQueueStateException;
 import com.careq.queue.exception.UnauthorizedAccessException;
+import com.careq.queue.repository.DayAvgWaitProjection;
+import com.careq.queue.repository.DayCountProjection;
+import com.careq.queue.repository.DoctorCountProjection;
 import com.careq.queue.repository.QueueEntryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -282,5 +291,106 @@ class QueueServiceImplTest {
 
         assertThatThrownBy(() -> queueService.complete(1L, DOCTOR_USER, "DOCTOR"))
                 .isInstanceOf(InvalidQueueStateException.class);
+    }
+
+    // ── Analytics (Day 7b) ────────────────────────────────────────
+
+    @Test
+    void getAnalyticsSummary_EmptyData_ReturnsZeroFilledSevenDayWindow() {
+        given(queueEntryRepository.countCompletedPerDaySince(any())).willReturn(List.of());
+        given(queueEntryRepository.avgCalledWaitPerDaySince(any())).willReturn(List.of());
+        DoctorCatalogPageDto emptyPage = new DoctorCatalogPageDto();
+        emptyPage.setContent(List.of());
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willReturn(emptyPage);
+        given(queueEntryRepository.countCompletedPerDoctorSince(any())).willReturn(List.of());
+
+        AnalyticsSummaryDto summary = queueService.getAnalyticsSummary();
+
+        // Seven days, all zero-filled, never crashing on an empty dataset.
+        assertThat(summary.getPatientsPerDay()).hasSize(7);
+        assertThat(summary.getPatientsPerDay()).allSatisfy(d -> assertThat(d.getCount()).isZero());
+        assertThat(summary.getAvgWaitTimeTrend()).hasSize(7);
+        assertThat(summary.getAvgWaitTimeTrend()).allSatisfy(d -> assertThat(d.getAvgWaitMinutes()).isNull());
+        assertThat(summary.getDepartmentDistribution()).isEmpty();
+        // Days are consecutive and ascending, ending today.
+        List<DailyPatientCountDto> days = summary.getPatientsPerDay();
+        assertThat(days.get(days.size() - 1).getDate()).isEqualTo(java.time.LocalDate.now());
+        assertThat(days.get(1).getDate()).isEqualTo(days.get(0).getDate().plusDays(1));
+    }
+
+    @Test
+    void getAnalyticsSummary_PopulatedData_AggregatesAndMapsDepartments() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String todayStr = today.toString();
+        String yesterdayStr = today.minusDays(1).toString();
+
+        DayCountProjection todayCount = mock(DayCountProjection.class);
+        given(todayCount.getDay()).willReturn(todayStr);
+        given(todayCount.getCount()).willReturn(3L);
+        DayCountProjection yesterdayCount = mock(DayCountProjection.class);
+        given(yesterdayCount.getDay()).willReturn(yesterdayStr);
+        given(yesterdayCount.getCount()).willReturn(2L);
+
+        DayAvgWaitProjection todayWait = mock(DayAvgWaitProjection.class);
+        given(todayWait.getDay()).willReturn(todayStr);
+        given(todayWait.getAvgWaitMinutes()).willReturn(12.5);
+        DayAvgWaitProjection yesterdayWait = mock(DayAvgWaitProjection.class);
+        given(yesterdayWait.getDay()).willReturn(yesterdayStr);
+        given(yesterdayWait.getAvgWaitMinutes()).willReturn(8.0);
+
+        DoctorCountProjection cardio = mock(DoctorCountProjection.class);
+        given(cardio.getDoctorCatalogEntryId()).willReturn(10L);
+        given(cardio.getCount()).willReturn(4L);
+        DoctorCountProjection neuro = mock(DoctorCountProjection.class);
+        given(neuro.getDoctorCatalogEntryId()).willReturn(20L);
+        given(neuro.getCount()).willReturn(1L);
+
+        DoctorCatalogPageDto page = new DoctorCatalogPageDto();
+        DoctorCatalogResponseDto cardioDoctor = availableDoctor(); // departmentName = "Cardiology"
+        DoctorCatalogResponseDto neuroDoctor = availableDoctor();
+        neuroDoctor.setId(20L);
+        neuroDoctor.setDepartmentName("Neurology");
+        page.setContent(List.of(cardioDoctor, neuroDoctor));
+
+        given(queueEntryRepository.countCompletedPerDaySince(any())).willReturn(List.of(todayCount, yesterdayCount));
+        given(queueEntryRepository.avgCalledWaitPerDaySince(any())).willReturn(List.of(todayWait, yesterdayWait));
+        given(queueEntryRepository.countCompletedPerDoctorSince(any())).willReturn(List.of(cardio, neuro));
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willReturn(page);
+
+        AnalyticsSummaryDto summary = queueService.getAnalyticsSummary();
+
+        // Yesterday's 2 + today's 3 appear at the right slots; other days zero.
+        List<DailyPatientCountDto> patientsPerDay = summary.getPatientsPerDay();
+        assertThat(patientsPerDay).hasSize(7);
+        assertThat(patientsPerDay.stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getCount()).isEqualTo(3L);
+        assertThat(patientsPerDay.stream()
+                .filter(d -> d.getDate().equals(today.minusDays(1))).findFirst().orElseThrow().getCount()).isEqualTo(2L);
+
+        List<DailyAvgWaitDto> trend = summary.getAvgWaitTimeTrend();
+        assertThat(trend.stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getAvgWaitMinutes()).isEqualTo(12.5);
+        assertThat(trend.stream()
+                .filter(d -> d.getDate().equals(today.minusDays(2))).findFirst().orElseThrow().getAvgWaitMinutes()).isNull();
+
+        // Department distribution: 4 Cardiology, 1 Neurology, sorted descending.
+        List<DepartmentDistributionDto> distribution = summary.getDepartmentDistribution();
+        assertThat(distribution).hasSize(2);
+        assertThat(distribution.get(0).getDepartmentName()).isEqualTo("Cardiology");
+        assertThat(distribution.get(0).getPatientCount()).isEqualTo(4L);
+        assertThat(distribution.get(1).getDepartmentName()).isEqualTo("Neurology");
+    }
+
+    @Test
+    void getAnalyticsSummary_DoctorServiceDown_DistributionDegradesToEmpty() {
+        given(queueEntryRepository.countCompletedPerDaySince(any())).willReturn(List.of());
+        given(queueEntryRepository.avgCalledWaitPerDaySince(any())).willReturn(List.of());
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willThrow(new RuntimeException("connection refused"));
+
+        AnalyticsSummaryDto summary = queueService.getAnalyticsSummary();
+
+        // Time series survive; only the department slice is degraded.
+        assertThat(summary.getPatientsPerDay()).hasSize(7);
+        assertThat(summary.getDepartmentDistribution()).isEmpty();
     }
 }

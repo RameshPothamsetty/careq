@@ -1,5 +1,6 @@
 package com.careq.queue.controller;
 
+import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -112,5 +113,14 @@ public class QueueController {
 
         RoleGuard.requireRole(role, "ADMIN");
         return ResponseEntity.ok(queueService.getLiveOverview());
+    }
+
+    /** Admin-only analytics summary: patients/day, avg wait trend, department distribution (last 7 days). */
+    @GetMapping("/analytics/summary")
+    public ResponseEntity<AnalyticsSummaryDto> getAnalyticsSummary(
+            @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireRole(role, "ADMIN");
+        return ResponseEntity.ok(queueService.getAnalyticsSummary());
     }
 }
