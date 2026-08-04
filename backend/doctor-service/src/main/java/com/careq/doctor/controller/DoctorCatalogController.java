@@ -5,11 +5,10 @@ import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
 import com.careq.doctor.service.DoctorCatalogService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/doctors")
@@ -22,13 +21,21 @@ public class DoctorCatalogController {
     }
 
     /**
-     * Public/Patient: List all doctors with optional filtering by department and specialization.
+     * Public/Patient: Paginated, sortable doctor listing with optional filters
+     * (department, specialization) and a free-text search on name/specialization.
+     * Response shape: { content, totalElements, totalPages, ... } (Spring Page).
      */
     @GetMapping
-    public ResponseEntity<List<DoctorCatalogResponseDto>> getAllDoctors(
+    public ResponseEntity<Page<DoctorCatalogResponseDto>> getAllDoctors(
             @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) String specialization) {
-        return ResponseEntity.ok(doctorCatalogService.getAllDoctors(departmentId, specialization));
+            @RequestParam(required = false) String specialization,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDirection) {
+        return ResponseEntity.ok(doctorCatalogService.getAllDoctors(
+                departmentId, specialization, search, page, size, sortBy, sortDirection));
     }
 
     /**

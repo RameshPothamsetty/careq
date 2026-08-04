@@ -24,3 +24,7 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+
+# Pagination bounds for GET /api/doctors (Day 7a)
+doctor-list:
+  max-page-size: 100

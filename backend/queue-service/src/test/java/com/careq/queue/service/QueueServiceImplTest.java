@@ -69,7 +69,7 @@ class QueueServiceImplTest {
     @BeforeEach
     void setUp() {
         queueService = new QueueServiceImpl(
-                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService, 30);
+                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService, 30, 1000);
     }
 
     @Test

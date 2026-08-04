@@ -46,3 +46,4 @@ ai:
 # ─────────────────────────────────────────────────────────────
 queue:
   delay-threshold-minutes: 30
+  max-doctors-to-load: 1000

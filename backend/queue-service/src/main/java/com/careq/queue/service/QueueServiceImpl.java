@@ -45,16 +45,25 @@ public class QueueServiceImpl implements QueueService {
     /** A WAITING patient is "delayed" in the Admin overview when their predicted wait exceeds this. */
     private final int delayThresholdMinutes;
 
+    /**
+     * Upper bound on how many doctors the Admin overview loads in one page.
+     * The live overview needs the whole catalog; 1000 is far beyond any real
+     * hospital catalog and avoids looping pages.
+     */
+    private final int maxDoctorsToLoad;
+
     public QueueServiceImpl(QueueEntryRepository queueEntryRepository,
                             DoctorServiceClient doctorServiceClient,
                             AiTriageService aiTriageService,
                             QueueOrderingService orderingService,
-                            @Value("${queue.delay-threshold-minutes:30}") int delayThresholdMinutes) {
+                            @Value("${queue.delay-threshold-minutes:30}") int delayThresholdMinutes,
+                            @Value("${queue.max-doctors-to-load:1000}") int maxDoctorsToLoad) {
         this.queueEntryRepository = queueEntryRepository;
         this.doctorServiceClient = doctorServiceClient;
         this.aiTriageService = aiTriageService;
         this.orderingService = orderingService;
         this.delayThresholdMinutes = delayThresholdMinutes;
+        this.maxDoctorsToLoad = maxDoctorsToLoad;
     }
 
     @Override
@@ -332,7 +341,7 @@ public class QueueServiceImpl implements QueueService {
 
     private List<DoctorCatalogResponseDto> fetchAllDoctors() {
         try {
-            return doctorServiceClient.getAllDoctors();
+            return doctorServiceClient.getAllDoctors(0, maxDoctorsToLoad).getContent();
         } catch (RuntimeException e) {
             log.error("Failed to reach doctor-service while building live overview: {}", e.getMessage());
             throw new DoctorServiceUnavailableException(
