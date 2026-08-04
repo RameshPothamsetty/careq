@@ -1,122 +1,100 @@
-import { useNavigate } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Activity, LogIn } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import Button from '../components/ui/Button';
 
-function LoginPage() {
+export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRoleLogin = (role: string) => {
-    // Placeholder: navigate to the appropriate dashboard without real auth
-    switch (role) {
-      case 'PATIENT':
-        navigate('/patient');
-        break;
-      case 'DOCTOR':
-        navigate('/doctor');
-        break;
-      case 'ADMIN':
-        navigate('/admin');
-        break;
-      default:
-        break;
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      await login(email, password);
+      const role = localStorage.getItem('careq_user')
+        ? JSON.parse(localStorage.getItem('careq_user')!).role
+        : null;
+      navigate(`/${role?.toLowerCase() || 'patient'}/dashboard`, { replace: true });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: '#fff',
-      }}
-    >
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>CareQ</h1>
-      <p style={{ fontSize: '1.1rem', marginBottom: '2rem', opacity: 0.9 }}>
-        SmartOPD AI — Intelligent Patient Flow Platform
-      </p>
-      <p style={{ marginBottom: '1.5rem' }}>Select a role to preview the dashboard (login not yet implemented):</p>
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button
-          onClick={() => handleRoleLogin('PATIENT')}
-          style={{
-            padding: '1rem 2rem',
-            fontSize: '1rem',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '12px',
-            background: 'rgba(255,255,255,0.1)',
-            color: '#fff',
-            cursor: 'pointer',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s',
-            minWidth: '160px',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.borderColor = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-          }}
-        >
-          👤 Patient
-        </button>
-        <button
-          onClick={() => handleRoleLogin('DOCTOR')}
-          style={{
-            padding: '1rem 2rem',
-            fontSize: '1rem',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '12px',
-            background: 'rgba(255,255,255,0.1)',
-            color: '#fff',
-            cursor: 'pointer',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s',
-            minWidth: '160px',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.borderColor = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-          }}
-        >
-          🩺 Doctor
-        </button>
-        <button
-          onClick={() => handleRoleLogin('ADMIN')}
-          style={{
-            padding: '1rem 2rem',
-            fontSize: '1rem',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '12px',
-            background: 'rgba(255,255,255,0.1)',
-            color: '#fff',
-            cursor: 'pointer',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.2s',
-            minWidth: '160px',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.25)';
-            e.currentTarget.style.borderColor = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-          }}
-        >
-          ⚙️ Admin
-        </button>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
+      {/* Soft decorative blobs */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-sky-200/30 blur-3xl" />
+
+      <div className="card w-full max-w-md animate-fade-in-up p-8 sm:p-10">
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+            <Activity className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-800">CareQ</h1>
+          <p className="mt-1.5 text-sm text-slate-500">SmartOPD AI — Sign in to continue</p>
+        </div>
+
+        {error && (
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            ⚠ {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@hospital.com"
+              required
+              autoComplete="email"
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+              autoComplete="current-password"
+              className="input-field"
+            />
+          </div>
+
+          <Button type="submit" loading={isSubmitting} className="w-full py-3 text-base">
+            {!isSubmitting && <LogIn className="h-4 w-4" />}
+            {isSubmitting ? 'Signing in…' : 'Sign In'}
+          </Button>
+        </form>
+
+        <p className="mt-7 text-center text-sm text-slate-500">
+          Don't have an account?{' '}
+          <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline">
+            Create one
+          </Link>
+        </p>
       </div>
     </div>
   );
 }
-
-export default LoginPage;

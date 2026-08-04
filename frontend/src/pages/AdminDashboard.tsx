@@ -1,85 +1,108 @@
-function AdminDashboard() {
+import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
+import { Building2, Stethoscope, BarChart3, Users, ArrowRight } from 'lucide-react';
+import QueuePageHeader from '../components/QueuePageHeader';
+
+const NAV_CARDS = [
+  {
+    to: '/admin/departments',
+    icon: <Building2 className="h-6 w-6 text-white" />,
+    title: 'Manage Departments',
+    desc: 'Create, edit, and delete hospital departments',
+    tint: 'from-brand-500 to-brand-700',
+    wide: false,
+  },
+  {
+    to: '/admin/doctors',
+    icon: <Stethoscope className="h-6 w-6 text-white" />,
+    title: 'Manage Doctors',
+    desc: 'Add, edit, and manage doctor catalog entries',
+    tint: 'from-sky-500 to-sky-700',
+    wide: false,
+  },
+  {
+    to: '/admin/queue',
+    icon: <BarChart3 className="h-6 w-6 text-white" />,
+    title: 'Live Queue Overview',
+    desc: 'Hospital-wide waiting counts, delays & doctor load in real time',
+    tint: 'from-teal-500 to-teal-700',
+    wide: true,
+  },
+  {
+    to: '/admin/users',
+    icon: <Users className="h-6 w-6 text-white" />,
+    title: 'Manage Users',
+    desc: 'Search the user directory by name or email',
+    tint: 'from-violet-500 to-violet-700',
+    wide: false,
+  },
+] as const;
+
+export default function AdminDashboard() {
+  const { user } = useAuth();
+
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem',
-          paddingBottom: '1rem',
-          borderBottom: '1px solid #e2e8f0',
-        }}
-      >
-        <h1 style={{ margin: 0, color: '#1a202c' }}>⚙️ Admin Dashboard</h1>
-        <a
-          href="/login"
-          style={{ color: '#667eea', textDecoration: 'none', fontWeight: 500 }}
-        >
-          Logout
-        </a>
-      </header>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <QueuePageHeader
+          icon="⚙️"
+          title="Admin Dashboard"
+          subtitle={`Welcome, ${user?.fullName || 'Admin'}`}
+          dashboardPath="/admin"
+          showDashboard={false}
+        />
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568' }}>All Queues Overview</h2>
-        <p style={{ color: '#a0aec0', marginBottom: '1rem' }}>
-          Department-wise queue status, wait times, and patient load across the hospital
-        </p>
-        <div
-          style={{
-            padding: '1rem',
-            background: '#f7fafc',
-            borderRadius: '8px',
-            textAlign: 'center',
-            color: '#a0aec0',
-          }}
-        >
-          Real-time queue overview will render here when connected to backend.
+        <div className="grid gap-5 sm:grid-cols-2">
+          {NAV_CARDS.map((card) => (
+            <Link
+              key={card.to}
+              to={card.to}
+              className={`card group p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift ${
+                card.wide ? 'sm:col-span-2' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tint} shadow-lift`}>
+                  {card.icon}
+                </div>
+                <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
+              </div>
+              <h2 className="mt-4 text-lg font-bold text-slate-800">{card.title}</h2>
+              <p className="mt-1 text-sm text-slate-500">{card.desc}</p>
+            </Link>
+          ))}
         </div>
-      </div>
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568' }}>Manage Departments</h2>
-        <p style={{ color: '#a0aec0' }}>
-          Create, edit, and deactivate departments and assign doctors.
-        </p>
-      </div>
+        <div className="card p-6">
+          <h2 className="text-base font-bold text-slate-800">Welcome, {user?.fullName}!</h2>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500">
+            You are logged in as an <strong className="text-brand-700">Admin</strong>. Manage departments,
+            doctors, and monitor queue operations across the hospital.
+          </p>
+        </div>
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        }}
-      >
-        <h2 style={{ margin: '0 0 0.5rem', color: '#4a5568' }}>Manage Users</h2>
-        <p style={{ color: '#a0aec0' }}>
-          View and manage all registered users (Patients, Doctors, Admins).
-        </p>
-      </div>
+        <div className="card p-6">
+          <h2 className="mb-4 text-base font-bold text-slate-800">Account Info</h2>
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p>
+              <p className="mt-1 font-semibold text-slate-800">{user?.fullName}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
+            </div>
+            <div className="rounded-xl bg-gray-50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</p>
+              <p className="mt-1 font-semibold text-slate-800">Admin</p>
+            </div>
+          </div>
+        </div>
 
-      <footer style={{ marginTop: '2rem', textAlign: 'center', color: '#a0aec0', fontSize: '0.875rem' }}>
-        CareQ — SmartOPD AI | Routing Skeleton (No API calls yet)
-      </footer>
+        <footer className="pt-4 text-center text-xs text-slate-400">
+          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+        </footer>
+      </div>
     </div>
   );
 }
-
-export default AdminDashboard;

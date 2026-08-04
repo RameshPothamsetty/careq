@@ -13,6 +13,10 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
+# Playwright E2E artifacts
+frontend/test-results/
+frontend/playwright-report/
+
 # IDE
 .idea/
 .vscode/
@@ -29,3 +33,6 @@ docker/.env
 *.log
 *.tmp
 *.bak
+
+# Runtime uploads (user-service profile pictures)
+uploads/
