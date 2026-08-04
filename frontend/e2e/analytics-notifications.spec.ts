@@ -13,6 +13,8 @@ import { login, ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers';
 
 // Gateway base for direct API calls (the browser talks to it via
 // VITE_API_BASE_URL; the Vite dev proxy is not used here).
+// Overridable with E2E_GATEWAY_URL when the gateway is not on 8090
+// (e.g. 8080 in the standard setup, or a custom port in CI).
 const GATEWAY_URL = process.env.E2E_GATEWAY_URL ?? 'http://localhost:8090';
 
 // Catalog entry id 1 is Dr. Arjun (per the seeded doctor catalog). Joining his
