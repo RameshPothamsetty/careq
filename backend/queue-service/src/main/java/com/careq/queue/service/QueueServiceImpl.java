@@ -208,6 +208,7 @@ public class QueueServiceImpl implements QueueService {
 
             DoctorQueueStatsDto stats = new DoctorQueueStatsDto();
             stats.setDoctorCatalogEntryId(doctor.getId());
+            stats.setDoctorName(doctor.getName());
             stats.setDoctorUserId(doctor.getUserId());
             stats.setDepartmentName(doctor.getDepartmentName());
             stats.setSpecialization(doctor.getSpecialization());
@@ -280,7 +281,8 @@ public class QueueServiceImpl implements QueueService {
         QueueEntryResponseDto dto = QueueEntryResponseDto.fromEntity(entry);
         dto.setDepartmentName(doctor.getDepartmentName());
         dto.setSpecialization(doctor.getSpecialization());
-        dto.setDoctorName(doctor.getSpecialization());
+        // Doctor display name comes from the catalog entry (added Day 7a).
+        dto.setDoctorName(doctor.getName());
 
         if (QueueOrderingService.ACTIVE_STATUSES.contains(entry.getStatus())) {
             List<QueueEntry> active = queueEntryRepository

@@ -132,22 +132,22 @@ echo ""
 echo "📋 Step 4/4: Creating doctor catalog entries..."
 echo "-------------------------------------------------"
 
-# Doctor catalog data: userId, departmentId, specialization, qualification, experience, fee, avgTime
+# Doctor catalog data: name, departmentId, specialization, qualification, experience, fee, avgTime
 # Department IDs match the seeded order:
 #   1=Cardiology, 2=Neurology, 3=Orthopedics, 4=Pediatrics, 5=Dermatology,
 #   6=Ophthalmology, 7=ENT, 8=Gastroenterology, 9=Pulmonology, 10=Nephrology
 
 CATALOG_DATA=(
-  "1:Interventional Cardiology:MD, DM Cardiology:15:800:20"
-  "1:Pediatric Cardiology:MD, DM Pediatrics Cardiology:10:600:15"
-  "2:Stroke Neurology:MD, DM Neurology:20:1000:25"
-  "3:Joint Replacement Surgery:MS Orthopedics:12:750:20"
-  "4:Neonatology:MD Pediatrics:8:500:15"
-  "5:Cosmetic Dermatology:MD Dermatology:6:600:15"
-  "6:Cataract Surgery:MS Ophthalmology:18:700:20"
-  "7:Head & Neck Surgery:MS ENT:14:650:20"
-  "8:Hepatology:MD, DM Gastroenterology:11:850:25"
-  "9:Sleep Medicine:MD Pulmonology:9:550:15"
+  "Dr. Arjun Sharma:1:Interventional Cardiology:MD, DM Cardiology:15:800:20"
+  "Dr. Priya Patel:1:Pediatric Cardiology:MD, DM Pediatrics Cardiology:10:600:15"
+  "Dr. Vikram Reddy:2:Stroke Neurology:MD, DM Neurology:20:1000:25"
+  "Dr. Ananya Singh:3:Joint Replacement Surgery:MS Orthopedics:12:750:20"
+  "Dr. Rajesh Kumar:4:Neonatology:MD Pediatrics:8:500:15"
+  "Dr. Meera Iyer:5:Cosmetic Dermatology:MD Dermatology:6:600:15"
+  "Dr. Suresh Nair:6:Cataract Surgery:MS Ophthalmology:18:700:20"
+  "Dr. Deepa Menon:7:Head & Neck Surgery:MS ENT:14:650:20"
+  "Dr. Karthik Joshi:8:Hepatology:MD, DM Gastroenterology:11:850:25"
+  "Dr. Lakshmi Rao:9:Sleep Medicine:MD Pulmonology:9:550:15"
 )
 
 COUNT=0
@@ -161,14 +161,15 @@ for i in "${!DOCTOR_RESPONSES[@]}"; do
   fi
 
   # Get catalog data for this doctor
-  IFS=':' read -r DEPT_ID SPECIALIZATION QUALIFICATION EXP FEE AVG_TIME <<< "${CATALOG_DATA[$i]}"
+  IFS=':' read -r NAME DEPT_ID SPECIALIZATION QUALIFICATION EXP FEE AVG_TIME <<< "${CATALOG_DATA[$i]}"
 
-  echo "  Creating: $SPECIALIZATION (Dept #$DEPT_ID, ${EXP}yrs, ₹$FEE)..."
+  echo "  Creating: $NAME — $SPECIALIZATION (Dept #$DEPT_ID, ${EXP}yrs, ₹$FEE)..."
 
   CATALOG_RESP=$(curl -s -X POST "$API_BASE/api/doctors" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $ADMIN_TOKEN" \
     -d "{
+      \"name\": \"$NAME\",
       \"userId\": \"$USER_ID\",
       \"departmentId\": $DEPT_ID,
       \"specialization\": \"$SPECIALIZATION\",

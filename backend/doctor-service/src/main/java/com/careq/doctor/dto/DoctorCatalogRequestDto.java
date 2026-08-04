@@ -5,6 +5,10 @@ import java.math.BigDecimal;
 
 public class DoctorCatalogRequestDto {
 
+    @NotBlank(message = "Name is required")
+    @Size(max = 255, message = "Name must not exceed 255 characters")
+    private String name;
+
     @NotBlank(message = "User ID is required")
     private String userId;
 
@@ -32,6 +36,14 @@ public class DoctorCatalogRequestDto {
     private Integer avgConsultationTimeMinutes;
 
     public DoctorCatalogRequestDto() {
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getUserId() {

@@ -15,6 +15,9 @@ public class DoctorCatalogEntry {
     @Column(name = "user_id", length = 36, nullable = false, unique = true)
     private String userId;
 
+    @Column(name = "name", length = 255, nullable = false)
+    private String name;
+
     @Column(name = "department_id", nullable = false)
     private Long departmentId;
 
@@ -65,6 +68,14 @@ public class DoctorCatalogEntry {
 
     public Long getId() {
         return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getUserId() {

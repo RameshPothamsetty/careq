@@ -72,6 +72,7 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
         }
 
         DoctorCatalogEntry entry = new DoctorCatalogEntry();
+        entry.setName(request.getName().trim());
         entry.setUserId(request.getUserId());
         entry.setDepartmentId(request.getDepartmentId());
         entry.setSpecialization(request.getSpecialization().trim());
@@ -98,6 +99,7 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
                     "Department not found with id: " + request.getDepartmentId());
         }
 
+        entry.setName(request.getName().trim());
         entry.setDepartmentId(request.getDepartmentId());
         entry.setSpecialization(request.getSpecialization().trim());
         entry.setQualification(request.getQualification().trim());
