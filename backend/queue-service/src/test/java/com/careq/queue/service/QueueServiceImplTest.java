@@ -5,6 +5,7 @@ import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
 import com.careq.queue.dto.DepartmentDistributionDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.dto.DoctorCatalogPageDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -379,6 +381,238 @@ class QueueServiceImplTest {
         assertThat(distribution.get(0).getDepartmentName()).isEqualTo("Cardiology");
         assertThat(distribution.get(0).getPatientCount()).isEqualTo(4L);
         assertThat(distribution.get(1).getDepartmentName()).isEqualTo("Neurology");
+    }
+
+    // ── Cancel / leave queue (patient-initiated) ───────────────────────
+
+    @Test
+    void cancel_OwnWaitingEntry_SetsCancelled() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("changed plans");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+        entry.setJoinedAt(LocalDateTime.of(2026, 8, 1, 9, 0));
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.save(any(QueueEntry.class))).willAnswer(inv -> inv.getArgument(0));
+
+        QueueEntryResponseDto cancelled = queueService.cancel(1L, PATIENT, "PATIENT");
+
+        assertThat(cancelled.getStatus()).isEqualTo(QueueStatus.CANCELLED);
+        // No longer active — no derived position.
+        assertThat(cancelled.getPosition()).isNull();
+        // Still enriched with doctor details for history UIs.
+        assertThat(cancelled.getDepartmentName()).isEqualTo("Cardiology");
+    }
+
+    @Test
+    void cancel_AnotherPatientsEntry_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, "someone-else", "PATIENT"))
+                .isInstanceOf(UnauthorizedAccessException.class);
+        verify(queueEntryRepository, never()).save(any(QueueEntry.class));
+    }
+
+    @Test
+    void cancel_DoctorRole_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, DOCTOR_USER, "DOCTOR"))
+                .isInstanceOf(UnauthorizedAccessException.class);
+    }
+
+    @Test
+    void cancel_Admin_CanCancelAnyEntry() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId("someone-else");
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.WAITING);
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.save(any(QueueEntry.class))).willAnswer(inv -> inv.getArgument(0));
+
+        // Admin can cancel any entry (passes verifyPatientAccess).
+        QueueEntryResponseDto cancelled = queueService.cancel(1L, ADMIN, "ADMIN");
+
+        assertThat(cancelled.getStatus()).isEqualTo(QueueStatus.CANCELLED);
+    }
+
+    @Test
+    void cancel_InProgressEntry_Throws() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("fever");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.IN_PROGRESS);
+        entry.setCalledAt(LocalDateTime.of(2026, 8, 1, 9, 10));
+
+        given(queueEntryRepository.findById(1L)).willReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> queueService.cancel(1L, PATIENT, "PATIENT"))
+                .isInstanceOf(InvalidQueueStateException.class);
+        verify(queueEntryRepository, never()).save(any(QueueEntry.class));
+    }
+
+    // ── Patient history (dashboard upgrade) ────────────────────────────
+
+    @Test
+    void getMyHistory_ReturnsCompletedAndCancelledEntriesNewestFirst() {
+        QueueEntry recent = new QueueEntry();
+        recent.setId(2L);
+        recent.setPatientId(PATIENT);
+        recent.setPatientName("Ada Patient");
+        recent.setDoctorCatalogEntryId(10L);
+        recent.setSymptomText("fever");
+        recent.setAiSuggestedTriage(TriageLevel.NORMAL);
+        recent.setStatus(QueueStatus.COMPLETED);
+        recent.setJoinedAt(java.time.LocalDateTime.now().minusHours(2));
+        recent.setCompletedAt(java.time.LocalDateTime.now().minusHours(1));
+
+        QueueEntry older = new QueueEntry();
+        older.setId(1L);
+        older.setPatientId(PATIENT);
+        older.setDoctorCatalogEntryId(10L);
+        older.setSymptomText("cancelled visit");
+        older.setAiSuggestedTriage(TriageLevel.NORMAL);
+        older.setStatus(QueueStatus.CANCELLED);
+        older.setJoinedAt(java.time.LocalDateTime.now().minusDays(3));
+
+        given(queueEntryRepository.findHistoryByPatientId(eq(PATIENT), anyList(), any(Pageable.class)))
+                .willReturn(List.of(recent, older));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+
+        List<QueueEntryResponseDto> history = queueService.getMyHistory(PATIENT, 10);
+
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).getId()).isEqualTo(2L);
+        assertThat(history.get(0).getStatus()).isEqualTo(QueueStatus.COMPLETED);
+        assertThat(history.get(1).getStatus()).isEqualTo(QueueStatus.CANCELLED);
+        // Enriched with the doctor's display details (and no derived position for completed entries).
+        assertThat(history.get(0).getDepartmentName()).isEqualTo("Cardiology");
+        assertThat(history.get(0).getPosition()).isNull();
+        // History must be requested newest-first and capped.
+        verify(queueEntryRepository).findHistoryByPatientId(
+                eq(PATIENT),
+                eq(List.of(QueueStatus.COMPLETED, QueueStatus.CANCELLED)),
+                any(Pageable.class));
+    }
+
+    @Test
+    void getMyHistory_DoctorServiceDown_StillReturnsEntriesWithoutDoctorDetails() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("cough");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.COMPLETED);
+        entry.setJoinedAt(java.time.LocalDateTime.now().minusDays(1));
+
+        given(queueEntryRepository.findHistoryByPatientId(eq(PATIENT), anyList(), any(Pageable.class)))
+                .willReturn(List.of(entry));
+        given(doctorServiceClient.getDoctorById(10L))
+                .willThrow(new RuntimeException("connection refused"));
+
+        List<QueueEntryResponseDto> history = queueService.getMyHistory(PATIENT, 10);
+
+        // History degrades gracefully — the visit is still listed, doctor fields stay null.
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).getStatus()).isEqualTo(QueueStatus.COMPLETED);
+        assertThat(history.get(0).getDoctorName()).isNull();
+        assertThat(history.get(0).getDepartmentName()).isNull();
+    }
+
+    // ── Per-doctor analytics (dashboard upgrade) ──────────────────────
+
+    @Test
+    void getDoctorAnalyticsSummary_EmptyData_ReturnsZeroFilledWindowAndNullTodayScalars() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.countCompletedSince(eq(10L), any())).willReturn(0L);
+        given(queueEntryRepository.avgCalledWaitSince(eq(10L), any())).willReturn(null);
+        given(queueEntryRepository.avgConsultDurationSince(eq(10L), any())).willReturn(null);
+        given(queueEntryRepository.countCompletedPerDaySinceForDoctor(eq(10L), any())).willReturn(List.of());
+        given(queueEntryRepository.avgCalledWaitPerDaySinceForDoctor(eq(10L), any())).willReturn(List.of());
+
+        DoctorAnalyticsSummaryDto summary =
+                queueService.getDoctorAnalyticsSummary(10L, DOCTOR_USER, "DOCTOR");
+
+        assertThat(summary.getPatientsCompletedToday()).isZero();
+        assertThat(summary.getAvgWaitTodayMinutes()).isNull();
+        assertThat(summary.getAvgConsultTimeTodayMinutes()).isNull();
+        assertThat(summary.getPatientsPerDay()).hasSize(7);
+        assertThat(summary.getPatientsPerDay()).allSatisfy(d -> assertThat(d.getCount()).isZero());
+        assertThat(summary.getAvgWaitTimeTrend()).hasSize(7);
+        assertThat(summary.getAvgWaitTimeTrend()).allSatisfy(d -> assertThat(d.getAvgWaitMinutes()).isNull());
+    }
+
+    @Test
+    void getDoctorAnalyticsSummary_PopulatedData_AggregatesAndAllowsAdmin() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String todayStr = today.toString();
+
+        DayCountProjection todayCount = mock(DayCountProjection.class);
+        given(todayCount.getDay()).willReturn(todayStr);
+        given(todayCount.getCnt()).willReturn(4L);
+
+        DayAvgWaitProjection todayWait = mock(DayAvgWaitProjection.class);
+        given(todayWait.getDay()).willReturn(todayStr);
+        given(todayWait.getAvgWait()).willReturn(10.5);
+
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.countCompletedSince(eq(10L), any())).willReturn(4L);
+        given(queueEntryRepository.avgCalledWaitSince(eq(10L), any())).willReturn(10.5);
+        given(queueEntryRepository.avgConsultDurationSince(eq(10L), any())).willReturn(14.0);
+        given(queueEntryRepository.countCompletedPerDaySinceForDoctor(eq(10L), any()))
+                .willReturn(List.of(todayCount));
+        given(queueEntryRepository.avgCalledWaitPerDaySinceForDoctor(eq(10L), any()))
+                .willReturn(List.of(todayWait));
+
+        // Admin can read any doctor's analytics (passes verifyDoctorAccess).
+        DoctorAnalyticsSummaryDto summary =
+                queueService.getDoctorAnalyticsSummary(10L, ADMIN, "ADMIN");
+
+        assertThat(summary.getPatientsCompletedToday()).isEqualTo(4L);
+        assertThat(summary.getAvgWaitTodayMinutes()).isEqualTo(10.5);
+        assertThat(summary.getAvgConsultTimeTodayMinutes()).isEqualTo(14.0);
+        assertThat(summary.getPatientsPerDay().stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getCount()).isEqualTo(4L);
+        assertThat(summary.getAvgWaitTimeTrend().stream()
+                .filter(d -> d.getDate().equals(today)).findFirst().orElseThrow().getAvgWaitMinutes()).isEqualTo(10.5);
+    }
+
+    @Test
+    void getDoctorAnalyticsSummary_AnotherDoctor_Throws() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+
+        assertThatThrownBy(() -> queueService.getDoctorAnalyticsSummary(10L, "someone-else", "DOCTOR"))
+                .isInstanceOf(UnauthorizedAccessException.class);
     }
 
     @Test

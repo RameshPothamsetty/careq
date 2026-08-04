@@ -180,6 +180,15 @@ interface AnalyticsSummary {
   departmentDistribution: DepartmentDistribution[];
 }
 
+/** Per-doctor analytics (dashboard upgrade) — today's scalars + 7-day trends. */
+interface DoctorAnalyticsSummary {
+  patientsCompletedToday: number;
+  avgWaitTodayMinutes: number | null;
+  avgConsultTimeTodayMinutes: number | null;
+  patientsPerDay: DailyPatientCount[];
+  avgWaitTimeTrend: DailyAvgWait[];
+}
+
 /** Server-side page wrapper (Spring Data Page JSON). */
 interface PaginatedResponse<T> {
   content: T[];
@@ -264,5 +273,6 @@ export type {
   DailyAvgWait,
   DepartmentDistribution,
   AnalyticsSummary,
+  DoctorAnalyticsSummary,
   PaginatedResponse,
 };

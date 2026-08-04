@@ -8,6 +8,7 @@ import type {
   TriageLevel,
   LiveQueueOverview,
   AnalyticsSummary,
+  DoctorAnalyticsSummary,
 } from '../api';
 
 /**
@@ -34,6 +35,12 @@ export const queueApi = createApi({
 
     getMyQueueStatus: builder.query<QueueStatusResponse, void>({
       query: () => '/api/queue/my-status',
+      providesTags: ['QueueStatus'],
+    }),
+
+    // Patient's recent visit history (completed/cancelled, newest first).
+    getMyQueueHistory: builder.query<QueueEntryResponse[], number | void>({
+      query: (limit) => `/api/queue/my-history?limit=${limit ?? 10}`,
       providesTags: ['QueueStatus'],
     }),
 
@@ -76,6 +83,17 @@ export const queueApi = createApi({
       invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
+    // Patient leaves the queue before being seen (WAITING only). The status
+    // refetch then reports no active entry, returning the patient to the join
+    // flow; the cancelled visit also lands in their history.
+    cancelQueueEntry: builder.mutation<QueueEntryResponse, number>({
+      query: (id) => ({
+        url: `/api/queue/${id}/cancel`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
+    }),
+
     getLiveQueueOverview: builder.query<LiveQueueOverview, void>({
       query: () => '/api/queue/live',
       providesTags: ['LiveQueue'],
@@ -87,16 +105,27 @@ export const queueApi = createApi({
       // queue mutation invalidates it — the charts stay fresh.
       providesTags: ['Analytics'],
     }),
+
+    // Per-doctor analytics (dashboard upgrade) — today's scalars + 7-day
+    // trends for one doctor. Shares the Analytics tag so queue mutations
+    // keep the doctor's numbers fresh too.
+    getDoctorAnalytics: builder.query<DoctorAnalyticsSummary, number>({
+      query: (doctorCatalogEntryId) => `/api/queue/doctor/${doctorCatalogEntryId}/analytics`,
+      providesTags: ['Analytics'],
+    }),
   }),
 });
 
 export const {
   useJoinQueueMutation,
   useGetMyQueueStatusQuery,
+  useGetMyQueueHistoryQuery,
   useGetDoctorQueueQuery,
   useOverrideTriageMutation,
   useCallNextMutation,
   useCompleteQueueEntryMutation,
+  useCancelQueueEntryMutation,
   useGetLiveQueueOverviewQuery,
   useGetAnalyticsSummaryQuery,
+  useGetDoctorAnalyticsQuery,
 } = queueApi;

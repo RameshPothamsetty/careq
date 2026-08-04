@@ -5,6 +5,7 @@ import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
 import com.careq.queue.dto.DepartmentDistributionDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.dto.DoctorQueueStatsDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -30,6 +31,7 @@ import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -130,6 +132,28 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<QueueEntryResponseDto> getMyHistory(String patientId, int limit) {
+        return queueEntryRepository
+                .findHistoryByPatientId(patientId,
+                        List.of(QueueStatus.COMPLETED, QueueStatus.CANCELLED),
+                        PageRequest.of(0, limit))
+                .stream()
+                .map(entry -> {
+                    try {
+                        return toResponseDto(entry, fetchDoctor(entry.getDoctorCatalogEntryId()));
+                    } catch (RuntimeException e) {
+                        // doctor-service down: the visit still shows in history,
+                        // just without the doctor's display details.
+                        log.warn("Failed to enrich history entry {} with doctor details: {}",
+                                entry.getId(), e.getMessage());
+                        return QueueEntryResponseDto.fromEntity(entry);
+                    }
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String search,
                                                       String requesterUserId,
                                                       String requesterRole) {
@@ -206,6 +230,32 @@ public class QueueServiceImpl implements QueueService {
         entry.setStatus(QueueStatus.COMPLETED);
         entry.setCompletedAt(LocalDateTime.now());
         entry = queueEntryRepository.save(entry);
+        return toResponseDto(entry, doctor);
+    }
+
+    @Override
+    @Transactional
+    public QueueEntryResponseDto cancel(Long queueEntryId, String requesterUserId, String requesterRole) {
+        QueueEntry entry = getEntryOrThrow(queueEntryId);
+        verifyPatientAccess(entry, requesterUserId, requesterRole);
+
+        // Only a patient still waiting can leave — a consultation in progress
+        // is finished by the doctor, never cancelled by the patient.
+        if (entry.getStatus() != QueueStatus.WAITING) {
+            throw new InvalidQueueStateException(
+                    "Only a WAITING entry can be cancelled (current status: " + entry.getStatus() + ")");
+        }
+
+        // Fetch the doctor BEFORE mutating (same order as the other mutations)
+        // so a doctor-service failure aborts before any state change — never a
+        // save-then-503 inconsistency.
+        DoctorCatalogResponseDto doctor = fetchDoctor(entry.getDoctorCatalogEntryId());
+
+        entry.setStatus(QueueStatus.CANCELLED);
+        entry = queueEntryRepository.save(entry);
+
+        // CANCELLED is not an active status, so no derived position/wait — the
+        // response is enriched with the doctor's display details for history UIs.
         return toResponseDto(entry, doctor);
     }
 
@@ -330,6 +380,53 @@ public class QueueServiceImpl implements QueueService {
         return summary;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public DoctorAnalyticsSummaryDto getDoctorAnalyticsSummary(Long doctorCatalogEntryId,
+                                                              String requesterUserId,
+                                                              String requesterRole) {
+        // Same ownership rule as the live queue: doctor reads only their own
+        // entry, admin can read any doctor's.
+        DoctorCatalogResponseDto doctor = fetchDoctor(doctorCatalogEntryId);
+        verifyDoctorAccess(doctor, requesterUserId, requesterRole);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfToday = today.atStartOfDay();
+        LocalDateTime since = today.minusDays(6).atStartOfDay();
+
+        DoctorAnalyticsSummaryDto summary = new DoctorAnalyticsSummaryDto();
+        summary.setPatientsCompletedToday(
+                queueEntryRepository.countCompletedSince(doctorCatalogEntryId, startOfToday));
+        summary.setAvgWaitTodayMinutes(
+                queueEntryRepository.avgCalledWaitSince(doctorCatalogEntryId, startOfToday));
+        summary.setAvgConsultTimeTodayMinutes(
+                queueEntryRepository.avgConsultDurationSince(doctorCatalogEntryId, startOfToday));
+
+        // 7-day trends, zero-filled (mirrors the admin analytics window).
+        Map<LocalDate, Long> completedByDay = queueEntryRepository
+                .countCompletedPerDaySinceForDoctor(doctorCatalogEntryId, since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayCountProjection::getCnt, Long::sum));
+        List<DailyPatientCountDto> patientsPerDay = new ArrayList<>();
+        for (LocalDate d = today.minusDays(6); !d.isAfter(today); d = d.plusDays(1)) {
+            patientsPerDay.add(new DailyPatientCountDto(d, completedByDay.getOrDefault(d, 0L)));
+        }
+        summary.setPatientsPerDay(patientsPerDay);
+
+        Map<LocalDate, Double> avgWaitByDay = queueEntryRepository
+                .avgCalledWaitPerDaySinceForDoctor(doctorCatalogEntryId, since)
+                .stream()
+                .collect(Collectors.toMap(p -> LocalDate.parse(p.getDay()),
+                        DayAvgWaitProjection::getAvgWait));
+        List<DailyAvgWaitDto> avgWaitTrend = new ArrayList<>();
+        for (LocalDate d = today.minusDays(6); !d.isAfter(today); d = d.plusDays(1)) {
+            avgWaitTrend.add(new DailyAvgWaitDto(d, avgWaitByDay.get(d)));
+        }
+        summary.setAvgWaitTimeTrend(avgWaitTrend);
+        return summary;
+    }
+
     /**
      * Department distribution over the analytics window. Completion counts
      * are aggregated per doctor in SQL, then mapped to department names via
@@ -391,6 +488,19 @@ public class QueueServiceImpl implements QueueService {
                     orderingService.predictedWaitMinutes(position, doctor.getAvgConsultationTimeMinutes()));
         }
         return dto;
+    }
+
+    /** Verifies a patient only cancels their own entry; ADMIN is allowed everywhere. */
+    private void verifyPatientAccess(QueueEntry entry, String requesterUserId, String requesterRole) {
+        if ("ADMIN".equalsIgnoreCase(requesterRole)) {
+            return;
+        }
+        if (!"PATIENT".equalsIgnoreCase(requesterRole)) {
+            throw new UnauthorizedAccessException("Only the patient or an admin can cancel a queue entry");
+        }
+        if (!entry.getPatientId().equals(requesterUserId)) {
+            throw new UnauthorizedAccessException("You can only cancel your own queue entry");
+        }
     }
 
     /** Verifies a DOCTOR only touches their own queue; ADMIN is allowed everywhere. */

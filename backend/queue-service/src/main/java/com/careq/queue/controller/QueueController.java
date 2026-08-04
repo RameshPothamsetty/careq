@@ -1,6 +1,7 @@
 package com.careq.queue.controller;
 
 import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -59,6 +60,30 @@ public class QueueController {
         return ResponseEntity.ok(queueService.getMyStatus(userId));
     }
 
+    /** Patient's recent visit history (completed/cancelled, newest first, capped). */
+    @GetMapping("/my-history")
+    public ResponseEntity<List<QueueEntryResponseDto>> getMyHistory(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        RoleGuard.requireRole(role, "PATIENT");
+        // History grows over time — bound the request server-side regardless of the caller.
+        int cappedLimit = Math.min(Math.max(limit, 1), 50);
+        return ResponseEntity.ok(queueService.getMyHistory(userId, cappedLimit));
+    }
+
+    /** Per-doctor analytics: today's scalars + 7-day trends. Same ownership rule as the live queue. */
+    @GetMapping("/doctor/{doctorCatalogEntryId}/analytics")
+    public ResponseEntity<DoctorAnalyticsSummaryDto> getDoctorAnalytics(
+            @PathVariable Long doctorCatalogEntryId,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        return ResponseEntity.ok(queueService.getDoctorAnalyticsSummary(doctorCatalogEntryId, userId, role));
+    }
+
     /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO.
      *  Optional {@code search} filters by patient name (case-insensitive substring). */
     @GetMapping("/doctor/{doctorCatalogEntryId}")
@@ -93,6 +118,17 @@ public class QueueController {
 
         RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
         return ResponseEntity.ok(queueService.callNext(id, userId, role));
+    }
+
+    /** Patient leaves the queue before being seen (WAITING only); admin can cancel any entry. */
+    @PutMapping("/{id}/cancel")
+    public ResponseEntity<QueueEntryResponseDto> cancel(
+            @PathVariable Long id,
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireAnyRole(role, "PATIENT", "ADMIN");
+        return ResponseEntity.ok(queueService.cancel(id, userId, role));
     }
 
     /** Doctor marks a patient COMPLETED. */
