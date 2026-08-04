@@ -3,6 +3,7 @@ package com.careq.doctor.controller;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.exception.RoleGuard;
 import com.careq.doctor.service.DoctorCatalogService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -54,9 +55,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody DoctorCatalogRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         DoctorCatalogResponseDto response = doctorCatalogService.createDoctor(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -71,9 +70,7 @@ public class DoctorCatalogController {
             @PathVariable Long id,
             @Valid @RequestBody DoctorCatalogRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         return ResponseEntity.ok(doctorCatalogService.updateDoctor(id, request));
     }
@@ -86,9 +83,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @PathVariable Long id) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         doctorCatalogService.deleteDoctor(id);
         return ResponseEntity.noContent().build();
@@ -104,9 +99,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody AvailabilityRequestDto request) {
 
-        if (!"DOCTOR".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "DOCTOR");
 
         return ResponseEntity.ok(doctorCatalogService.toggleAvailability(userId, request));
     }

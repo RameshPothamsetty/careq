@@ -5,6 +5,7 @@ import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
 import com.careq.doctor.entity.Department;
 import com.careq.doctor.entity.DoctorCatalogEntry;
+import com.careq.doctor.exception.DepartmentNotFoundException;
 import com.careq.doctor.exception.DoctorCatalogNotFoundException;
 import com.careq.doctor.exception.DuplicateDoctorCatalogEntryException;
 import com.careq.doctor.repository.DepartmentRepository;
@@ -80,7 +81,7 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
 
         // Validate department exists
         if (!departmentRepository.existsById(request.getDepartmentId())) {
-            throw new IllegalArgumentException(
+            throw new DepartmentNotFoundException(
                     "Department not found with id: " + request.getDepartmentId());
         }
 
@@ -108,7 +109,7 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
 
         // Validate department exists
         if (!departmentRepository.existsById(request.getDepartmentId())) {
-            throw new IllegalArgumentException(
+            throw new DepartmentNotFoundException(
                     "Department not found with id: " + request.getDepartmentId());
         }
 

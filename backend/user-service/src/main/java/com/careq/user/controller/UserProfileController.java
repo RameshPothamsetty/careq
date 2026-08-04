@@ -2,7 +2,7 @@ package com.careq.user.controller;
 
 import com.careq.user.dto.UpdateUserProfileRequestDto;
 import com.careq.user.dto.UserProfileResponseDto;
-import com.careq.user.exception.UnauthorizedException;
+import com.careq.user.exception.RoleGuard;
 import com.careq.user.service.FileStorageService;
 import com.careq.user.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -116,9 +116,7 @@ public class UserProfileController {
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader("X-User-Role") String requesterRole) {
 
-        if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
-            throw new UnauthorizedException("Only administrators can view the user list");
-        }
+        RoleGuard.requireRole(requesterRole, "ADMIN");
 
         return ResponseEntity.ok(userProfileService.getAllProfiles(search, page, size));
     }
@@ -129,9 +127,7 @@ public class UserProfileController {
             @RequestHeader("X-User-Id") String requesterUserId,
             @RequestHeader("X-User-Role") String requesterRole) {
 
-        if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
-            throw new UnauthorizedException("Only administrators can view other users' profiles");
-        }
+        RoleGuard.requireRole(requesterRole, "ADMIN");
 
         UserProfileResponseDto profile = userProfileService.getProfileByUserId(targetUserId);
         return ResponseEntity.ok(profile);
