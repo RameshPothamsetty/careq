@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { Building2, Stethoscope, BarChart3, Users, ArrowRight } from 'lucide-react';
+import { Building2, Stethoscope, BarChart3, TrendingUp, Users, ArrowRight } from 'lucide-react';
 import QueuePageHeader from '../components/QueuePageHeader';
 
 const NAV_CARDS = [
@@ -26,7 +26,15 @@ const NAV_CARDS = [
     title: 'Live Queue Overview',
     desc: 'Hospital-wide waiting counts, delays & doctor load in real time',
     tint: 'from-teal-500 to-teal-700',
-    wide: true,
+    wide: false,
+  },
+  {
+    to: '/admin/analytics',
+    icon: <TrendingUp className="h-6 w-6 text-white" />,
+    title: 'Analytics Dashboard',
+    desc: '7-day patient flow, wait-time trends & department distribution',
+    tint: 'from-indigo-500 to-indigo-700',
+    wide: false,
   },
   {
     to: '/admin/users',
@@ -34,7 +42,7 @@ const NAV_CARDS = [
     title: 'Manage Users',
     desc: 'Search the user directory by name or email',
     tint: 'from-violet-500 to-violet-700',
-    wide: false,
+    wide: true,
   },
 ] as const;
 

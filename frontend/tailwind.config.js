@@ -45,11 +45,16 @@ export default {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(14,124,129,0.45)' },
           '50%': { boxShadow: '0 0 0 6px rgba(14,124,129,0)' },
         },
+        'toast-in': {
+          '0%': { opacity: '0', transform: 'translateX(24px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
       },
       animation: {
         'soft-pulse': 'soft-pulse 2.4s ease-in-out infinite',
         'fade-in-up': 'fade-in-up 0.45s ease-out both',
         'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
+        'toast-in': 'toast-in 0.3s ease-out both',
       },
     },
   },

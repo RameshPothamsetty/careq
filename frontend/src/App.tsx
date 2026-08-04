@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
+import ToastHost from './components/ToastHost';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -11,6 +13,7 @@ import PatientDoctorBrowser from './pages/PatientDoctorBrowser';
 import PatientQueuePage from './pages/PatientQueuePage';
 import DoctorQueuePage from './pages/DoctorQueuePage';
 import AdminQueueOverview from './pages/AdminQueueOverview';
+import AdminAnalytics from './pages/AdminAnalytics';
 import AdminDepartmentManager from './pages/AdminDepartmentManager';
 import AdminDoctorManager from './pages/AdminDoctorManager';
 import AdminUserManager from './pages/AdminUserManager';
@@ -18,8 +21,9 @@ import AdminUserManager from './pages/AdminUserManager';
 function App() {
   return (
     <AuthProvider>
-      <div className="app">
-        <Routes>
+      <NotificationProvider>
+        <div className="app">
+          <Routes>
           {/* Public routes */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginPage />} />
@@ -77,6 +81,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/doctor/*"
             element={
               <ProtectedRoute allowedRoles={['DOCTOR']}>
@@ -119,8 +131,10 @@ function App() {
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </div>
+          </Routes>
+        </div>
+        <ToastHost />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

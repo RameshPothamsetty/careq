@@ -4,6 +4,7 @@ import { LayoutDashboard, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AvatarInitials from './ui/AvatarInitials';
 import Button from './ui/Button';
+import NotificationBell from './NotificationBell';
 
 export default function QueuePageHeader({
   icon,
@@ -40,6 +41,7 @@ export default function QueuePageHeader({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <NotificationBell />
         {backTo ? (
           <Link to={backTo} className="btn-secondary">
             ← Back

@@ -157,6 +157,29 @@ interface LiveQueueOverview {
   doctors: DoctorQueueStats[];
 }
 
+// ---- Analytics types (Day 7b) ----
+
+interface DailyPatientCount {
+  date: string; // yyyy-MM-dd
+  count: number;
+}
+
+interface DailyAvgWait {
+  date: string; // yyyy-MM-dd
+  avgWaitMinutes: number | null;
+}
+
+interface DepartmentDistribution {
+  departmentName: string;
+  patientCount: number;
+}
+
+interface AnalyticsSummary {
+  patientsPerDay: DailyPatientCount[];
+  avgWaitTimeTrend: DailyAvgWait[];
+  departmentDistribution: DepartmentDistribution[];
+}
+
 /** Server-side page wrapper (Spring Data Page JSON). */
 interface PaginatedResponse<T> {
   content: T[];
@@ -237,5 +260,9 @@ export type {
   OverrideTriagePayload,
   DoctorQueueStats,
   LiveQueueOverview,
+  DailyPatientCount,
+  DailyAvgWait,
+  DepartmentDistribution,
+  AnalyticsSummary,
   PaginatedResponse,
 };
