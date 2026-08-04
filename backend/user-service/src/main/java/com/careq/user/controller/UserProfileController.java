@@ -33,8 +33,10 @@ public class UserProfileController {
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponseDto> getMyProfile(
             @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-User-Role") String role) {
-        UserProfileResponseDto profile = userProfileService.getOrCreateProfile(userId, role);
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader(value = "X-User-Name", required = false) String fullName,
+            @RequestHeader(value = "X-User-Email", required = false) String email) {
+        UserProfileResponseDto profile = userProfileService.getOrCreateProfile(userId, role, fullName, email);
         return ResponseEntity.ok(profile);
     }
 

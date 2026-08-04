@@ -25,12 +25,35 @@ public class UserProfileServiceImpl implements UserProfileService {
      */
     @Override
     @Transactional
-    public UserProfileResponseDto getOrCreateProfile(String userId, String role) {
+    public UserProfileResponseDto getOrCreateProfile(String userId, String role, String fullName, String email) {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     UserProfile newProfile = new UserProfile(userId, role);
+                    // Display name/email come from the JWT claims (forwarded by
+                    // the gateway as X-User-Name/X-User-Email) — stored here so
+                    // the Admin user list has something to search and show.
+                    newProfile.setFullName(fullName);
+                    newProfile.setEmail(email);
                     return userProfileRepository.save(newProfile);
                 });
+
+        // Backfill display fields for profiles created before Day 7a (they only
+        // stored userId + role). The JWT claims are authoritative for name/email,
+        // so this self-heals on the next /me access after a fresh login.
+        boolean changed = false;
+        if (fullName != null && !fullName.isBlank()
+                && (profile.getFullName() == null || profile.getFullName().isBlank())) {
+            profile.setFullName(fullName);
+            changed = true;
+        }
+        if (email != null && !email.isBlank()
+                && (profile.getEmail() == null || profile.getEmail().isBlank())) {
+            profile.setEmail(email);
+            changed = true;
+        }
+        if (changed) {
+            profile = userProfileRepository.save(profile);
+        }
         return UserProfileResponseDto.fromEntity(profile);
     }
 

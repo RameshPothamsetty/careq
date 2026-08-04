@@ -30,6 +30,12 @@ public class UserProfile {
     @Column(name = "profile_picture_url", length = 500)
     private String profilePictureUrl;
 
+    @Column(name = "full_name", length = 255)
+    private String fullName;
+
+    @Column(name = "email", length = 255)
+    private String email;
+
     @Column(name = "role", length = 20, nullable = false)
     private String role;
 
@@ -114,6 +120,22 @@ public class UserProfile {
 
     public void setProfilePictureUrl(String profilePictureUrl) {
         this.profilePictureUrl = profilePictureUrl;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getRole() {

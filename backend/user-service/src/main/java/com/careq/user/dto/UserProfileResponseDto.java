@@ -7,6 +7,8 @@ public class UserProfileResponseDto {
 
     private Long id;
     private String userId;
+    private String fullName;
+    private String email;
     private String phone;
     private String address;
     private LocalDate dateOfBirth;
@@ -21,6 +23,8 @@ public class UserProfileResponseDto {
         UserProfileResponseDto dto = new UserProfileResponseDto();
         dto.setId(profile.getId());
         dto.setUserId(profile.getUserId());
+        dto.setFullName(profile.getFullName());
+        dto.setEmail(profile.getEmail());
         dto.setPhone(profile.getPhone());
         dto.setAddress(profile.getAddress());
         dto.setDateOfBirth(profile.getDateOfBirth());
@@ -44,6 +48,22 @@ public class UserProfileResponseDto {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPhone() {

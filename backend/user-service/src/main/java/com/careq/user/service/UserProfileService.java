@@ -15,7 +15,7 @@ public interface UserProfileService {
      * @param role   the user's role from the JWT (via X-User-Role header)
      * @return the user's profile (newly created or existing)
      */
-    UserProfileResponseDto getOrCreateProfile(String userId, String role);
+    UserProfileResponseDto getOrCreateProfile(String userId, String role, String fullName, String email);
 
     /**
      * Updates the profile for the given userId.
