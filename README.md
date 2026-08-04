@@ -1,8 +1,155 @@
 # CareQ — Intelligent Patient Flow Platform
 
-**Brand:** SmartOPD AI
+**AI-powered OPD operations: predict wait times, triage patients by urgency, and run a live, role-specific view of hospital queues.**
 
-An AI-powered OPD (Outpatient Department) operations platform that predicts patient wait times, triages patients by urgency using AI, and gives Patients, Doctors, and Admins a live, role-specific view of hospital queue operations.
+CareQ (brand: **SmartOPD AI**) is a microservices-based hospital queue-management platform that uses an LLM to triage patients from free-text symptoms and predicts each patient's wait time live, so Patients, Doctors, and Admins always know what's happening next.
+
+---
+
+## Problem Statement
+
+OPDs are chaotic: patients wait with no idea how long it will take, urgent cases can sit behind non-urgent ones, and doctors have no live view of their queue. CareQ fixes this by triaging every patient with AI (emergency cases jump the queue), predicting wait times from each doctor's real consultation load, and giving every role a live, accurate picture of queue operations — no shouting in corridors, no guesswork.
+
+---
+
+## Features (by role)
+
+### 🧑‍🤝‍🧑 Patient
+- **Browse doctors** — search/filter by department and specialization, see fees, experience and live availability
+- **Join a queue in seconds** — describe symptoms in plain language; the AI assigns an urgency level instantly
+- **Live status screen** — big position + estimated wait that updates every 10 seconds, with a joined → called → completed progress flow
+- **Profile** — manage phone, address, DOB, gender, and profile picture
+
+### 🩺 Doctor
+- **Live patient queue** — every patient's name, symptoms, AI triage badge, real queue position and predicted wait, polling every 10s
+- **Search your queue by patient name** to find a specific patient fast
+- **Triage override** — the doctor's clinical judgment is final and reorders the queue
+- **Call next / complete** with one tap, and toggle your own availability (online/offline)
+
+### ⚙️ Admin
+- **Manage departments & doctors** — full CRUD with search, server-side pagination and sortable columns
+- **User directory** — paginated, searchable (name/email) list of every registered user
+- **Live queue overview** — hospital-wide summary cards (waiting, in-consultation, doctors online, delayed, avg wait) and a per-doctor breakdown
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18 + TypeScript + Vite, Redux Toolkit Query, Tailwind CSS |
+| Backend | Spring Boot 3.2, Java 17, Maven |
+| Service Registry | Netflix Eureka |
+| API Gateway | Spring Cloud Gateway (JWT validation + identity headers) |
+| Inter-service calls | OpenFeign + LoadBalancer |
+| Database | MySQL 8 |
+| Auth | Spring Security + JWT (HMAC-SHA256) |
+| AI | Groq (`llama-3.1-8b-instant`) — symptom triage with guaranteed fallback |
+| Testing | JUnit 5 + Mockito (backend), Playwright (E2E) |
+
+---
+
+## Architecture
+
+Six services collaborate through Eureka service discovery; all client traffic enters through the API Gateway, which validates the JWT and forwards `X-User-Id` / `X-User-Role` / `X-User-Name` / `X-User-Email` identity headers to downstream services.
+
+```
+Browser (React SPA :3030)
+        │
+        ▼
+API Gateway (:8080)  ── validates JWT, forwards identity headers
+        │
+   ┌────┼─────────────┬──────────────┬──────────────┐
+   ▼    ▼             ▼              ▼              ▼
+ auth  user         doctor         queue        eureka-server
+(:8081)(:8082)      (:8083)        (:8084)          (:8761)
+         │                            │
+         └── Feign call (avg consult time, availability) ──┘
+                          └── Groq LLM (symptom triage)
+```
+
+The queue-service never duplicates doctor consultation data — it fetches `avgConsultationTimeMinutes` and `isAvailable` live from doctor-service via Feign (single source of truth). Position and predicted wait are derived on every read, never cached.
+
+**See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) for the full architecture, auth flow, and frontend state management design.**
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+- Java 17+
+- Node.js 18+
+- MySQL 8+ (running locally)
+- Maven 3.9+
+- A Groq API key (optional at runtime — without it, AI triage gracefully falls back to `NORMAL`)
+
+### Environment variables
+
+| Variable | Required | Used by | Default |
+|----------|----------|---------|---------|
+| `GROQ_API_KEY` | No¹ | queue-service AI triage | — |
+| `JWT_SECRET` | No | auth-service + gateway | dev secret |
+| `MYSQL_PASSWORD` | No | all DB-backed services | `root` |
+
+¹ Without `GROQ_API_KEY` every patient is triaged `NORMAL`. Set it for the real AI behavior:
+
+```bash
+export GROQ_API_KEY="your-groq-key"          # bash
+setx GROQ_API_KEY "your-groq-key"            # Windows (new shells only)
+```
+
+### 1. Database
+
+```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS careq_db;"
+```
+
+Tables are created/updated automatically by Hibernate (`ddl-auto: update`).
+
+### 2. Backend — start in this order (one terminal each)
+
+```bash
+# Service registry first
+cd backend/eureka-server && mvn spring-boot:run          # :8761
+
+# Gateway + services (any order after eureka is up)
+cd backend/api-gateway  && mvn spring-boot:run           # :8080
+cd backend/auth-service && mvn spring-boot:run           # :8081
+cd backend/user-service && mvn spring-boot:run           # :8082
+cd backend/doctor-service && mvn spring-boot:run         # :8083
+cd backend/queue-service  && mvn spring-boot:run         # :8084
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:3030
+```
+
+### 4. Seed data (optional but recommended for the demo)
+
+```bash
+bash scripts/seed-data.sh
+```
+
+Creates the admin, one test patient, 10 doctors **with named catalog entries**, and links each doctor to a department.
+
+| Account | Email | Password |
+|---------|-------|----------|
+| Admin | `admin@careq.com` | `admin123` |
+| Patient | `john@careq.com` | `password123` |
+| Doctors | `dr.arjun@careq.com`, `dr.priya@careq.com`, … (10 total) | `password123` |
+
+---
+
+## Demo
+
+> 🎥 **Demo video — coming soon.** A 2–3 minute walkthrough covering all three roles will be embedded here after recording.
+>
+> 📸 Screenshots of the patient live-status view, the doctor queue with AI triage badges, and the admin live overview will be added here.
 
 ---
 
@@ -14,230 +161,46 @@ An AI-powered OPD (Outpatient Department) operations platform that predicts pati
 | Day 2 | Authentication (JWT, Login, Signup) | ✅ Complete |
 | Day 3 | User Module (Profiles, File Upload) | ✅ Complete |
 | Day 4 | Doctor/Department Module | ✅ Complete |
-| **Day 5** | **Queue Service + AI Triage (Wait-Time Prediction & Symptom Triage)** | **✅ Complete** |
-| Day 6+ | Deployment, notifications, Phase 2 roadmap | 📅 Planned |
+| Day 5 | Queue Service + AI Triage & Wait Prediction | ✅ Complete |
+| Day 6 | Frontend Integration (RTK Query, route guards, E2E) | ✅ Complete |
+| **Day 7a** | **Week 1 Stabilization & v0.1 Release** | ✅ Complete |
+| Day 7b | Advanced Features (analytics, notifications, …) | 📅 Planned |
+| Days 8–15 | Deployment, hardening, Phase 2 roadmap | 📅 Planned |
 
 ---
 
-## Tech Stack
+## Development Process
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
-| Backend | Spring Boot 3.2 + Java 17 |
-| Service Registry | Netflix Eureka |
-| API Gateway | Spring Cloud Gateway |
-| Database | MySQL 8 |
-| Auth | Spring Security + JWT (HMAC-SHA256) |
-| Build | Maven |
-| AI | Groq (`llama-3.1-8b-instant`) via `GROQ_API_KEY` env var |
-| UI | Tailwind CSS (added Day 5) |
+CareQ is built over **15 one-day engineering sprints** under the TrainingMug ADF v1.0 framework. Each day is a complete vertical slice: a scoped deliverable list, a dedicated `feature/*` or `chore/*` branch off `develop`, small incremental commits as each piece is built, a pull request with a checklist-driven description, and a self-review merge after the day's Definition of Done passes. Feature work is stabilized first (Day 7a), then extended (Day 7b) — new features only ever build on a tagged, working base.
 
----
+Every day's work is tracked as a GitHub Issue with a checked-off deliverable checklist, and the whole 15-day build is visible on the **CareQ — 15-Day Build** project board:
 
-## Project Structure
-
-```
-careq/
-├── README.md
-├── docs/                          # Requirements, architecture, DB schema, API contracts
-├── backend/
-│   ├── pom.xml                    # Parent Maven POM
-│   ├── eureka-server/             # Service registry (port 8761)
-│   ├── api-gateway/               # API gateway (port 8080)
-│   ├── auth-service/              # Auth & JWT (port 8081)
-│   ├── user-service/              # Profile management + file upload (port 8082)
-│   ├── doctor-service/            # Doctor/Department catalog (port 8083)
-│   └── queue-service/             # Queue & AI operations (port 8084)
-├── frontend/                      # React SPA (port 3030)
-├── scripts/                       # Utility scripts (e.g., seed-data.sh)
-└── uploads/                       # Profile picture uploads (auto-created)
-```
-
----
-
-## Microservices
-
-| Service | Port | Responsibility |
-|---------|------|---------------|
-| **eureka-server** | 8761 | Service registry — all services register here |
-| **api-gateway** | 8080 | Entry point — JWT validation, route to microservices |
-| **auth-service** | 8081 | User signup/login, JWT issuance |
-| **user-service** | 8082 | Profile CRUD, profile picture upload |
-| **doctor-service** | 8083 | Department & Doctor catalog management |
-| **queue-service** | 8084 | Queue operations, AI wait prediction, triage (Day 5+) |
+- 📋 [CareQ — 15-Day Build](https://github.com/RameshPothamsetty/careq/projects) — project board (Backlog / In Progress / In Review / Done)
+- ✅ [Closed Issues](https://github.com/RameshPothamsetty/careq/issues?q=is%3Aissue+is%3Aclosed) — completed day tasks
+- 📜 [Prompt Archive](docs/11_PROMPTS.md) — the full daily prompts that drove each day
 
 ---
 
 ## Documentation
 
-All project documentation is in the [docs/](docs/) folder:
-
 | Document | Description |
 |----------|-------------|
-| [01_PROJECT_CONTEXT.md](docs/01_PROJECT_CONTEXT.md) | Tech stack, architecture, folder structure, git strategy |
+| [01_PROJECT_CONTEXT.md](docs/01_PROJECT_CONTEXT.md) | Tech stack, architecture, git strategy |
 | [02_REQUIREMENTS.md](docs/02_REQUIREMENTS.md) | SRS — features, user stories, non-functional requirements |
 | [03_ARCHITECTURE.md](docs/03_ARCHITECTURE.md) | Architecture diagram, service responsibilities, auth flow |
 | [04_DATABASE.md](docs/04_DATABASE.md) | ER diagram, MySQL schema, column design rationale |
-| [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services (auth, user, doctor) |
-| [09_TESTING.md](docs/09_TESTING.md) | Unit test plans for all modules |
+| [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services |
+| [09_TESTING.md](docs/09_TESTING.md) | Unit test plans and results |
 | [11_PROMPTS.md](docs/11_PROMPTS.md) | Archive of daily development prompts |
-
----
-
-## How to Run
-
-### Prerequisites
-
-- Java 17+
-- Node.js 18+
-- MySQL 8+
-- Maven 3.9+
-- **GROQ_API_KEY** (optional — without it, AI triage gracefully falls back to NORMAL):
-  ```bash
-  export GROQ_API_KEY="your-groq-key"
-  ```
-
-### Backend (Start in Order)
-
-```bash
-# 1. Start MySQL and create the database
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS careq_db;"
-
-# 2. Start Eureka Server (Service Registry)
-cd backend/eureka-server
-mvn spring-boot:run
-
-# 3. Start API Gateway (JWT validation, routing)
-cd backend/api-gateway && mvn spring-boot:run
-
-# 4. Start Auth Service (login, signup, JWT)
-cd backend/auth-service && mvn spring-boot:run
-
-# 5. Start User Service (profiles, file upload)
-cd backend/user-service && mvn spring-boot:run
-
-# 6. Start Doctor Service (departments, doctor catalog)
-cd backend/doctor-service && mvn spring-boot:run
-
-# 7. Start Queue Service (queue, AI wait prediction, AI triage)
-cd backend/queue-service && mvn spring-boot:run
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The app will be available at **http://localhost:3030**.
-
----
-
-## Seed Data
-
-To populate the app with sample data (admin, 10 doctors with catalog entries, and a test patient):
-
-```bash
-bash scripts/seed-data.sh
-```
-
-| Account | Email | Password |
-|---------|-------|----------|
-| Admin | `admin@careq.com` | `admin123` |
-| Patient | `john@careq.com` | `password123` |
-| Dr. Arjun Sharma | `dr.arjun@careq.com` | `password123` |
-| Dr. Priya Patel | `dr.priya@careq.com` | `password123` |
-| Dr. Vikram Reddy | `dr.vikram@careq.com` | `password123` |
-| (and 7 more doctors...) | See `scripts/seed-data.sh` | `password123` |
-
----
-
-## API Endpoints (Day 5)
-
-### Auth Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/signup` | No | Create account |
-| POST | `/api/auth/login` | No | Login, get JWT |
-
-### User Profile Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/users/me` | Yes | View own profile (lazy-created) |
-| PUT | `/api/users/me` | Yes | Update own profile |
-| POST | `/api/users/me/profile-picture` | Yes | Upload profile picture |
-| GET | `/api/users/{id}` | Admin | View any user's profile |
-| GET | `/api/users/profile-pictures/{filename}` | No | Serve uploaded images |
-
-### Department Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/departments` | Yes | List all departments |
-| GET | `/api/departments/{id}` | Yes | Get department by ID |
-| POST | `/api/departments` | Admin | Create department |
-| PUT | `/api/departments/{id}` | Admin | Update department |
-| DELETE | `/api/departments/{id}` | Admin | Delete department |
-
-### Doctor Catalog Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/doctors` | Yes | List doctors (filter by `departmentId`, `specialization`) |
-| GET | `/api/doctors/{id}` | Yes | Get doctor by catalog ID |
-| POST | `/api/doctors` | Admin | Create doctor catalog entry |
-| PUT | `/api/doctors/{id}` | Admin | Update doctor catalog entry |
-| DELETE | `/api/doctors/{id}` | Admin | Delete doctor catalog entry |
-| PUT | `/api/doctors/me/availability` | Doctor | Toggle own availability |
-
-### Queue Endpoints (Day 5)
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/queue/join` | Patient | Join a doctor's queue (AI triage runs; falls back to NORMAL on AI failure) |
-| GET | `/api/queue/my-status` | Patient | Live position + freshly recalculated predicted wait (poll every 10s) |
-| GET | `/api/queue/doctor/{doctorCatalogEntryId}` | Doctor/Admin | Live queue ordered by effective triage then FIFO |
-| PUT | `/api/queue/{id}/override-triage` | Doctor/Admin | Doctor's final triage override (reorders the queue) |
-| PUT | `/api/queue/{id}/call-next` | Doctor/Admin | Mark the next patient IN_PROGRESS |
-| PUT | `/api/queue/{id}/complete` | Doctor/Admin | Mark a patient COMPLETED |
-| GET | `/api/queue/live` | Admin | Hospital-wide live overview (summary + per-doctor) |
-
----
-
-## Frontend Pages
-
-| Page | Route | Role |
-|------|-------|------|
-| Login | `/login` | Public |
-| Signup | `/signup` | Public |
-| Patient Dashboard | `/patient/*` | Patient |
-| Browse Doctors | `/patient/doctors` | Patient |
-| My Queue (join + live status) | `/patient/queue` | Patient |
-| Doctor Dashboard | `/doctor/*` | Doctor |
-| Live Patient Queue | `/doctor/queue` | Doctor |
-| Admin Dashboard | `/admin/*` | Admin |
-| Live Queue Overview | `/admin/queue` | Admin |
-| Manage Departments | `/admin/departments` | Admin |
-| Manage Doctors | `/admin/doctors` | Admin |
-| Profile | `/profile` | All |
-
----
 
 ## Git Branching Strategy
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Production — always deployable |
-| `develop` | Daily integration — merge PRs here |
-| `feature/*` | One branch per day's checklist items (e.g., `feature/doctor-service`) |
+| `main` | Production — always deployable (tagged `v0.1` at Week 1) |
+| `develop` | Daily integration — PRs merge here |
+| `feature/*` / `chore/*` | One branch per day's work |
 
 ---
 
-## License
-
-This project is built for educational purposes as part of the TrainingMug ADF v1.0 framework.
+*Built for educational purposes as part of the TrainingMug ADF v1.0 framework.*

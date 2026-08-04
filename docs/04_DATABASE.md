@@ -1,7 +1,12 @@
-# CareQ — Database Schema (Day 5)
+# CareQ — Database Schema (Day 7a)
 
-**Version:** 1.5 (Day 5)  
+**Version:** 1.6 (Day 7a)  
 **Database:** MySQL 8.x
+
+> **Day 7a schema additions** (all applied automatically by Hibernate `ddl-auto: update`):
+> - `user_profiles`: `full_name VARCHAR(255)`, `email VARCHAR(255)` — populated from JWT claims (forwarded as `X-User-Name`/`X-User-Email`) at profile creation, with a self-healing backfill on the next `/api/users/me` access.
+> - `doctor_catalog_entries`: `name VARCHAR(255)` — the doctor's display name (sortable, searchable since Day 7a).
+> - `queue_entries`: `patient_name VARCHAR(255)` — patient display name captured at join time (searchable by doctors).
 
 ---
 
@@ -86,6 +91,8 @@ CREATE TABLE users (
 CREATE TABLE user_profiles (
     id                 BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id            CHAR(36)     NOT NULL UNIQUE,      -- Plain reference to users.id
+    full_name          VARCHAR(255),                       -- Day 7a: from JWT claim (X-User-Name header)
+    email              VARCHAR(255),                       -- Day 7a: from JWT claim (X-User-Email header)
     phone              VARCHAR(20),
     address            TEXT,
     date_of_birth      DATE,
@@ -144,6 +151,7 @@ CREATE TABLE departments (
 CREATE TABLE doctor_catalog_entries (
     id                          BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id                     CHAR(36)     NOT NULL UNIQUE,
+    name                        VARCHAR(255),              -- Day 7a: display name (sortable/searchable)
     department_id               BIGINT       NOT NULL,
     specialization              VARCHAR(255) NOT NULL,
     qualification               VARCHAR(500) NOT NULL,
@@ -172,6 +180,7 @@ CREATE TABLE doctor_catalog_entries (
 CREATE TABLE queue_entries (
     id                       BIGINT       AUTO_INCREMENT PRIMARY KEY,
     patient_id               CHAR(36)     NOT NULL,          -- users.id (plain ref)
+    patient_name             VARCHAR(255),                   -- Day 7a: captured at join, searchable by doctors
     doctor_catalog_entry_id  BIGINT       NOT NULL,          -- doctor_catalog_entries.id (plain ref)
     symptom_text             VARCHAR(2000) NOT NULL,
     ai_suggested_triage      ENUM('EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP') NOT NULL DEFAULT 'NORMAL',

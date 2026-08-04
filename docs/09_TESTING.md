@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.5 (Day 5)  
-**Status:** Updated — Auth + User + Doctor + Queue Module Tests (19 tests, all passing)
+**Version:** 1.6 (Day 7a)  
+**Status:** Updated — Auth + User + Doctor + Queue Module Tests (20 queue-service tests, all passing)
 
 ---
 
@@ -147,7 +147,7 @@ These tests verify controller behavior including Admin-only restrictions.
 
 ## 5. Queue Service Unit Tests (Day 5)
 
-These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **19 tests, all passing.**
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **20 tests, all passing** (Day 7a added the patient-name search test).
 
 ### Test Class: `QueueOrderingServiceTest`
 
@@ -184,6 +184,7 @@ These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking t
 | `overrideTriage_AnotherDoctor_Throws` | Non-owner doctor tries | Throws `UnauthorizedAccessException` |
 | `callNext_ThenComplete_AdvancesAndFinishesEntry` | WAITING → IN_PROGRESS → COMPLETED | `calledAt`/`completedAt` set; completed entry has no position |
 | `complete_NotInProgress_Throws` | Complete on WAITING entry | Throws `InvalidQueueStateException` |
+| `getDoctorQueue_WithPatientNameSearch_FiltersRows` (Day 7a) | Search `"alice"` against a 2-patient queue | Only Alice returned; blank search returns all rows |
 
 ### Mock Setup
 
