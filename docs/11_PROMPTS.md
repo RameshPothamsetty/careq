@@ -115,3 +115,55 @@ HARD CONSTRAINTS: ADF Section 8 (no business logic in controllers, DTOs only, no
 
 VERIFICATION CHECKLIST: confirm each of the 17 Day 5 deliverables is addressed, output the exact git command sequence, output a ready-to-paste PR description, output the filled-in Definition of Done checklist, output the exact prompt text sent to Groq, and confirm GROQ_API_KEY is read from environment configuration only.
 ```
+
+---
+
+## Day 7a: Week 1 Stabilization & v0.1 Release
+
+**Prompt:** CareQ — Day 7a Prompt (Week 1 Demo: Stabilization & v0.1 Release)
+
+**Date Executed:** 2026-08-04
+
+**Branch:** `chore/week1-stabilization`
+
+**Summary:** Stabilization pass before the v0.1 tag. Set up GitHub collaboration artifacts (PR template, day-task issue template; labels/issues/project board created manually — `gh` CLI unavailable in session). Bug-fix pass across all three roles. Filled completeness gaps: pagination + sorting + search on `GET /api/doctors`, new paginated admin `GET /api/users` list, patient-name search on `GET /api/queue/doctor/{id}`, patient/doctor name plumbing (JWT `fullName` claim → `X-User-Name`/`X-User-Email` headers → profile columns; `name` added to doctor catalog; `patientName` captured at queue join). Code review pass (RoleGuard extraction, typed `DepartmentNotFoundException`, dead repository methods removed). Full README rewrite with Development Process section. Merged into `develop`; `develop → main` merge + `v0.1` tag deferred pending explicit confirmation.
+
+## Full Prompt Text
+
+```
+CareQ — Day 7a Prompt (Week 1 Demo: Stabilization & v0.1 Release)
+
+Save as the seventh entry in docs/11_PROMPTS.md.
+Run this FIRST today, before the Advanced Features prompt (Day 7b) — advanced features should build on a stable, tagged base, not the other way around.
+Freebuff has direct git access in this session — it should execute the git commands itself, not just print them, EXCEPT the final `develop → main` merge and tag, which requires your explicit go-ahead (see Git Workflow section).
+
+ROLE
+You are acting as a Senior Software Engineer doing a stabilization pass on an existing, working application (CareQ, Days 1-6 already built and merged into `develop`). Today is not about new features — it's about finding and fixing what's rough, filling small completeness gaps (pagination/search/sorting), and shipping a genuinely stable, demo-ready checkpoint.
+
+PROJECT CONTEXT (recap)
+- Project: CareQ — Intelligent Patient Flow Platform
+- Current state: Auth, User/Profile, Doctor/Department catalog, Queue + AI triage/wait-prediction, and Frontend Integration (Context + RTK Query, route guards) all built and merged into `develop`
+- You have live git access — inspect the actual current codebase (git log, file contents) rather than assuming what exists; earlier days' output may have drifted slightly from what was originally specified
+
+TODAY'S DELIVERABLES
+0. Collaboration & contribution setup (do this first — everything else today plugs into it)
+- Retroactive Issues for Days 1-6: one per day, title `Day N: <Module Name>`, body = that day's deliverable list as a checked-off checklist, labeled day-N + type label; close each, linked to its merged PR where possible.
+- Today's own Issue: `Day 7: Week 1 Stabilization & v0.1 Release`, referenced in the PR (`Closes #<n>`).
+- Labels: backend, frontend, infra, ai, docs, bug, enhancement, day-1..day-15.
+- GitHub Project board: `CareQ — 15-Day Build` (Backlog/In Progress/In Review/Done), all Day 1-15 issues, completed days in Done.
+- `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE/day-task.md`.
+1. Bug fixing pass — run/trace the app across all three roles and all screens; list every bug found and fixed explicitly.
+2. Pagination, search, sorting: `GET /api/doctors` page/size + sortBy(name, consultationFee, experienceYears)/sortDirection; NEW admin `GET /api/users` paginated + searchable by name/email; `GET /api/queue/doctor/{id}` search by patient name; frontend RTK hooks + screens (Admin doctor list, new Admin user list, Doctor's live queue).
+3. Code review pass against ADF Section 8 (layered architecture, DTOs only, no business logic in controllers, no hardcoded values, constructor injection); flag and fix violations, list them explicitly.
+4. README.md full rewrite: pitch, problem statement, role-grouped feature list, tech stack table, architecture link, local setup incl. GROQ_API_KEY, demo/screenshot placeholder, Project Status (15 days), Development Process section with links to the Project board and closed-Issues list.
+
+Explicitly OUT of scope today: dashboard widgets/charts/analytics, notifications, any new feature beyond pagination/search/sorting.
+
+GIT WORKFLOW: pull develop → branch chore/week1-stabilization → commit in small increments per fix (fix:/feat:/refactor:/docs:) → push → PR (Closes #today's issue) → self-review → merge into develop → STOP: do NOT merge develop→main or tag v0.1 without explicit confirmation; output the exact commands and wait.
+
+Definition of Done: retroactive issues; today's issue + PR reference; labels/board/templates; every bug listed + fixed; pagination+sorting on doctors; admin user list; patient search on doctor queue; code review findings addressed; README fully rewritten; all existing tests passing.
+
+HARD CONSTRAINTS: no out-of-scope features; no main merge or v0.1 tag without confirmation; state assumptions (pagination default page size, what counts as a bug) before making changes.
+
+VERIFICATION CHECKLIST: retroactive issues (numbers/titles) + board URL + labels + templates; full bug list; full code-review findings; pagination/search/sorting confirmed with example request/response; README rewrite confirmed incl. Development Process; exact main merge + tag commands marked as not yet executed.
+```

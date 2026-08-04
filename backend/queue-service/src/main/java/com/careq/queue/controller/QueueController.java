@@ -5,6 +5,7 @@ import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
 import com.careq.queue.dto.QueueEntryResponseDto;
 import com.careq.queue.dto.QueueStatusResponseDto;
+import com.careq.queue.exception.RoleGuard;
 import com.careq.queue.service.QueueService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -42,9 +44,7 @@ public class QueueController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody JoinQueueRequestDto request) {
 
-        if (!"PATIENT".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "PATIENT");
         return ResponseEntity.status(HttpStatus.CREATED).body(queueService.joinQueue(userId, request));
     }
 
@@ -54,23 +54,21 @@ public class QueueController {
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
 
-        if (!"PATIENT".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "PATIENT");
         return ResponseEntity.ok(queueService.getMyStatus(userId));
     }
 
-    /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO. */
+    /** Doctor/Admin view of a doctor's live queue, ordered by effective triage then FIFO.
+     *  Optional {@code search} filters by patient name (case-insensitive substring). */
     @GetMapping("/doctor/{doctorCatalogEntryId}")
     public ResponseEntity<List<QueueEntryResponseDto>> getDoctorQueue(
             @PathVariable Long doctorCatalogEntryId,
+            @RequestParam(required = false) String search,
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
 
-        if (!("DOCTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-        return ResponseEntity.ok(queueService.getDoctorQueue(doctorCatalogEntryId, userId, role));
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        return ResponseEntity.ok(queueService.getDoctorQueue(doctorCatalogEntryId, search, userId, role));
     }
 
     /** Doctor sets the final triage override; queue reordering happens on next read. */
@@ -81,9 +79,7 @@ public class QueueController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody OverrideTriageRequestDto request) {
 
-        if (!("DOCTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
         return ResponseEntity.ok(queueService.overrideTriage(id, request, userId, role));
     }
 
@@ -94,9 +90,7 @@ public class QueueController {
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
 
-        if (!("DOCTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
         return ResponseEntity.ok(queueService.callNext(id, userId, role));
     }
 
@@ -107,9 +101,7 @@ public class QueueController {
             @RequestHeader("X-User-Id") String userId,
             @RequestHeader("X-User-Role") String role) {
 
-        if (!("DOCTOR".equalsIgnoreCase(role) || "ADMIN".equalsIgnoreCase(role))) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
         return ResponseEntity.ok(queueService.complete(id, userId, role));
     }
 
@@ -118,9 +110,7 @@ public class QueueController {
     public ResponseEntity<LiveQueueOverviewDto> getLiveOverview(
             @RequestHeader("X-User-Role") String role) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
         return ResponseEntity.ok(queueService.getLiveOverview());
     }
 }

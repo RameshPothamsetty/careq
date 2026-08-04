@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 public class DoctorCatalogResponseDto {
 
     private Long id;
+    private String name;
     private String userId;
     private Long departmentId;
     private String departmentName;
@@ -28,6 +29,14 @@ public class DoctorCatalogResponseDto {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getUserId() {

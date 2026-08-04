@@ -2,12 +2,13 @@ package com.careq.user.controller;
 
 import com.careq.user.dto.UpdateUserProfileRequestDto;
 import com.careq.user.dto.UserProfileResponseDto;
-import com.careq.user.exception.UnauthorizedException;
+import com.careq.user.exception.RoleGuard;
 import com.careq.user.service.FileStorageService;
 import com.careq.user.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,8 +34,10 @@ public class UserProfileController {
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponseDto> getMyProfile(
             @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-User-Role") String role) {
-        UserProfileResponseDto profile = userProfileService.getOrCreateProfile(userId, role);
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader(value = "X-User-Name", required = false) String fullName,
+            @RequestHeader(value = "X-User-Email", required = false) String email) {
+        UserProfileResponseDto profile = userProfileService.getOrCreateProfile(userId, role, fullName, email);
         return ResponseEntity.ok(profile);
     }
 
@@ -101,15 +104,30 @@ public class UserProfileController {
         }
     }
 
+    /**
+     * Admin: paginated, searchable user list (by display name or email).
+     * Added Day 7a — this was the missing counterpart to GET /api/users/{id}
+     * and gives the Admin a real user-management view.
+     */
+    @GetMapping
+    public ResponseEntity<Page<UserProfileResponseDto>> getAllUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestHeader("X-User-Role") String requesterRole) {
+
+        RoleGuard.requireRole(requesterRole, "ADMIN");
+
+        return ResponseEntity.ok(userProfileService.getAllProfiles(search, page, size));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponseDto> getUserProfile(
             @PathVariable("id") String targetUserId,
             @RequestHeader("X-User-Id") String requesterUserId,
             @RequestHeader("X-User-Role") String requesterRole) {
 
-        if (!"ADMIN".equalsIgnoreCase(requesterRole)) {
-            throw new UnauthorizedException("Only administrators can view other users' profiles");
-        }
+        RoleGuard.requireRole(requesterRole, "ADMIN");
 
         UserProfileResponseDto profile = userProfileService.getProfileByUserId(targetUserId);
         return ResponseEntity.ok(profile);

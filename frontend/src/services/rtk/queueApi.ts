@@ -36,8 +36,14 @@ export const queueApi = createApi({
       providesTags: ['QueueStatus'],
     }),
 
-    getDoctorQueue: builder.query<QueueEntryResponse[], number>({
-      query: (doctorCatalogEntryId) => `/api/queue/doctor/${doctorCatalogEntryId}`,
+    getDoctorQueue: builder.query<
+      QueueEntryResponse[],
+      { doctorCatalogEntryId: number; search?: string }
+    >({
+      query: ({ doctorCatalogEntryId, search }) => {
+        const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+        return `/api/queue/doctor/${doctorCatalogEntryId}${qs}`;
+      },
       providesTags: ['DoctorQueue'],
     }),
 

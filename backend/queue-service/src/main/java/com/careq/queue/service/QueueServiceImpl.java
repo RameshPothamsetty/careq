@@ -45,16 +45,25 @@ public class QueueServiceImpl implements QueueService {
     /** A WAITING patient is "delayed" in the Admin overview when their predicted wait exceeds this. */
     private final int delayThresholdMinutes;
 
+    /**
+     * Upper bound on how many doctors the Admin overview loads in one page.
+     * The live overview needs the whole catalog; 1000 is far beyond any real
+     * hospital catalog and avoids looping pages.
+     */
+    private final int maxDoctorsToLoad;
+
     public QueueServiceImpl(QueueEntryRepository queueEntryRepository,
                             DoctorServiceClient doctorServiceClient,
                             AiTriageService aiTriageService,
                             QueueOrderingService orderingService,
-                            @Value("${queue.delay-threshold-minutes:30}") int delayThresholdMinutes) {
+                            @Value("${queue.delay-threshold-minutes:30}") int delayThresholdMinutes,
+                            @Value("${queue.max-doctors-to-load:1000}") int maxDoctorsToLoad) {
         this.queueEntryRepository = queueEntryRepository;
         this.doctorServiceClient = doctorServiceClient;
         this.aiTriageService = aiTriageService;
         this.orderingService = orderingService;
         this.delayThresholdMinutes = delayThresholdMinutes;
+        this.maxDoctorsToLoad = maxDoctorsToLoad;
     }
 
     @Override
@@ -84,6 +93,7 @@ public class QueueServiceImpl implements QueueService {
         // 5. Persist the entry.
         QueueEntry entry = new QueueEntry();
         entry.setPatientId(patientId);
+        entry.setPatientName(request.getPatientName() == null ? null : request.getPatientName().trim());
         entry.setDoctorCatalogEntryId(request.getDoctorCatalogEntryId());
         entry.setSymptomText(request.getSymptomText().trim());
         entry.setAiSuggestedTriage(triage);
@@ -110,7 +120,7 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId,
+    public List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String search,
                                                       String requesterUserId,
                                                       String requesterRole) {
         DoctorCatalogResponseDto doctor = fetchDoctor(doctorCatalogEntryId);
@@ -120,7 +130,16 @@ public class QueueServiceImpl implements QueueService {
                 doctorCatalogEntryId, QueueOrderingService.ACTIVE_STATUSES);
         List<QueueEntry> ordered = orderingService.orderByEffectivePriority(active);
 
-        return ordered.stream()
+        // Optional patient-name filter (case-insensitive substring). Positions
+        // reported by toResponseDto stay the REAL queue positions — the search
+        // only narrows which rows are returned, never their ordering.
+        java.util.stream.Stream<QueueEntry> stream = ordered.stream();
+        if (search != null && !search.isBlank()) {
+            String q = search.trim().toLowerCase();
+            stream = stream.filter(e -> e.getPatientName() != null
+                    && e.getPatientName().toLowerCase().contains(q));
+        }
+        return stream
                 .map(e -> toResponseDto(e, doctor))
                 .collect(Collectors.toList());
     }
@@ -208,6 +227,7 @@ public class QueueServiceImpl implements QueueService {
 
             DoctorQueueStatsDto stats = new DoctorQueueStatsDto();
             stats.setDoctorCatalogEntryId(doctor.getId());
+            stats.setDoctorName(doctor.getName());
             stats.setDoctorUserId(doctor.getUserId());
             stats.setDepartmentName(doctor.getDepartmentName());
             stats.setSpecialization(doctor.getSpecialization());
@@ -280,7 +300,8 @@ public class QueueServiceImpl implements QueueService {
         QueueEntryResponseDto dto = QueueEntryResponseDto.fromEntity(entry);
         dto.setDepartmentName(doctor.getDepartmentName());
         dto.setSpecialization(doctor.getSpecialization());
-        dto.setDoctorName(doctor.getSpecialization());
+        // Doctor display name comes from the catalog entry (added Day 7a).
+        dto.setDoctorName(doctor.getName());
 
         if (QueueOrderingService.ACTIVE_STATUSES.contains(entry.getStatus())) {
             List<QueueEntry> active = queueEntryRepository
@@ -330,7 +351,7 @@ public class QueueServiceImpl implements QueueService {
 
     private List<DoctorCatalogResponseDto> fetchAllDoctors() {
         try {
-            return doctorServiceClient.getAllDoctors();
+            return doctorServiceClient.getAllDoctors(0, maxDoctorsToLoad).getContent();
         } catch (RuntimeException e) {
             log.error("Failed to reach doctor-service while building live overview: {}", e.getMessage());
             throw new DoctorServiceUnavailableException(

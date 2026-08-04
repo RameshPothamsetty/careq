@@ -75,15 +75,26 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
-        // Extract userId and role from JWT claims and forward as headers
+        // Extract identity claims from the JWT and forward as headers so
+        // downstream services never need to re-parse the token. fullName/email
+        // are used by user-service to store display names (admin user list,
+        // queue patient names) — they may be absent on tokens issued before
+        // Day 7a, so the gateway simply omits them in that case.
         String userId = claims.getSubject();
         String role = claims.get("role", String.class);
+        String fullName = claims.get("fullName", String.class);
+        String email = claims.get("email", String.class);
 
-        // Add headers to the request before forwarding to downstream services
-        ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+        ServerHttpRequest.Builder requestBuilder = exchange.getRequest().mutate()
                 .header("X-User-Id", userId)
-                .header("X-User-Role", role)
-                .build();
+                .header("X-User-Role", role);
+        if (fullName != null && !fullName.isBlank()) {
+            requestBuilder.header("X-User-Name", fullName);
+        }
+        if (email != null && !email.isBlank()) {
+            requestBuilder.header("X-User-Email", email);
+        }
+        ServerHttpRequest mutatedRequest = requestBuilder.build();
 
         ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutatedRequest)

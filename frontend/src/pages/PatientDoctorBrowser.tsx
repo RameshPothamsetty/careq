@@ -25,7 +25,10 @@ export default function PatientDoctorBrowser() {
   const { data: allDepartments } = useGetDepartmentsQuery();
   const departments = allDepartments?.filter((d) => d.isActive) ?? [];
 
-  // RTK Query refetches automatically whenever a filter changes.
+  // RTK Query refetches automatically whenever a filter changes. The doctor
+  // listing is server-side paginated since Day 7a — the browse screen pulls a
+  // generous page (50) so the card grid still feels like a full list, and uses
+  // totalElements for the "Total Doctors" stat.
   const {
     data: doctors,
     isFetching,
@@ -33,14 +36,16 @@ export default function PatientDoctorBrowser() {
   } = useGetDoctorsQuery({
     departmentId: selectedDeptId ? Number(selectedDeptId) : undefined,
     specialization: searchSpecialization || undefined,
+    size: 50,
   });
 
   const isLoading = isFetching;
-  const total = doctors?.length ?? 0;
+  const doctorList = doctors?.content ?? [];
+  const total = doctors?.totalElements ?? 0;
   const stats = {
     total,
-    available: doctors?.filter((d) => d.isAvailable).length ?? 0,
-    departments: new Set(doctors?.map((d) => d.departmentName) ?? []).size,
+    available: doctorList.filter((d) => d.isAvailable).length,
+    departments: new Set(doctorList.map((d) => d.departmentName)).size,
   };
 
   const clearFilters = () => {
@@ -141,23 +146,24 @@ export default function PatientDoctorBrowser() {
         ) : (
           /* Doctor cards */
           <div className="space-y-3">
-            {doctors?.map((doc) => (
+            {doctorList.map((doc) => (
               <div
                 key={doc.id}
                 className="card flex flex-col gap-4 p-5 transition-all duration-200 hover:shadow-lift sm:flex-row sm:items-center"
               >
                 {/* Identity */}
                 <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <AvatarInitials name={doc.specialization} size="lg" />
+                  <AvatarInitials name={doc.name || doc.specialization} size="lg" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-800">{doc.specialization}</h3>
+                      <h3 className="text-base font-bold text-slate-800">{doc.name || doc.specialization}</h3>
                       <StatusTag status={doc.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
                       <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
-                        {doc.departmentName}
+                        {doc.specialization}
                       </span>{' '}
+                      <span className="ml-1">{doc.departmentName}</span>{' '}
                       {doc.qualification}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">

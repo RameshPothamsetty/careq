@@ -1,7 +1,70 @@
 # CareQ — API Contract
 
-**Version:** 1.0 (Day 4)
-**Status:** Doctor/Department Module
+**Version:** 1.6 (Day 7a)
+**Status:** Auth + User + Doctor/Department + Queue (+ pagination/search/sorting)
+
+---
+
+## Identity Headers (all services)
+
+The API Gateway validates the JWT and forwards these headers to downstream services — services never re-parse the token:
+
+| Header | Source claim | Notes |
+|--------|-------------|-------|
+| `X-User-Id` | `sub` | Always present on authenticated routes |
+| `X-User-Role` | `role` | Always present on authenticated routes |
+| `X-User-Name` | `fullName` | Added Day 7a — present on tokens issued after Day 7a |
+| `X-User-Email` | `email` | Added Day 7a |
+
+---
+
+## User Endpoints (`/api/users`) — Day 3 + Day 7a
+
+### 0a. List Users (Admin only) — NEW Day 7a
+
+```
+GET /api/users
+```
+
+**Auth:** ADMIN
+
+**Description:** Paginated list of all user profiles, optionally filtered by a case-insensitive substring search on display name or email. This was the missing counterpart to `GET /api/users/{id}` — it gives the Admin an actual user-management view.
+
+**Query Parameters (all optional):**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| search | String | — | Case-insensitive match on `fullName` or `email` |
+| page | int | 0 | Zero-based page number |
+| size | int | 20 | Page size (clamped to max 100) |
+
+**Success Response (200):**
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "userId": "550e8400-e29b-41d4-a716-446655440000",
+      "fullName": "John Patient",
+      "email": "john@careq.com",
+      "phone": "+919876543210",
+      "address": null,
+      "dateOfBirth": null,
+      "gender": "MALE",
+      "profilePictureUrl": null,
+      "role": "PATIENT"
+    }
+  ],
+  "totalElements": 12,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": true,
+  "empty": false
+}
+```
+
+**Error Responses:** `403` (non-admin), `401` (no/invalid JWT).
 
 ---
 
@@ -211,7 +274,7 @@ DELETE /api/departments/{id}
 
 ---
 
-### 6. List All Doctors (Public/Patient)
+### 6. List All Doctors (Public/Patient) — paginated since Day 7a
 
 ```
 GET /api/doctors
@@ -220,28 +283,45 @@ GET /api/doctors
 **Auth:** All authenticated roles
 
 **Query Parameters (all optional):**
-| Name | Type | Description |
-|------|------|-------------|
-| departmentId | Long | Filter by department ID |
-| specialization | String | Filter by specialization (partial match, case-insensitive) |
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| departmentId | Long | — | Filter by department ID |
+| specialization | String | — | Filter by specialization (partial match, case-insensitive) |
+| search | String | — | Free-text search on name OR specialization (partial match, case-insensitive) |
+| page | int | 0 | Zero-based page number |
+| size | int | 20 | Page size (clamped to max 100) |
+| sortBy | String | name | `name`, `consultationFee`, or `experienceYears` |
+| sortDirection | String | asc | `asc` or `desc` |
 
-**Success Response (200):**
+**Success Response (200) — paginated shape:**
 ```json
-[
-  {
-    "id": 1,
-    "userId": "550e8400-e29b-41d4-a716-446655440001",
-    "departmentId": 1,
-    "departmentName": "Cardiology",
-    "specialization": "Interventional Cardiology",
-    "qualification": "MD, DM Cardiology",
-    "experienceYears": 12,
-    "consultationFee": 500.00,
-    "avgConsultationTimeMinutes": 15,
-    "isAvailable": true
-  }
-]
+{
+  "content": [
+    {
+      "id": 1,
+      "name": "Dr. Arjun Sharma",
+      "userId": "550e8400-e29b-41d4-a716-446655440001",
+      "departmentId": 1,
+      "departmentName": "Cardiology",
+      "specialization": "Interventional Cardiology",
+      "qualification": "MD, DM Cardiology",
+      "experienceYears": 12,
+      "consultationFee": 500.00,
+      "avgConsultationTimeMinutes": 15,
+      "isAvailable": true
+    }
+  ],
+  "totalElements": 10,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": true,
+  "empty": false
+}
 ```
+
+**Example:** `GET /api/doctors?departmentId=1&page=0&size=5&sortBy=consultationFee&sortDirection=desc`
 
 ---
 
@@ -262,6 +342,7 @@ GET /api/doctors/{id}
 ```json
 {
   "id": 1,
+  "name": "Dr. Arjun Sharma",
   "userId": "550e8400-e29b-41d4-a716-446655440001",
   "departmentId": 1,
   "departmentName": "Cardiology",
@@ -297,6 +378,7 @@ POST /api/doctors
 **Request Body:**
 ```json
 {
+  "name": "Dr. Arjun Sharma",
   "userId": "550e8400-e29b-41d4-a716-446655440001",
   "departmentId": 1,
   "specialization": "Interventional Cardiology",
@@ -310,6 +392,7 @@ POST /api/doctors
 **Validation Rules:**
 | Field | Rule |
 |-------|------|
+| name | Required, max 255 characters |
 | userId | Required, valid UUID |
 | departmentId | Required (must reference existing department) |
 | specialization | Required, max 255 characters |
@@ -322,6 +405,7 @@ POST /api/doctors
 ```json
 {
   "id": 1,
+  "name": "Dr. Arjun Sharma",
   "userId": "550e8400-e29b-41d4-a716-446655440001",
   "departmentId": 1,
   "departmentName": "Cardiology",
@@ -422,6 +506,7 @@ PUT /api/doctors/me/availability
 ```json
 {
   "id": 1,
+  "name": "Dr. Arjun Sharma",
   "userId": "550e8400-e29b-41d4-a716-446655440001",
   "departmentId": 1,
   "departmentName": "Cardiology",
@@ -470,7 +555,8 @@ POST /api/queue/join
 ```json
 {
   "doctorCatalogEntryId": 1,
-  "symptomText": "Severe chest pain radiating to my left arm for the past hour"
+  "symptomText": "Severe chest pain radiating to my left arm for the past hour",
+  "patientName": "John Patient"
 }
 ```
 
@@ -479,6 +565,7 @@ POST /api/queue/join
 |-------|------|
 | doctorCatalogEntryId | Required, must reference an existing doctor catalog entry |
 | symptomText | Required, max 2000 characters |
+| patientName | Optional, max 255 characters — sent by the frontend from the auth session so the doctor's queue shows real names (Day 7a) |
 
 **Behavior:**
 - Calls the Groq LLM (model `llama-3.1-8b-instant`) for AI triage. On any AI failure, falls back to `NORMAL` — a broken AI call never blocks a real patient.
@@ -490,8 +577,9 @@ POST /api/queue/join
 {
   "id": 1,
   "patientId": "550e8400-e29b-41d4-a716-446655440010",
+  "patientName": "John Patient",
   "doctorCatalogEntryId": 1,
-  "doctorName": "Interventional Cardiology",
+  "doctorName": "Dr. Arjun Sharma",
   "departmentName": "Cardiology",
   "specialization": "Interventional Cardiology",
   "symptomText": "Severe chest pain radiating to my left arm for the past hour",
@@ -565,6 +653,11 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
 |------|------|-------------|
 | doctorCatalogEntryId | Long | Doctor catalog entry ID |
 
+**Query Parameters (optional):**
+| Name | Type | Description |
+|------|------|-------------|
+| search | String | Case-insensitive substring match on patient name (Day 7a). Positions reported remain the patient's REAL queue position — the search only narrows which rows are returned. |
+
 **Description:** Returns that doctor's live queue (WAITING + IN_PROGRESS entries), ordered by effective triage level then FIFO by `joinedAt`. Each entry includes a derived `position` (1 = next to be seen) and `predictedWaitMinutes`.
 
 **Success Response (200):**
@@ -572,6 +665,8 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
 [
   {
     "id": 5,
+    "patientId": "550e8400-e29b-41d4-a716-446655440010",
+    "patientName": "John Patient",
     "status": "IN_PROGRESS",
     "position": 1,
     "predictedWaitMinutes": 0,
@@ -581,6 +676,8 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
   },
   {
     "id": 8,
+    "patientId": "550e8400-e29b-41d4-a716-446655440011",
+    "patientName": "Alice Wonder",
     "status": "WAITING",
     "position": 2,
     "predictedWaitMinutes": 15,
@@ -683,6 +780,7 @@ GET /api/queue/live
   "doctors": [
     {
       "doctorCatalogEntryId": 1,
+      "doctorName": "Dr. Arjun Sharma",
       "doctorUserId": "550e8400-e29b-41d4-a716-446655440001",
       "departmentName": "Cardiology",
       "specialization": "Interventional Cardiology",

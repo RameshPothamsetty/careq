@@ -14,6 +14,7 @@ public class QueueEntryResponseDto {
 
     private Long id;
     private String patientId;
+    private String patientName;
     private Long doctorCatalogEntryId;
     private String doctorName;
     private String departmentName;
@@ -36,6 +37,7 @@ public class QueueEntryResponseDto {
         QueueEntryResponseDto dto = new QueueEntryResponseDto();
         dto.setId(entry.getId());
         dto.setPatientId(entry.getPatientId());
+        dto.setPatientName(entry.getPatientName());
         dto.setDoctorCatalogEntryId(entry.getDoctorCatalogEntryId());
         dto.setSymptomText(entry.getSymptomText());
         dto.setAiSuggestedTriage(entry.getAiSuggestedTriage());
@@ -54,6 +56,14 @@ public class QueueEntryResponseDto {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
     }
 
     public String getPatientId() {

@@ -33,6 +33,8 @@ interface AuthResponse {
 interface UserProfileResponse {
   id: number;
   userId: string;
+  fullName: string | null;
+  email: string | null;
   phone: string | null;
   address: string | null;
   dateOfBirth: string | null;
@@ -63,6 +65,7 @@ interface DepartmentRequest {
 
 interface DoctorCatalogResponse {
   id: number;
+  name: string;
   userId: string;
   departmentId: number;
   departmentName: string;
@@ -75,6 +78,7 @@ interface DoctorCatalogResponse {
 }
 
 interface DoctorCatalogRequest {
+  name: string;
   userId: string;
   departmentId: number;
   specialization: string;
@@ -97,11 +101,13 @@ type QueueStatus = 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 interface JoinQueuePayload {
   doctorCatalogEntryId: number;
   symptomText: string;
+  patientName?: string;
 }
 
 interface QueueEntryResponse {
   id: number;
   patientId: string;
+  patientName: string | null;
   doctorCatalogEntryId: number;
   doctorName: string;
   departmentName: string;
@@ -129,6 +135,7 @@ interface OverrideTriagePayload {
 
 interface DoctorQueueStats {
   doctorCatalogEntryId: number;
+  doctorName: string;
   doctorUserId: string;
   departmentName: string;
   specialization: string;
@@ -148,6 +155,18 @@ interface LiveQueueOverview {
   delayedConsultations: number;
   averageWaitMinutes: number;
   doctors: DoctorQueueStats[];
+}
+
+/** Server-side page wrapper (Spring Data Page JSON). */
+interface PaginatedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+  empty: boolean;
 }
 
 async function request<T>(
@@ -218,4 +237,5 @@ export type {
   OverrideTriagePayload,
   DoctorQueueStats,
   LiveQueueOverview,
+  PaginatedResponse,
 };

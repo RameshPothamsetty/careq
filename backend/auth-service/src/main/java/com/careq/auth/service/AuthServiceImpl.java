@@ -47,7 +47,7 @@ public class AuthServiceImpl implements AuthService {
 
         user = userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getFullName(), user.getRole());
 
         return new AuthResponseDto(
                 token,
@@ -72,7 +72,7 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException("Account is deactivated. Please contact an administrator.");
         }
 
-        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getFullName(), user.getRole());
 
         return new AuthResponseDto(
                 token,

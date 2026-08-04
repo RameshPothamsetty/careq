@@ -3,13 +3,13 @@ package com.careq.doctor.controller;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.exception.RoleGuard;
 import com.careq.doctor.service.DoctorCatalogService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/doctors")
@@ -22,13 +22,21 @@ public class DoctorCatalogController {
     }
 
     /**
-     * Public/Patient: List all doctors with optional filtering by department and specialization.
+     * Public/Patient: Paginated, sortable doctor listing with optional filters
+     * (department, specialization) and a free-text search on name/specialization.
+     * Response shape: { content, totalElements, totalPages, ... } (Spring Page).
      */
     @GetMapping
-    public ResponseEntity<List<DoctorCatalogResponseDto>> getAllDoctors(
+    public ResponseEntity<Page<DoctorCatalogResponseDto>> getAllDoctors(
             @RequestParam(required = false) Long departmentId,
-            @RequestParam(required = false) String specialization) {
-        return ResponseEntity.ok(doctorCatalogService.getAllDoctors(departmentId, specialization));
+            @RequestParam(required = false) String specialization,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDirection) {
+        return ResponseEntity.ok(doctorCatalogService.getAllDoctors(
+                departmentId, specialization, search, page, size, sortBy, sortDirection));
     }
 
     /**
@@ -47,9 +55,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody DoctorCatalogRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         DoctorCatalogResponseDto response = doctorCatalogService.createDoctor(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -64,9 +70,7 @@ public class DoctorCatalogController {
             @PathVariable Long id,
             @Valid @RequestBody DoctorCatalogRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         return ResponseEntity.ok(doctorCatalogService.updateDoctor(id, request));
     }
@@ -79,9 +83,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @PathVariable Long id) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         doctorCatalogService.deleteDoctor(id);
         return ResponseEntity.noContent().build();
@@ -97,9 +99,7 @@ public class DoctorCatalogController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody AvailabilityRequestDto request) {
 
-        if (!"DOCTOR".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "DOCTOR");
 
         return ResponseEntity.ok(doctorCatalogService.toggleAvailability(userId, request));
     }

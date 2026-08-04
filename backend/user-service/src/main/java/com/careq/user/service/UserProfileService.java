@@ -2,6 +2,7 @@ package com.careq.user.service;
 
 import com.careq.user.dto.UpdateUserProfileRequestDto;
 import com.careq.user.dto.UserProfileResponseDto;
+import org.springframework.data.domain.Page;
 
 public interface UserProfileService {
 
@@ -15,7 +16,7 @@ public interface UserProfileService {
      * @param role   the user's role from the JWT (via X-User-Role header)
      * @return the user's profile (newly created or existing)
      */
-    UserProfileResponseDto getOrCreateProfile(String userId, String role);
+    UserProfileResponseDto getOrCreateProfile(String userId, String role, String fullName, String email);
 
     /**
      * Updates the profile for the given userId.
@@ -34,4 +35,10 @@ public interface UserProfileService {
      * @throws com.careq.user.exception.UserProfileNotFoundException if profile not found
      */
     UserProfileResponseDto getProfileByUserId(String userId);
+
+    /**
+     * Paginated admin listing of all user profiles, optionally narrowed by a
+     * search on display name or email.
+     */
+    Page<UserProfileResponseDto> getAllProfiles(String search, int page, int size);
 }

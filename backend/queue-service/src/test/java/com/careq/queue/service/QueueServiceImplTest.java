@@ -69,7 +69,7 @@ class QueueServiceImplTest {
     @BeforeEach
     void setUp() {
         queueService = new QueueServiceImpl(
-                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService, 30);
+                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService, 30, 1000);
     }
 
     @Test
@@ -200,6 +200,43 @@ class QueueServiceImplTest {
         // A different doctor (not DOCTOR_USER) tries to override.
         assertThatThrownBy(() -> queueService.overrideTriage(1L, request, "someone-else", "DOCTOR"))
                 .isInstanceOf(UnauthorizedAccessException.class);
+    }
+
+    @Test
+    void getDoctorQueue_WithPatientNameSearch_FiltersRows() {
+        QueueEntry alice = new QueueEntry();
+        alice.setId(1L);
+        alice.setPatientId("p-alice");
+        alice.setPatientName("Alice Wonder");
+        alice.setDoctorCatalogEntryId(10L);
+        alice.setSymptomText("fever");
+        alice.setAiSuggestedTriage(TriageLevel.NORMAL);
+        alice.setStatus(QueueStatus.WAITING);
+        alice.setJoinedAt(LocalDateTime.of(2026, 8, 1, 9, 0));
+
+        QueueEntry bob = new QueueEntry();
+        bob.setId(2L);
+        bob.setPatientId("p-bob");
+        bob.setPatientName("Bob Smith");
+        bob.setDoctorCatalogEntryId(10L);
+        bob.setSymptomText("cough");
+        bob.setAiSuggestedTriage(TriageLevel.NORMAL);
+        bob.setStatus(QueueStatus.WAITING);
+        bob.setJoinedAt(LocalDateTime.of(2026, 8, 1, 9, 5));
+
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.findByDoctorCatalogEntryIdAndStatusInOrderByJoinedAtAsc(eq(10L), anyList()))
+                .willReturn(List.of(alice, bob));
+
+        List<QueueEntryResponseDto> result =
+                queueService.getDoctorQueue(10L, "alice", DOCTOR_USER, "DOCTOR");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getPatientName()).isEqualTo("Alice Wonder");
+        // The search is case-insensitive and only narrows rows.
+        List<QueueEntryResponseDto> all =
+                queueService.getDoctorQueue(10L, "", DOCTOR_USER, "DOCTOR");
+        assertThat(all).hasSize(2);
     }
 
     @Test

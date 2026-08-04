@@ -6,6 +6,7 @@ package com.careq.queue.dto;
 public class DoctorQueueStatsDto {
 
     private Long doctorCatalogEntryId;
+    private String doctorName;
     private String doctorUserId;
     private String departmentName;
     private String specialization;
@@ -25,6 +26,14 @@ public class DoctorQueueStatsDto {
 
     public void setDoctorCatalogEntryId(Long doctorCatalogEntryId) {
         this.doctorCatalogEntryId = doctorCatalogEntryId;
+    }
+
+    public String getDoctorName() {
+        return doctorName;
+    }
+
+    public void setDoctorName(String doctorName) {
+        this.doctorName = doctorName;
     }
 
     public String getDoctorUserId() {

@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { authenticatedBaseQuery } from './baseQuery';
-import type { UserProfileResponse, UpdateProfilePayload } from '../api';
+import type { UserProfileResponse, UpdateProfilePayload, PaginatedResponse } from '../api';
 
 /**
  * userApi — user-service profile endpoints.
@@ -39,6 +39,21 @@ export const userApi = createApi({
       },
       invalidatesTags: ['Profile'],
     }),
+
+    // Admin-only paginated user list (Day 7a).
+    getUsers: builder.query<
+      PaginatedResponse<UserProfileResponse>,
+      { page?: number; size?: number; search?: string } | void
+    >({
+      query: (params) => {
+        const query = new URLSearchParams();
+        if (params?.page != null) query.set('page', String(params.page));
+        if (params?.size != null) query.set('size', String(params.size));
+        if (params?.search) query.set('search', params.search);
+        const qs = query.toString();
+        return `/api/users${qs ? `?${qs}` : ''}`;
+      },
+    }),
   }),
 });
 
@@ -46,4 +61,5 @@ export const {
   useGetProfileQuery,
   useUpdateProfileMutation,
   useUploadProfilePictureMutation,
+  useGetUsersQuery,
 } = userApi;

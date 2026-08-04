@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { Building2, Stethoscope, BarChart3, ArrowRight } from 'lucide-react';
+import { Building2, Stethoscope, BarChart3, Users, ArrowRight } from 'lucide-react';
 import QueuePageHeader from '../components/QueuePageHeader';
 
 const NAV_CARDS = [
@@ -27,6 +27,14 @@ const NAV_CARDS = [
     desc: 'Hospital-wide waiting counts, delays & doctor load in real time',
     tint: 'from-teal-500 to-teal-700',
     wide: true,
+  },
+  {
+    to: '/admin/users',
+    icon: <Users className="h-6 w-6 text-white" />,
+    title: 'Manage Users',
+    desc: 'Search the user directory by name or email',
+    tint: 'from-violet-500 to-violet-700',
+    wide: false,
   },
 ] as const;
 

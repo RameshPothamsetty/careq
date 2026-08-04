@@ -10,12 +10,14 @@ import { LoadingState } from '../components/ui/States';
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
-  const { data: doctors, isLoading, error: queryError } = useGetDoctorsQuery();
+  // A single large page guarantees the doctor's own catalog entry is in the
+  // cache even for a big catalog (listing is server-side paginated since Day 7a).
+  const { data: doctors, isLoading, error: queryError } = useGetDoctorsQuery({ size: 1000 });
   const [toggleAvailability, { isLoading: isToggling }] = useToggleAvailabilityMutation();
   const [actionError, setActionError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const doctorEntry = doctors?.find((doc) => doc.userId === user?.id) ?? null;
+  const doctorEntry = doctors?.content.find((doc) => doc.userId === user?.id) ?? null;
   const error = queryError ? getErrorMessage(queryError) : actionError;
 
   const handleToggleAvailability = async () => {
@@ -71,11 +73,11 @@ export default function DoctorDashboard() {
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-bold text-slate-800">{doctorEntry.specialization}</h2>
+                  <h2 className="text-lg font-bold text-slate-800">{doctorEntry.name || doctorEntry.specialization}</h2>
                   <StatusTag status={doctorEntry.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
+                  {doctorEntry.specialization} · {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
                 </p>
                 <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-500">
                   <span>💰 Fee: ₹{doctorEntry.consultationFee}</span>

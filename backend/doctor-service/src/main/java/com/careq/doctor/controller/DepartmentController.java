@@ -2,6 +2,7 @@ package com.careq.doctor.controller;
 
 import com.careq.doctor.dto.DepartmentRequestDto;
 import com.careq.doctor.dto.DepartmentResponseDto;
+import com.careq.doctor.exception.RoleGuard;
 import com.careq.doctor.service.DepartmentService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -35,9 +36,7 @@ public class DepartmentController {
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody DepartmentRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         DepartmentResponseDto response = departmentService.createDepartment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -49,9 +48,7 @@ public class DepartmentController {
             @PathVariable Long id,
             @Valid @RequestBody DepartmentRequestDto request) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         return ResponseEntity.ok(departmentService.updateDepartment(id, request));
     }
@@ -61,9 +58,7 @@ public class DepartmentController {
             @RequestHeader("X-User-Role") String role,
             @PathVariable Long id) {
 
-        if (!"ADMIN".equalsIgnoreCase(role)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
+        RoleGuard.requireRole(role, "ADMIN");
 
         departmentService.deleteDepartment(id);
         return ResponseEntity.noContent().build();
