@@ -2,6 +2,7 @@ package com.careq.queue.repository;
 
 import com.careq.queue.entity.QueueEntry;
 import com.careq.queue.entity.QueueStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +24,17 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
     List<QueueEntry> findAllByStatusIn(List<QueueStatus> statuses);
 
     long countByStatusAndDoctorCatalogEntryId(QueueStatus status, Long doctorCatalogEntryId);
+
+    /**
+     * A patient's visit history: completed/cancelled entries, newest first.
+     * Bounded by the {@link Pageable} (limit) — history grows, so this must
+     * never be an unbounded query.
+     */
+    @Query("SELECT e FROM QueueEntry e WHERE e.patientId = :patientId " +
+            "AND e.status IN :statuses ORDER BY e.joinedAt DESC")
+    List<QueueEntry> findHistoryByPatientId(@Param("patientId") String patientId,
+                                            @Param("statuses") List<QueueStatus> statuses,
+                                            Pageable pageable);
 
     // ── Analytics (Day 7b) — native MySQL aggregation, never row-by-row in Java ──
 

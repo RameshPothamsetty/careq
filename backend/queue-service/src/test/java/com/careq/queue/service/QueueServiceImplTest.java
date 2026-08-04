@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -380,6 +381,75 @@ class QueueServiceImplTest {
         assertThat(distribution.get(0).getDepartmentName()).isEqualTo("Cardiology");
         assertThat(distribution.get(0).getPatientCount()).isEqualTo(4L);
         assertThat(distribution.get(1).getDepartmentName()).isEqualTo("Neurology");
+    }
+
+    // ── Patient history (dashboard upgrade) ────────────────────────────
+
+    @Test
+    void getMyHistory_ReturnsCompletedAndCancelledEntriesNewestFirst() {
+        QueueEntry recent = new QueueEntry();
+        recent.setId(2L);
+        recent.setPatientId(PATIENT);
+        recent.setPatientName("Ada Patient");
+        recent.setDoctorCatalogEntryId(10L);
+        recent.setSymptomText("fever");
+        recent.setAiSuggestedTriage(TriageLevel.NORMAL);
+        recent.setStatus(QueueStatus.COMPLETED);
+        recent.setJoinedAt(java.time.LocalDateTime.now().minusHours(2));
+        recent.setCompletedAt(java.time.LocalDateTime.now().minusHours(1));
+
+        QueueEntry older = new QueueEntry();
+        older.setId(1L);
+        older.setPatientId(PATIENT);
+        older.setDoctorCatalogEntryId(10L);
+        older.setSymptomText("cancelled visit");
+        older.setAiSuggestedTriage(TriageLevel.NORMAL);
+        older.setStatus(QueueStatus.CANCELLED);
+        older.setJoinedAt(java.time.LocalDateTime.now().minusDays(3));
+
+        given(queueEntryRepository.findHistoryByPatientId(eq(PATIENT), anyList(), any(Pageable.class)))
+                .willReturn(List.of(recent, older));
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+
+        List<QueueEntryResponseDto> history = queueService.getMyHistory(PATIENT, 10);
+
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).getId()).isEqualTo(2L);
+        assertThat(history.get(0).getStatus()).isEqualTo(QueueStatus.COMPLETED);
+        assertThat(history.get(1).getStatus()).isEqualTo(QueueStatus.CANCELLED);
+        // Enriched with the doctor's display details (and no derived position for completed entries).
+        assertThat(history.get(0).getDepartmentName()).isEqualTo("Cardiology");
+        assertThat(history.get(0).getPosition()).isNull();
+        // History must be requested newest-first and capped.
+        verify(queueEntryRepository).findHistoryByPatientId(
+                eq(PATIENT),
+                eq(List.of(QueueStatus.COMPLETED, QueueStatus.CANCELLED)),
+                any(Pageable.class));
+    }
+
+    @Test
+    void getMyHistory_DoctorServiceDown_StillReturnsEntriesWithoutDoctorDetails() {
+        QueueEntry entry = new QueueEntry();
+        entry.setId(1L);
+        entry.setPatientId(PATIENT);
+        entry.setDoctorCatalogEntryId(10L);
+        entry.setSymptomText("cough");
+        entry.setAiSuggestedTriage(TriageLevel.NORMAL);
+        entry.setStatus(QueueStatus.COMPLETED);
+        entry.setJoinedAt(java.time.LocalDateTime.now().minusDays(1));
+
+        given(queueEntryRepository.findHistoryByPatientId(eq(PATIENT), anyList(), any(Pageable.class)))
+                .willReturn(List.of(entry));
+        given(doctorServiceClient.getDoctorById(10L))
+                .willThrow(new RuntimeException("connection refused"));
+
+        List<QueueEntryResponseDto> history = queueService.getMyHistory(PATIENT, 10);
+
+        // History degrades gracefully — the visit is still listed, doctor fields stay null.
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).getStatus()).isEqualTo(QueueStatus.COMPLETED);
+        assertThat(history.get(0).getDoctorName()).isNull();
+        assertThat(history.get(0).getDepartmentName()).isNull();
     }
 
     // ── Per-doctor analytics (dashboard upgrade) ──────────────────────

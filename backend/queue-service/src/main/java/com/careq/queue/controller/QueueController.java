@@ -60,6 +60,19 @@ public class QueueController {
         return ResponseEntity.ok(queueService.getMyStatus(userId));
     }
 
+    /** Patient's recent visit history (completed/cancelled, newest first, capped). */
+    @GetMapping("/my-history")
+    public ResponseEntity<List<QueueEntryResponseDto>> getMyHistory(
+            @RequestHeader("X-User-Id") String userId,
+            @RequestHeader("X-User-Role") String role,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        RoleGuard.requireRole(role, "PATIENT");
+        // History grows over time — bound the request server-side regardless of the caller.
+        int cappedLimit = Math.min(Math.max(limit, 1), 50);
+        return ResponseEntity.ok(queueService.getMyHistory(userId, cappedLimit));
+    }
+
     /** Per-doctor analytics: today's scalars + 7-day trends. Same ownership rule as the live queue. */
     @GetMapping("/doctor/{doctorCatalogEntryId}/analytics")
     public ResponseEntity<DoctorAnalyticsSummaryDto> getDoctorAnalytics(

@@ -21,6 +21,9 @@ public interface QueueService {
     /** Patient's own current position + freshly recalculated predicted wait time. */
     QueueStatusResponseDto getMyStatus(String patientId);
 
+    /** Patient's visit history (completed/cancelled entries, newest first, capped by limit). */
+    List<QueueEntryResponseDto> getMyHistory(String patientId, int limit);
+
     /** Doctor/Admin view of one doctor's live queue, ordered by effective triage then FIFO.
      *  An optional patient-name search narrows the returned rows. */
     List<QueueEntryResponseDto> getDoctorQueue(Long doctorCatalogEntryId, String search,

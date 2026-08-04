@@ -38,6 +38,12 @@ export const queueApi = createApi({
       providesTags: ['QueueStatus'],
     }),
 
+    // Patient's recent visit history (completed/cancelled, newest first).
+    getMyQueueHistory: builder.query<QueueEntryResponse[], number | void>({
+      query: (limit) => `/api/queue/my-history?limit=${limit ?? 10}`,
+      providesTags: ['QueueStatus'],
+    }),
+
     getDoctorQueue: builder.query<
       QueueEntryResponse[],
       { doctorCatalogEntryId: number; search?: string }
@@ -102,6 +108,7 @@ export const queueApi = createApi({
 export const {
   useJoinQueueMutation,
   useGetMyQueueStatusQuery,
+  useGetMyQueueHistoryQuery,
   useGetDoctorQueueQuery,
   useOverrideTriageMutation,
   useCallNextMutation,

@@ -31,6 +31,7 @@ import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -127,6 +128,28 @@ public class QueueServiceImpl implements QueueService {
                     return new QueueStatusResponseDto(true, toResponseDto(entry, doctor));
                 })
                 .orElseGet(() -> new QueueStatusResponseDto(false, null));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QueueEntryResponseDto> getMyHistory(String patientId, int limit) {
+        return queueEntryRepository
+                .findHistoryByPatientId(patientId,
+                        List.of(QueueStatus.COMPLETED, QueueStatus.CANCELLED),
+                        PageRequest.of(0, limit))
+                .stream()
+                .map(entry -> {
+                    try {
+                        return toResponseDto(entry, fetchDoctor(entry.getDoctorCatalogEntryId()));
+                    } catch (RuntimeException e) {
+                        // doctor-service down: the visit still shows in history,
+                        // just without the doctor's display details.
+                        log.warn("Failed to enrich history entry {} with doctor details: {}",
+                                entry.getId(), e.getMessage());
+                        return QueueEntryResponseDto.fromEntity(entry);
+                    }
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
