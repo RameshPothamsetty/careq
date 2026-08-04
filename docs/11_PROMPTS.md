@@ -167,3 +167,52 @@ HARD CONSTRAINTS: no out-of-scope features; no main merge or v0.1 tag without co
 
 VERIFICATION CHECKLIST: retroactive issues (numbers/titles) + board URL + labels + templates; full bug list; full code-review findings; pagination/search/sorting confirmed with example request/response; README rewrite confirmed incl. Development Process; exact main merge + tag commands marked as not yet executed.
 ```
+
+---
+
+## Day 7b: Advanced Features (Analytics Dashboard + Notifications)
+
+**Prompt:** CareQ — Day 7b Prompt (Advanced Features: Dashboard Widgets, Charts, Notifications)
+
+**Date Executed:** 2026-08-04
+
+**Branch:** `feature/advanced-features`
+
+**Summary:** Built on the stable v0.1 base. Added `GET /api/queue/analytics/summary` (Admin-only) in queue-service — native MySQL `GROUP BY DATE(...)` aggregation for patients-handled-per-day and avg-wait-time-trend over the last 7 days, plus department distribution joined via the existing Feign doctor client. New Admin Analytics dashboard (Recharts: bar + line + pie, StatCards, loading/empty/error states). Client-side derived notifications: `useQueueNotifications` hook detects status transitions from the existing 10s my-status polling (WAITING→IN_PROGRESS "called", position moved up, joined, completed), surfaced via a notification bell with unread badge + dropdown in the shared header and auto-dismissing toasts. Persisted/push notifications explicitly scoped as Phase 2. Merged into `develop` (no main merge / no tag today, per prompt).
+
+## Full Prompt Text
+
+```
+CareQ — Day 7b Prompt (Advanced Features: Dashboard Widgets, Charts, Notifications)
+
+Save as the eighth entry in docs/11_PROMPTS.md.
+Run this SECOND today, after Day 7a's stabilization work is merged and v0.1 is tagged (confirm this happened before running this prompt).
+Freebuff has direct git access — execute git commands directly per the workflow below.
+
+ROLE
+You are acting as a Senior Full Stack Engineer adding advanced features on top of a now-stable v0.1 base. Today's checklist item is "Dashboard widgets, charts/reports, file upload or notifications" — three honest scoping decisions are made below so this is actually finishable in one session rather than three half-built features.
+
+PROJECT CONTEXT (recap)
+- Project: CareQ — Intelligent Patient Flow Platform
+- Base: v0.1 — stable, tested, tagged. Auth, User/Profile (including file upload — see note below), Doctor/Department, Queue + AI, Frontend Integration all working.
+
+SCOPING DECISIONS FOR TODAY — read before generating anything
+1. File upload is already done. Profile picture upload with real storage and serving was built ahead of schedule on Day 3. Do not rebuild this — today's "advanced features" work covers the other two: dashboard widgets/charts and notifications.
+2. Charts/reports → Admin Analytics Dashboard. Build one new GET /api/queue/analytics/summary endpoint (Admin-only, in queue-service) that aggregates real data already in the queue_entries table: patients handled per day (last 7 days), average wait time trend (last 7 days), and queue distribution by department (join with doctor-service via the existing Feign client). Render with Recharts on the frontend.
+3. Notifications → in-app, derived, not a new persisted system. Rather than building a full notification storage service (a genuinely large addition better suited to a dedicated day), implement client-side derived notifications: since the frontend already polls queue status via RTK Query (Day 6), detect state transitions (e.g., status flips from WAITING to IN_PROGRESS) and surface a toast notification + a small notification bell with a short-lived history of recent events for that session. State clearly in your output that persisted, cross-device, or backend-triggered notifications (push/SMS/email) are a Phase 2 roadmap item, not built today — this is an honest scope boundary, not a shortcut to hide.
+
+TODAY'S DELIVERABLES
+0. Create today's Issue first: `Day 7: Advanced Features (Analytics Dashboard + Notifications)`, labeled day-7, backend, frontend, enhancement. Add to the CareQ — 15-Day Build Project board under In Progress. Reference in today's PR with Closes #<issue number>.
+1. Admin Analytics Dashboard (backend): GET /api/queue/analytics/summary — Admin-only, in queue-service. Response: patientsPerDay (last 7 days, date + count), avgWaitTimeTrend (last 7 days, date + avg minutes), departmentDistribution (department name + patient count, via Feign). Appropriate database queries (JPQL/native — don't pull all rows into memory). Validation + exception handling consistent with existing services.
+2. Admin Analytics Dashboard (frontend): new Admin screen using Recharts (bar/line for patients per day; line for avg wait; pie or bar for department distribution). New RTK Query endpoint on queueApi. Same loading/error/empty state discipline — empty chart shows friendly empty state, not broken/blank. Use StatCard for summary numbers above charts.
+3. In-app notifications (frontend only): bell icon in the shared navigation header with unread-count badge; dropdown/panel with recent session events; toast fires immediately on detected status change via existing polling; logic in a small isolated hook (e.g., useQueueNotifications) watching the relevant RTK Query data. Explicitly note: history is client-side and session-only — resets on refresh, no backend store.
+4. Documentation: 05_API_CONTRACT.md (new endpoint), 03_ARCHITECTURE.md (analytics aggregation approach + client-side notification design decision + Phase 2 persisted/push notifications roadmap note), README.md (feature list).
+
+Explicitly OUT of scope today: persisted notification storage, push notifications, email/SMS; any rebuild of file upload (already done); any change to AI triage or wait-time prediction logic.
+
+GIT WORKFLOW: pull develop → branch feature/advanced-features → build + test (analytics endpoint must return sensible data even with a small/sparse dataset — don't let empty-data edge case crash the endpoint) → commit in small increments (feat: add queue analytics summary endpoint / feat: add Admin analytics dashboard with Recharts / feat: add client-side derived queue notifications / feat: add notification bell and toast UI / docs: document analytics endpoint and notification design decisions) → push → PR (feature/advanced-features → develop, title "Day 7: Advanced Features (Analytics Dashboard + Notifications)", Closes #<today's issue number>) → self-review (charts render with real data; notifications fire on real status change by manually calling call-next/complete as a doctor while watching the patient view) → merge into develop. This branch does NOT get merged into main or tagged today.
+
+HARD CONSTRAINTS: no persisted/backend notification storage; no touching AI triage or wait-time prediction logic; state all assumptions (chart library config, exact status-transition events tracked for notifications, analytics date-range default) before generating code.
+
+VERIFICATION CHECKLIST: confirm each of the 4 deliverable groups addressed; analytics endpoint tested against both populated and sparse data; notifications tested against a real status transition; exact git command sequence output; ready-to-paste PR description.
+```

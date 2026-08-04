@@ -7,6 +7,7 @@ import type {
   OverrideTriagePayload,
   TriageLevel,
   LiveQueueOverview,
+  AnalyticsSummary,
 } from '../api';
 
 /**
@@ -20,7 +21,7 @@ import type {
 export const queueApi = createApi({
   reducerPath: 'queueApi',
   baseQuery: authenticatedBaseQuery,
-  tagTypes: ['QueueStatus', 'DoctorQueue', 'LiveQueue'],
+  tagTypes: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
   endpoints: (builder) => ({
     joinQueue: builder.mutation<QueueEntryResponse, JoinQueuePayload>({
       query: (body) => ({
@@ -28,7 +29,7 @@ export const queueApi = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue'],
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
     getMyQueueStatus: builder.query<QueueStatusResponse, void>({
@@ -56,7 +57,7 @@ export const queueApi = createApi({
         method: 'PUT',
         body: { triageLevel } satisfies OverrideTriagePayload,
       }),
-      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue'],
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
     callNext: builder.mutation<QueueEntryResponse, number>({
@@ -64,7 +65,7 @@ export const queueApi = createApi({
         url: `/api/queue/${id}/call-next`,
         method: 'PUT',
       }),
-      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue'],
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
     completeQueueEntry: builder.mutation<QueueEntryResponse, number>({
@@ -72,12 +73,19 @@ export const queueApi = createApi({
         url: `/api/queue/${id}/complete`,
         method: 'PUT',
       }),
-      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue'],
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
     getLiveQueueOverview: builder.query<LiveQueueOverview, void>({
       query: () => '/api/queue/live',
       providesTags: ['LiveQueue'],
+    }),
+
+    getAnalyticsSummary: builder.query<AnalyticsSummary, void>({
+      query: () => '/api/queue/analytics/summary',
+      // Analytics is aggregated from completed/called entries, so every
+      // queue mutation invalidates it — the charts stay fresh.
+      providesTags: ['Analytics'],
     }),
   }),
 });
@@ -90,4 +98,5 @@ export const {
   useCallNextMutation,
   useCompleteQueueEntryMutation,
   useGetLiveQueueOverviewQuery,
+  useGetAnalyticsSummaryQuery,
 } = queueApi;

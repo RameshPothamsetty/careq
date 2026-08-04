@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.6 (Day 6)  
-**Status:** Updated — Frontend state migrated to RTK Query (server-state cache)
+**Version:** 1.7 (Day 7b)  
+**Status:** Updated — Analytics aggregation approach + client-side notification design decision
 
 ---
 
@@ -243,7 +243,9 @@ POST /api/queue/join (patient)
 | `src/services/rtk/baseQuery.ts` | Single shared `fetchBaseQuery` with the JWT injected centrally (`careq_token` from localStorage) + `getErrorMessage()` error normalizer matching the backend `{ message, details }` shape |
 | `src/services/rtk/userApi.ts` | user-service profile endpoints (`GET`/`PUT /api/users/me`, multipart picture upload) |
 | `src/services/rtk/doctorApi.ts` | doctor-service endpoints: department CRUD, doctor catalog browse/CRUD, availability toggle |
-| `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview |
+| `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview, analytics summary |
+| `src/hooks/useQueueNotifications.ts` | Isolated hook watching the my-status polling; emits derived notification events on tracked transitions |
+| `src/context/NotificationContext.tsx` | Session-only event store + toast queue fed by the hook; powers the bell and toast UI |
 
 **Key decisions:**
 - **Two kinds of state:** session state (user / role / token) stays in `AuthContext` + localStorage; server data lives in the RTK Query cache. `AuthContext.logout()` calls `resetApiState()` so one session's cached data never leaks into the next.
@@ -251,3 +253,45 @@ POST /api/queue/join (patient)
 - **Polling replaces `setInterval`:** the live queue screens (`PatientQueuePage`, `DoctorQueuePage`, `AdminQueueOverview`) pass `pollingInterval: 10_000` to their query hooks; `dataUpdatedAt` drives the `LiveBadge` staleness indicator, and `refetch()` is the manual refresh.
 - **Dependent queries** (e.g. `DoctorQueuePage` needs the doctor's catalog id before fetching their queue) use the `skipToken` option so the second query only fires once the first resolves.
 - **Centralized auth header:** `baseQuery.prepareHeaders` reads the token from localStorage — the same source of truth `AuthContext` writes on login — keeping the header logic out of every screen.
+
+---
+
+## 10. Admin Analytics — SQL Aggregation, Not In-Memory (Day 7b)
+
+**Decision:** `GET /api/queue/analytics/summary` aggregates the `queue_entries` table in **MySQL, not in Java**. The repository uses native queries with `GROUP BY DATE(...)`/`TIMESTAMPDIFF`, returning only per-day/per-doctor rollups via lightweight interface projections. The dataset grows with every queue entry, so pulling all rows into memory to count in Java would not scale.
+
+```
+queue-service                     MySQL (careq_db)
+    │  countCompletedPerDaySince    │
+    │  avgCalledWaitPerDaySince     │
+    │  countCompletedPerDoctorSince │
+    ├────────────────────────────────▶  GROUP BY DATE(completed_at / called_at)
+    │◀────────────────────────────────  per-day counts / AVG waits / per-doctor counts
+    │
+    │  departmentDistribution:  per-doctor counts mapped to department names
+    │  via DoctorServiceClient.getAllDoctors (Feign — single source of truth)
+    └─▶ AnalyticsSummaryDto (7-day zero-filled window)
+```
+
+**Definitions (documented in the API contract):** patients handled = entries *completed* that day; avg wait = `called_at − joined_at` for entries *called* that day; department distribution = completed entries grouped by department. The 7-day window is zero-filled in the service (bounded work — 7 rows) so charts always render a full window, and an empty dataset returns 200 with zeros rather than erroring.
+
+**Resilience:** if doctor-service is unreachable the department slice degrades to an empty list (logged) while the two time series still return — a single-service outage does not blank the whole dashboard.
+
+---
+
+## 11. Client-Side Derived Notifications (Day 7b)
+
+**Decision:** notifications are **derived client-side from the existing polling**, not a new persisted backend system. The frontend already polls `GET /api/queue/my-status` every 10 s (RTK Query `pollingInterval`); `useQueueNotifications` watches that same cache entry and emits an event on tracked transitions:
+
+| Transition | Event |
+|-----------|-------|
+| inactive → active | "You joined Dr. X's queue" |
+| `WAITING` → `IN_PROGRESS` | "It's your turn!" — the flagship case (doctor called the patient) |
+| `WAITING`, position decreased | "You moved up to position #N" |
+| active → gone / `COMPLETED` | "Consultation complete" |
+
+Events land in `NotificationContext` (a session-only React store) which powers: the notification bell + unread badge + dropdown in the shared `QueuePageHeader`, and auto-dismissing toasts via `ToastHost`. One poll, many subscribers: the My Queue screen and the notification hook share the same RTK Query cache entry.
+
+**Known, deliberate limitation (not a bug):** the history is **client-side and session-only** — it resets on page refresh and is cleared when the signed-in user changes. There is no backend notification store and no cross-device delivery.
+
+> **Phase 2 roadmap (explicitly not built in Day 7b):** persisted notification storage (a notifications service + table), backend-triggered notifications (queue-service pushing on status change), and push/SMS/email delivery. That is a genuinely larger feature deserving its own dedicated day — Day 7b intentionally scoped to the in-app derived version so it is finishable in one session.

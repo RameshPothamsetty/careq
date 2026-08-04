@@ -1,5 +1,6 @@
 package com.careq.queue.service;
 
+import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -36,4 +37,7 @@ public interface QueueService {
 
     /** Admin-only live overview across all doctors. */
     LiveQueueOverviewDto getLiveOverview();
+
+    /** Admin-only analytics summary over the last 7 days (patients/day, avg wait trend, department distribution). */
+    AnalyticsSummaryDto getAnalyticsSummary();
 }
