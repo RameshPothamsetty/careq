@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.6 (Day 7a)  
-**Status:** Updated — Auth + User + Doctor + Queue Module Tests (20 queue-service tests, all passing)
+**Version:** 1.7 (Day 7b)  
+**Status:** Updated — Auth + User + Doctor + Queue Module Tests (23 queue-service tests, all passing)
 
 ---
 
@@ -147,7 +147,7 @@ These tests verify controller behavior including Admin-only restrictions.
 
 ## 5. Queue Service Unit Tests (Day 5)
 
-These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **20 tests, all passing** (Day 7a added the patient-name search test).
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **23 tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests).
 
 ### Test Class: `QueueOrderingServiceTest`
 
@@ -185,6 +185,9 @@ These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking t
 | `callNext_ThenComplete_AdvancesAndFinishesEntry` | WAITING → IN_PROGRESS → COMPLETED | `calledAt`/`completedAt` set; completed entry has no position |
 | `complete_NotInProgress_Throws` | Complete on WAITING entry | Throws `InvalidQueueStateException` |
 | `getDoctorQueue_WithPatientNameSearch_FiltersRows` (Day 7a) | Search `"alice"` against a 2-patient queue | Only Alice returned; blank search returns all rows |
+| `getAnalyticsSummary_EmptyData_ReturnsZeroFilledSevenDayWindow` (Day 7b) | Empty `queue_entries` for the window | 7 zero-filled days, null avg waits, empty distribution — never crashes on sparse data |
+| `getAnalyticsSummary_PopulatedData_AggregatesAndMapsDepartments` (Day 7b) | Mocked per-day counts/waits + Feign catalog | Counts land on the right days; avg waits null on empty days; departments mapped & sorted desc |
+| `getAnalyticsSummary_DoctorServiceDown_DistributionDegradesToEmpty` (Day 7b) | Feign throws (doctor-service down) | Time series still return; only the department slice degrades to empty |
 
 ### Mock Setup
 

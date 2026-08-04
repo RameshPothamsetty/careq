@@ -1,7 +1,7 @@
 # CareQ — API Contract
 
-**Version:** 1.6 (Day 7a)
-**Status:** Auth + User + Doctor/Department + Queue (+ pagination/search/sorting)
+**Version:** 1.7 (Day 7b)
+**Status:** Auth + User + Doctor/Department + Queue (+ pagination/search/sorting) + Analytics
 
 ---
 
@@ -794,6 +794,57 @@ GET /api/queue/live
   ]
 }
 ```
+
+---
+
+### 19. Analytics Summary (Admin) — Day 7b
+
+```
+GET /api/queue/analytics/summary
+```
+
+**Auth:** ADMIN
+
+**Description:** Aggregates the last 7 days (inclusive of today) from the `queue_entries` table for the Admin Analytics Dashboard. Aggregation happens in SQL (native `GROUP BY DATE(...)`), never by pulling rows into Java memory. Missing days are zero-filled so the chart window is always complete.
+
+**Response shape (definitions):**
+| Field | Type | Definition |
+|-------|------|-----------|
+| `patientsPerDay` | list | Entries **completed** that day (patients actually handled), one item per day, oldest first |
+| `avgWaitTimeTrend` | list | Average **wait time in minutes** (`called_at − joined_at`) for entries **called** that day; `null` when no patient was called that day |
+| `departmentDistribution` | list | Completed entries grouped by department (joined via the Feign doctor catalog), sorted by count descending |
+
+**Success Response (200):**
+```json
+{
+  "patientsPerDay": [
+    { "date": "2026-07-29", "count": 0 },
+    { "date": "2026-07-30", "count": 0 },
+    { "date": "2026-07-31", "count": 3 },
+    { "date": "2026-08-01", "count": 2 },
+    { "date": "2026-08-02", "count": 0 },
+    { "date": "2026-08-03", "count": 5 },
+    { "date": "2026-08-04", "count": 1 }
+  ],
+  "avgWaitTimeTrend": [
+    { "date": "2026-07-29", "avgWaitMinutes": null },
+    { "date": "2026-07-30", "avgWaitMinutes": null },
+    { "date": "2026-07-31", "avgWaitMinutes": 12.5 },
+    { "date": "2026-08-01", "avgWaitMinutes": 8.0 },
+    { "date": "2026-08-02", "avgWaitMinutes": null },
+    { "date": "2026-08-03", "avgWaitMinutes": 15.0 },
+    { "date": "2026-08-04", "avgWaitMinutes": 20.0 }
+  ],
+  "departmentDistribution": [
+    { "departmentName": "Cardiology", "patientCount": 6 },
+    { "departmentName": "Neurology", "patientCount": 3 }
+  ]
+}
+```
+
+**Sparse/empty data behavior:** with no activity in the window the endpoint still returns 200 with seven zero-filled days and an empty `departmentDistribution` — it never crashes or 500s on an empty dataset.
+
+**Error Responses:** `403` (non-admin). If doctor-service is unreachable, `departmentDistribution` degrades to an empty list (logged) while the time series still return — a doctor-service outage does not take down the whole analytics response.
 
 ---
 

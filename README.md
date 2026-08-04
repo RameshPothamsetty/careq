@@ -30,6 +30,10 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 - **Manage departments & doctors** — full CRUD with search, server-side pagination and sortable columns
 - **User directory** — paginated, searchable (name/email) list of every registered user
 - **Live queue overview** — hospital-wide summary cards (waiting, in-consultation, doctors online, delayed, avg wait) and a per-doctor breakdown
+- **Analytics dashboard** — 7-day charts (Recharts): patients handled per day, average wait-time trend, and queue distribution by department, with summary stat cards and graceful empty states
+
+### 🔔 Everyone
+- **In-app notifications** — bell with unread badge + dropdown in the shared header, and auto-dismissing toasts when the queue status changes (you're called, you move up, consultation complete). Session-only by design — see the Phase 2 note below.
 
 ---
 
@@ -37,7 +41,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + TypeScript + Vite, Redux Toolkit Query, Tailwind CSS |
+| Frontend | React 18 + TypeScript + Vite, Redux Toolkit Query, Tailwind CSS, Recharts |
 | Backend | Spring Boot 3.2, Java 17, Maven |
 | Service Registry | Netflix Eureka |
 | API Gateway | Spring Cloud Gateway (JWT validation + identity headers) |
@@ -164,7 +168,7 @@ Creates the admin, one test patient, 10 doctors **with named catalog entries**, 
 | Day 5 | Queue Service + AI Triage & Wait Prediction | ✅ Complete |
 | Day 6 | Frontend Integration (RTK Query, route guards, E2E) | ✅ Complete |
 | **Day 7a** | **Week 1 Stabilization & v0.1 Release** | ✅ Complete |
-| Day 7b | Advanced Features (analytics, notifications, …) | 📅 Planned |
+| **Day 7b** | **Advanced Features (Analytics Dashboard + Notifications)** | ✅ Complete |
 | Days 8–15 | Deployment, hardening, Phase 2 roadmap | 📅 Planned |
 
 ---
@@ -192,6 +196,10 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 | [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services |
 | [09_TESTING.md](docs/09_TESTING.md) | Unit test plans and results |
 | [11_PROMPTS.md](docs/11_PROMPTS.md) | Archive of daily development prompts |
+
+## Phase 2 Roadmap (explicitly out of scope today)
+
+Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service. Persisted, cross-device, or backend-triggered notifications — a notifications service/table, push, SMS, and email — are Phase 2 roadmap items for a dedicated future day, not shortcuts hidden today. Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11 for the full design decision.
 
 ## Git Branching Strategy
 
