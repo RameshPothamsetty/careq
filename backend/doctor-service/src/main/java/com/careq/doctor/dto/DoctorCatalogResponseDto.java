@@ -1,20 +1,44 @@
 package com.careq.doctor.dto;
 
 import com.careq.doctor.entity.DoctorCatalogEntry;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.math.BigDecimal;
 
+@Schema(description = "A doctor catalog entry with its department name and live availability.")
 public class DoctorCatalogResponseDto {
 
+    @Schema(description = "Catalog entry ID", example = "1")
     private Long id;
+
+    @Schema(description = "Doctor's display name", example = "Dr. Arjun Sharma")
     private String name;
+
+    @Schema(description = "User UUID the entry belongs to", example = "550e8400-e29b-41d4-a716-446655440001")
     private String userId;
+
+    @Schema(description = "Department ID", example = "1")
     private Long departmentId;
+
+    @Schema(description = "Department display name", example = "Cardiology")
     private String departmentName;
+
+    @Schema(description = "Medical specialization", example = "Interventional Cardiology")
     private String specialization;
+
+    @Schema(description = "Qualifications", example = "MD, DM Cardiology")
     private String qualification;
+
+    @Schema(description = "Years of experience", example = "12")
     private Integer experienceYears;
+
+    @Schema(description = "Consultation fee", example = "500.00")
     private BigDecimal consultationFee;
+
+    @Schema(description = "Average consultation time in minutes (drives wait prediction)", example = "15")
     private Integer avgConsultationTimeMinutes;
+
+    @Schema(description = "Whether the doctor is currently accepting queue joins", example = "true")
     private Boolean isAvailable;
 
     public DoctorCatalogResponseDto() {
