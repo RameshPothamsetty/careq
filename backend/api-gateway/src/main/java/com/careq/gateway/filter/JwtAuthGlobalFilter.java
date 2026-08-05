@@ -54,6 +54,16 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        // Skip Swagger / OpenAPI routes (Day 9) — the centralized docs UI is
+        // public in this dev/demo setup so it can be browsed and tested without
+        // a token. Swagger UI + aggregated specs + static assets are all covered.
+        if (path.startsWith("/v3/api-docs")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/webjars")
+                || path.equals("/favicon.ico")) {
+            return chain.filter(exchange);
+        }
+
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
