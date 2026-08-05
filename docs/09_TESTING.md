@@ -1,13 +1,13 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.7 (Day 7b)  
-**Status:** Updated — Auth + User + Doctor + Queue Module Tests (23 queue-service tests, all passing)
+**Version:** 1.8 (Day 10)  
+**Status:** Updated — All planned unit tests now built and passing: auth-service (10), user-service (13), doctor-service (36), queue-service (33). **92 tests total.**
 
 ---
 
-## 1. Auth Service Unit Tests (Day 2)
+## 1. Auth Service Unit Tests (Day 2 — built Day 10)
 
-The following unit tests are planned for `AuthServiceImpl`. These tests use JUnit 5 with Mockito and Spring Security test utilities.
+`AuthServiceImplTest` — **6 tests**, JUnit 5 + Mockito. `JwtServiceTest` — **4 tests** against a real JWT secret (no mocking, so the round-trip is genuinely verified). All passing.
 
 ### Test Class: `AuthServiceImplTest`
 
@@ -22,19 +22,20 @@ The following unit tests are planned for `AuthServiceImpl`. These tests use JUni
 
 ---
 
-## 2. JwtService Unit Tests (Day 2)
+## 2. JwtService Unit Tests (Day 2 — built Day 10)
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
 | `generateToken_ShouldProduceValidToken` | Token generated with valid inputs can be parsed back | `extractUserId`, `extractEmail`, `extractRole` return correct values |
 | `isTokenValid_ExpiredToken_ShouldReturnFalse` | An expired token returns false | `isTokenValid` returns `false` |
 | `isTokenValid_TamperedToken_ShouldReturnFalse` | A modified token fails validation | `isTokenValid` returns `false` |
+| `isTokenValid_GarbageToken_ShouldReturnFalse` | `"not-a-real-jwt"`, `""`, `null` | `isTokenValid` returns `false` |
 
 ---
 
-## 3. User Service Unit Tests (Day 3)
+## 3. User Service Unit Tests (Day 3 — built Day 10)
 
-### Test Class: `UserProfileServiceImplTest`
+### Test Class: `UserProfileServiceImplTest` (8 tests, all passing)
 
 These tests use JUnit 5 with Mockito to test the service layer in isolation.
 
@@ -42,15 +43,16 @@ These tests use JUnit 5 with Mockito to test the service layer in isolation.
 |------|-------------|-----------------|
 | `getOrCreateProfile_WhenNotExists_CreatesAndReturnsProfile` | First call for a userId with no existing profile | Creates a new `UserProfile` with default empty fields, returns it |
 | `getOrCreateProfile_WhenExists_ReturnsExistingProfile` | Subsequent call for an existing userId | Returns existing profile without creating a new one |
+| `getOrCreateProfile_BackfillsMissingNameAndEmail` | Profile from before Day 7a (no name/email stored) | Name/email backfilled from JWT claims and saved |
 | `updateProfile_WhenExists_UpdatesFieldsAndReturns` | Valid update request for an existing profile | Fields are updated, non-null fields only, returns updated profile |
 | `updateProfile_WhenNotExists_ThrowsException` | Update for a userId with no profile | Throws `UserProfileNotFoundException` |
 | `updateProfile_PartialUpdate_OnlyUpdatesNonNullFields` | Update with only some fields set | Only the provided fields are changed, others remain intact |
 | `getProfileByUserId_WhenExists_ReturnsProfile` | Lookup by userId for an existing profile | Returns the correct profile |
 | `getProfileByUserId_WhenNotExists_ThrowsException` | Lookup by userId with no profile | Throws `UserProfileNotFoundException` |
 
-### Test Class: `UserProfileControllerTest`
+### Test Class: `UserProfileControllerTest` (5 tests, all passing)
 
-These tests verify controller behavior including the Admin-only restriction.
+These tests verify controller behavior including the Admin-only restriction. Standalone MockMvc wired with the service's own `GlobalExceptionHandler`; identity headers are simulated directly (the gateway normally injects them).
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -76,9 +78,11 @@ private static final String TEST_ADDRESS = "123 Main St";
 
 ---
 
-## 4. Doctor Service Unit Tests (Day 4)
+## 4. Doctor Service Unit Tests (Day 4 — built Day 10)
 
-### Test Class: `DepartmentServiceImplTest`
+> **Note:** `spring-boot-starter-test` had to be added to `doctor-service/pom.xml` (it was missing — the only service without it).
+
+### Test Class: `DepartmentServiceImplTest` (9 tests, all passing)
 
 These tests use JUnit 5 with Mockito to test the department service layer in isolation.
 
@@ -90,12 +94,13 @@ These tests use JUnit 5 with Mockito to test the department service layer in iso
 | `createDepartment_WithUniqueName_ShouldCreate` | Valid request with unique name | Creates and returns department |
 | `createDepartment_WithDuplicateName_ShouldThrowException` | Duplicate department name | Throws `IllegalArgumentException` |
 | `updateDepartment_WhenExists_ShouldUpdate` | Valid update on existing department | Updates and returns department |
+| `updateDepartment_WhenNotExists_ShouldThrowException` | Update on non-existent department | Throws `DepartmentNotFoundException` |
 | `deleteDepartment_WhenExists_ShouldDelete` | Delete existing department | Deletes successfully |
 | `deleteDepartment_WhenNotExists_ShouldThrowException` | Delete non-existent department | Throws `DepartmentNotFoundException` |
 
-### Test Class: `DoctorCatalogServiceImplTest`
+### Test Class: `DoctorCatalogServiceImplTest` (15 tests, all passing)
 
-These tests verify the doctor catalog service logic including filters and availability toggle.
+These tests verify the doctor catalog service logic including filters and availability toggle. Also covers pagination clamping (size ≤ 100) and sorting direction.
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -107,15 +112,15 @@ These tests verify the doctor catalog service logic including filters and availa
 | `getDoctorById_WhenNotExists_ShouldThrowException` | Invalid doctor ID | Throws `DoctorCatalogNotFoundException` |
 | `createDoctor_WithUniqueUserId_ShouldCreate` | Valid request with unique userId | Creates and returns entry |
 | `createDoctor_WithDuplicateUserId_ShouldThrowException` | Duplicate userId | Throws `DuplicateDoctorCatalogEntryException` |
-| `createDoctor_WithInvalidDepartment_ShouldThrowException` | Non-existent departmentId | Throws `IllegalArgumentException` |
+| `createDoctor_WithInvalidDepartment_ShouldThrowException` | Non-existent departmentId | Throws `DepartmentNotFoundException` *(Day 10 note: the doc originally said `IllegalArgumentException`; the real implementation throws `DepartmentNotFoundException`, so the test asserts the real behavior)* |
 | `updateDoctor_WhenExists_ShouldUpdate` | Valid update on existing entry | Updates and returns entry |
 | `deleteDoctor_WhenExists_ShouldDelete` | Delete existing entry | Deletes successfully |
 | `toggleAvailability_WhenExists_ShouldToggle` | Toggle availability for valid userId | Returns entry with flipped `isAvailable` |
 | `toggleAvailability_WhenNotExists_ShouldThrowException` | Toggle for userId with no catalog entry | Throws `DoctorCatalogNotFoundException` |
 
-### Test Class: `DepartmentControllerTest`
+### Test Class: `DepartmentControllerTest` (5 tests, all passing)
 
-These tests verify controller behavior including Admin-only restrictions.
+These tests verify controller behavior including Admin-only restrictions. Standalone MockMvc + `GlobalExceptionHandler`; `X-User-Role` simulated directly.
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -125,7 +130,9 @@ These tests verify controller behavior including Admin-only restrictions.
 | `updateDepartment_AsAdmin_ShouldReturn200` | Admin updates department | Returns 200 OK |
 | `deleteDepartment_AsAdmin_ShouldReturn204` | Admin deletes department | Returns 204 No Content |
 
-### Test Class: `DoctorCatalogControllerTest`
+### Test Class: `DoctorCatalogControllerTest` (7 tests, all passing)
+
+Standalone MockMvc + `GlobalExceptionHandler`; identity headers simulated directly. Includes a `deleteDoctor_AsAdmin_ShouldReturn204` case.
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -147,7 +154,7 @@ These tests verify controller behavior including Admin-only restrictions.
 
 ## 5. Queue Service Unit Tests (Day 5)
 
-These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **23 tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests).
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **33 tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests).
 
 ### Test Class: `QueueOrderingServiceTest`
 
@@ -221,6 +228,10 @@ mvn test
 
 # Run all user-service tests
 cd backend/user-service
+mvn test
+
+# Run doctor-service tests (Day 10)
+cd backend/doctor-service
 mvn test
 
 # Run queue-service tests (Day 5)
