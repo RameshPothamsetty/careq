@@ -1,7 +1,7 @@
 # CareQ — API Contract
 
-**Version:** 1.7 (Day 7b)
-**Status:** Auth + User + Doctor/Department + Queue (+ pagination/search/sorting) + Analytics
+**Version:** 1.8 (Day 9)
+**Status:** Full audit against the real implementation — every endpoint documented, shared error response shape, live Swagger UI aggregated at the gateway, complete Postman collection
 
 ---
 
@@ -18,7 +18,89 @@ The API Gateway validates the JWT and forwards these headers to downstream servi
 
 ---
 
-## User Endpoints (`/api/users`) — Day 3 + Day 7a
+## Shared Error Response Shape (standardized Day 9)
+
+Every CareQ service returns errors in this exact shape (enforced by each service's `GlobalExceptionHandler`):
+
+```json
+{
+  "timestamp": "2026-07-30T10:00:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Department not found with id: 999",
+  "path": "/api/departments/999",
+  "validationErrors": null
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timestamp` | string | When the error occurred (ISO local date-time) |
+| `status` | int | HTTP status code |
+| `error` | string | Short HTTP status reason phrase |
+| `message` | string | Human-readable error message |
+| `path` | string | Request path that produced the error (added Day 9) |
+| `validationErrors` | array \| null | Field-level failures (`{ field, message }` pairs); present only on 400 validation errors (replaces the pre-Day-9 `details` list) |
+
+> **Day 9 consistency fixes:** all 400 validation errors use `validationErrors`; all 404s use "Not Found"; all duplicate resources use **409 Conflict** (doctor catalog duplicate was previously 400).
+
+---
+
+## User Endpoints (`/api/users`) — Day 3 + Day 7a + Day 9 docs
+
+### 0. My Profile (own profile, lazy-created)
+
+```
+GET /api/users/me
+PUT /api/users/me
+POST /api/users/me/profile-picture
+```
+
+**Auth:** Any authenticated role.
+
+**Description (GET):** Returns the calling user's profile. A default empty profile is **lazily created on first access**, so this endpoint always succeeds. Identity comes from the `X-User-Id` / `X-User-Role` headers set by the gateway.
+
+**Description (PUT):** Partial update — only non-null fields are changed. Fields: `phone`, `address`, `dateOfBirth`, `gender`, `profilePictureUrl`.
+
+**Description (POST):** Multipart upload (`file` part, `image/*` only). Stores the file and returns the profile with the new `profilePictureUrl`.
+
+**Success Response (200):** `UserProfileResponseDto`:
+```json
+{
+  "id": 1,
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
+  "fullName": "John Patient",
+  "email": "john@careq.com",
+  "phone": "+919876543210",
+  "address": null,
+  "dateOfBirth": null,
+  "gender": "MALE",
+  "profilePictureUrl": null,
+  "role": "PATIENT"
+}
+```
+
+**Error Responses:** `400` (validation failed / missing identity header).
+
+### 0b. Serve a Profile Picture (public)
+
+```
+GET /api/users/profile-pictures/{filename}
+```
+
+**Auth:** None — whitelisted at the gateway so `<img>` tags can load pictures. Returns the image file; `404` when missing.
+
+### 0c. Get Any User's Profile (Admin only)
+
+```
+GET /api/users/{id}
+```
+
+**Auth:** ADMIN.
+
+**Path Variables:** `id` = target user UUID.
+
+**Error Responses:** `403` (non-admin), `404` (no profile for that user).
 
 ### 0a. List Users (Admin only) — NEW Day 7a
 
@@ -134,10 +216,12 @@ GET /api/departments/{id}
 **Error Response (404):**
 ```json
 {
+  "timestamp": "2026-07-30T10:00:00",
   "status": 404,
   "error": "Not Found",
   "message": "Department not found with id: 999",
-  "timestamp": "2026-07-30T10:00:00"
+  "path": "/api/departments/999",
+  "validationErrors": null
 }
 ```
 
@@ -188,11 +272,14 @@ POST /api/departments
 **Error Response (400) — Validation Error:**
 ```json
 {
+  "timestamp": "2026-07-30T10:00:00",
   "status": 400,
   "error": "Validation Failed",
   "message": "Request validation failed",
-  "details": ["name: must not be blank"],
-  "timestamp": "2026-07-30T10:00:00"
+  "path": "/api/departments",
+  "validationErrors": [
+    { "field": "name", "message": "Department name is required" }
+  ]
 }
 ```
 
@@ -418,13 +505,15 @@ POST /api/doctors
 }
 ```
 
-**Error Response (400) — Duplicate userId:**
+**Error Response (409) — Duplicate userId** *(Day 9 fix: duplicates now return 409 Conflict consistently across services, not 400):*
 ```json
 {
-  "status": 400,
-  "error": "Bad Request",
+  "timestamp": "2026-07-30T10:00:00",
+  "status": 409,
+  "error": "Conflict",
   "message": "Doctor catalog entry already exists for userId: 550e8400-e29b-41d4-a716-446655440001",
-  "timestamp": "2026-07-30T10:00:00"
+  "path": "/api/doctors",
+  "validationErrors": null
 }
 ```
 
@@ -640,6 +729,22 @@ GET /api/queue/my-status
 
 ---
 
+### 13b. My Visit History (Patient) — post-7b dashboard pass, documented Day 9
+
+```
+GET /api/queue/my-history?limit=10
+```
+
+**Auth:** PATIENT.
+
+**Query Parameters:** `limit` (optional, default 10, clamped server-side to 1-50).
+
+**Description:** Returns the calling patient's recent **completed/cancelled** visits, newest first. Each entry includes the enriched doctor name / department / specialization (fetched live from doctor-service).
+
+**Success Response (200):** Array of `QueueEntryResponseDto` (status `COMPLETED` or `CANCELLED`; `position`/`predictedWaitMinutes` are `null`).
+
+---
+
 ### 14. Doctor's Live Queue (Doctor/Admin)
 
 ```
@@ -690,6 +795,37 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
 
 ---
 
+### 14b. Per-Doctor Analytics (Doctor/Admin) — post-7b dashboard pass, documented Day 9
+
+```
+GET /api/queue/doctor/{doctorCatalogEntryId}/analytics
+```
+
+**Auth:** DOCTOR (own queue only) or ADMIN (any).
+
+**Description:** Today's scalars (patients completed, average wait, average consult time) plus 7-day patient-load and average-wait trends for one doctor, zero-filled so charts render a full window.
+
+**Success Response (200):**
+```json
+{
+  "patientsCompletedToday": 12,
+  "avgWaitTodayMinutes": 10.5,
+  "avgConsultTimeTodayMinutes": 14.0,
+  "patientsPerDay": [
+    { "date": "2026-07-29", "count": 0 },
+    { "date": "2026-07-30", "count": 3 }
+  ],
+  "avgWaitTimeTrend": [
+    { "date": "2026-07-29", "avgWaitMinutes": null },
+    { "date": "2026-07-30", "avgWaitMinutes": 12.5 }
+  ]
+}
+```
+
+**Error Responses:** `403` (wrong role / another doctor's queue), `404` (unknown doctor).
+
+---
+
 ### 15. Override Triage (Doctor)
 
 ```
@@ -736,6 +872,22 @@ PUT /api/queue/{id}/call-next
 **Behavior:** Marks the entry `IN_PROGRESS` and sets `calledAt`. Only valid for a `WAITING` entry → 400 otherwise.
 
 **Success Response (200):** Updated entry with `status: "IN_PROGRESS"` and `calledAt` set.
+
+---
+
+### 16b. Cancel Queue Entry (Patient/Admin) — post-7b dashboard pass, documented Day 9
+
+```
+PUT /api/queue/{id}/cancel
+```
+
+**Auth:** PATIENT (own entry only) or ADMIN (any entry).
+
+**Description:** Cancels a **WAITING** entry — the patient leaves the queue before being seen. Cancelled visits still appear in the patient's history. Only valid for a `WAITING` entry → 400 otherwise.
+
+**Success Response (200):** Updated entry with `status: "CANCELLED"`.
+
+**Error Responses:** `400` (not WAITING), `403` (patient cancelling someone else's entry), `404` (entry not found).
 
 ---
 
@@ -861,3 +1013,28 @@ GET /api/queue/analytics/summary
 | 409 | Conflict (doctor unavailable, duplicate queue entry) |
 | 401 | Unauthorized (missing/invalid JWT) |
 | 503 | Service Unavailable (doctor-service / AI temporarily down) |
+
+---
+
+## Health Endpoints (all services)
+
+Each service exposes a public health probe (no auth, whitelisted at the gateway):
+
+| Endpoint | Service |
+|----------|---------|
+| `GET /api/auth/health` | auth-service (:8081) |
+| `GET /api/users/health` | user-service (:8082) |
+| `GET /api/doctors/health` | doctor-service (:8083) |
+| `GET /api/queue/health` | queue-service (:8084) |
+
+All return `200` with `{ "service": "<name>", "status": "UP", "timestamp": <epoch-ms> }`.
+
+---
+
+## Interactive Documentation (Day 9)
+
+- **Centralized Swagger UI:** `http://localhost:8080/swagger-ui.html` — the gateway aggregates every service's OpenAPI docs (`/v3/api-docs/{service}`). Click **Authorize** and paste a JWT to test authenticated endpoints directly.
+- **Per-service UI:** `http://localhost:808X/swagger-ui.html` on each service port.
+- **Postman collection:** `postman/CareQ.postman_collection.json` + `postman/CareQ.postman_environment.json` — import both; the Login request auto-captures the JWT into `{{authToken}}`.
+
+> **Note:** Swagger UI is intentionally public in this dev/demo setup (whitelisted in the gateway JWT filter and auth-service security config). Restrict `/v3/api-docs/**` and `/swagger-ui/**` before any production exposure.
