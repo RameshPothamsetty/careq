@@ -1,0 +1,689 @@
+{
+	"info": {
+		"_postman_id": "c0ffee00-cafe-4a11-9e00-careq-day9-0001",
+		"name": "CareQ API",
+		"description": "Complete CareQ API collection (Day 9). Import this together with CareQ.postman_environment.json. Run Auth Service > Login once to capture the JWT into {{authToken}}; every other request then authenticates automatically.\n\nBase URL: {{baseUrl}} (default http://localhost:8080 — the API Gateway).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "careq"
+	},
+	"item": [
+		{
+			"name": "Auth Service",
+			"description": "Public registration, login and health endpoints (no token required).",
+			"item": [
+				{
+					"name": "Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "health"]
+						}
+					}
+				},
+				{
+					"name": "Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fullName\": \"Jane Doe\",\n  \"email\": \"jane@careq.com\",\n  \"password\": \"password123\",\n  \"role\": \"PATIENT\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/signup",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "signup"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const jsonData = pm.response.json();",
+									"pm.test('Login returns a JWT', function () {",
+									"    pm.expect(jsonData).to.have.property('token');",
+									"});",
+									"if (jsonData && jsonData.token) {",
+									"    pm.environment.set('authToken', jsonData.token);",
+									"    console.log('authToken captured into environment');",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@careq.com\",\n  \"password\": \"admin123\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"token\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDIiLCJyb2xlIjoiQURNSU4iLCJlbWFpbCI6ImFkbWluQGNhcmVxLmNvbSIsImZ1bGxOYW1lIjoiQ2FyZVEgQWRtaW4iLCJpYXQiOjE3NTQzMDAwMDAsImV4cCI6MTc1NDMwMzYwMH0.signature\",\n  \"tokenType\": \"Bearer\",\n  \"userId\": \"550e8400-e29b-41d4-a716-446655440002\",\n  \"email\": \"admin@careq.com\",\n  \"fullName\": \"CareQ Admin\",\n  \"role\": \"ADMIN\"\n}"
+						},
+						{
+							"name": "401 — Invalid credentials",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+							},
+							"status": "Unauthorized",
+							"code": 401,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"timestamp\": \"2026-08-05T10:00:00\",\n  \"status\": 401,\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid email or password\",\n  \"path\": \"/api/auth/login\",\n  \"validationErrors\": null\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "User Service",
+			"description": "Profile management. Authenticated (Bearer {{authToken}}) except the profile-picture serving route.",
+			"item": [
+				{
+					"name": "Get My Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me"]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"id\": 1,\n  \"userId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"fullName\": \"John Patient\",\n  \"email\": \"john@careq.com\",\n  \"phone\": \"+919876543210\",\n  \"address\": null,\n  \"dateOfBirth\": null,\n  \"gender\": \"MALE\",\n  \"profilePictureUrl\": null,\n  \"role\": \"PATIENT\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Update My Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+919876543210\",\n  \"address\": \"123 Main Street, Bengaluru\",\n  \"gender\": \"MALE\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me"]
+						}
+					}
+				},
+				{
+					"name": "Upload Profile Picture",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "file", "type": "file", "src": "/path/to/profile.jpg" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/me/profile-picture",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "me", "profile-picture"]
+						}
+					}
+				},
+				{
+					"name": "Serve Profile Picture (public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/profile-pictures/{{filename}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "profile-pictures", "{{filename}}"]
+						}
+					}
+				},
+				{
+					"name": "List Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users?page=0&size=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users"],
+							"query": [
+								{ "key": "page", "value": "0", "disabled": true },
+								{ "key": "size", "value": "20", "disabled": true }
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"content\": [\n    {\n      \"id\": 1,\n      \"userId\": \"550e8400-e29b-41d4-a716-446655440000\",\n      \"fullName\": \"John Patient\",\n      \"email\": \"john@careq.com\",\n      \"role\": \"PATIENT\"\n    }\n  ],\n  \"totalElements\": 12,\n  \"totalPages\": 1,\n  \"number\": 0,\n  \"size\": 20,\n  \"first\": true,\n  \"last\": true,\n  \"empty\": false\n}"
+						}
+					]
+				},
+				{
+					"name": "Get User by ID (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/users/{{userId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "users", "{{userId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Doctor Service",
+			"description": "Department + doctor catalog. Listing is open to any authenticated role; create/update/delete require ADMIN; availability toggle is doctor-only.",
+			"item": [
+				{
+					"name": "List Departments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/departments",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments"]
+						}
+					}
+				},
+				{
+					"name": "Get Department by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/{{departmentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "{{departmentId}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Department (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Orthopedics\",\n  \"description\": \"Bones and joints\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/departments",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments"]
+						}
+					}
+				},
+				{
+					"name": "Update Department (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Orthopedics\",\n  \"description\": \"Bones, joints and spine\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/{{departmentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "{{departmentId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Department (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/departments/{{departmentId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "departments", "{{departmentId}}"]
+						}
+					}
+				},
+				{
+					"name": "List Doctors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors?page=0&size=20&sortBy=name&sortDirection=asc",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors"],
+							"query": [
+								{ "key": "page", "value": "0", "disabled": true },
+								{ "key": "size", "value": "20", "disabled": true },
+								{ "key": "sortBy", "value": "name", "disabled": true },
+								{ "key": "sortDirection", "value": "asc", "disabled": true }
+							]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/doctors", "host": ["{{baseUrl}}"], "path": ["api", "doctors"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"content\": [\n    {\n      \"id\": 1,\n      \"name\": \"Dr. Arjun Sharma\",\n      \"userId\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"departmentId\": 1,\n      \"departmentName\": \"Cardiology\",\n      \"specialization\": \"Interventional Cardiology\",\n      \"qualification\": \"MD, DM Cardiology\",\n      \"experienceYears\": 12,\n      \"consultationFee\": 500.00,\n      \"avgConsultationTimeMinutes\": 15,\n      \"isAvailable\": true\n    }\n  ],\n  \"totalElements\": 10,\n  \"totalPages\": 1,\n  \"number\": 0,\n  \"size\": 20,\n  \"first\": true,\n  \"last\": true,\n  \"empty\": false\n}"
+						}
+					]
+				},
+				{
+					"name": "Get Doctor by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors/{{doctorId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors", "{{doctorId}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Doctor (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dr. Sample Doctor\",\n  \"userId\": \"550e8400-e29b-41d4-a716-446655440099\",\n  \"departmentId\": 1,\n  \"specialization\": \"General Medicine\",\n  \"qualification\": \"MBBS, MD\",\n  \"experienceYears\": 8,\n  \"consultationFee\": 400.00,\n  \"avgConsultationTimeMinutes\": 12\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors"]
+						}
+					}
+				},
+				{
+					"name": "Update Doctor (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Dr. Sample Doctor\",\n  \"userId\": \"550e8400-e29b-41d4-a716-446655440099\",\n  \"departmentId\": 1,\n  \"specialization\": \"General Medicine\",\n  \"qualification\": \"MBBS, MD\",\n  \"experienceYears\": 9,\n  \"consultationFee\": 450.00,\n  \"avgConsultationTimeMinutes\": 12\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors/{{doctorId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors", "{{doctorId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Doctor (Admin)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors/{{doctorId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors", "{{doctorId}}"]
+						}
+					}
+				},
+				{
+					"name": "Toggle Availability (Doctor)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isAvailable\": false\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/doctors/me/availability",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "doctors", "me", "availability"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Queue Service",
+			"description": "Queue operations with AI triage and wait prediction. PATIENT for join/status/history; DOCTOR (own queue) or ADMIN for queue actions.",
+			"item": [
+				{
+					"name": "Join Queue (Patient)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"doctorCatalogEntryId\": 1,\n  \"symptomText\": \"Severe chest pain radiating to my left arm for the past hour\",\n  \"patientName\": \"John Patient\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/join",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "join"]
+						}
+					},
+					"response": [
+						{
+							"name": "201 — Joined",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/queue/join", "host": ["{{baseUrl}}"], "path": ["api", "queue", "join"] }
+							},
+							"status": "Created",
+							"code": 201,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"id\": 1,\n  \"patientId\": \"550e8400-e29b-41d4-a716-446655440010\",\n  \"patientName\": \"John Patient\",\n  \"doctorCatalogEntryId\": 1,\n  \"doctorName\": \"Dr. Arjun Sharma\",\n  \"departmentName\": \"Cardiology\",\n  \"specialization\": \"Interventional Cardiology\",\n  \"symptomText\": \"Severe chest pain radiating to my left arm for the past hour\",\n  \"aiSuggestedTriage\": \"EMERGENCY\",\n  \"doctorOverrideTriage\": null,\n  \"effectiveTriage\": \"EMERGENCY\",\n  \"status\": \"WAITING\",\n  \"position\": 1,\n  \"predictedWaitMinutes\": 0,\n  \"joinedAt\": \"2026-08-05T09:00:00\",\n  \"calledAt\": null,\n  \"completedAt\": null\n}"
+						},
+						{
+							"name": "409 — Already in queue",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/queue/join", "host": ["{{baseUrl}}"], "path": ["api", "queue", "join"] }
+							},
+							"status": "Conflict",
+							"code": 409,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"timestamp\": \"2026-08-05T09:05:00\",\n  \"status\": 409,\n  \"error\": \"Conflict\",\n  \"message\": \"You already have an active queue entry for this doctor\",\n  \"path\": \"/api/queue/join\",\n  \"validationErrors\": null\n}"
+						}
+					]
+				},
+				{
+					"name": "My Queue Status (Patient)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/my-status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "my-status"]
+						}
+					}
+				},
+				{
+					"name": "My Visit History (Patient)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/my-history?limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "my-history"],
+							"query": [{ "key": "limit", "value": "10", "disabled": true }]
+						}
+					}
+				},
+				{
+					"name": "Doctor Analytics (Doctor/Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/doctor/{{doctorId}}/analytics",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "doctor", "{{doctorId}}", "analytics"]
+						}
+					}
+				},
+				{
+					"name": "Doctor Live Queue (Doctor/Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/doctor/{{doctorId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "doctor", "{{doctorId}}"]
+						}
+					}
+				},
+				{
+					"name": "Override Triage (Doctor/Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" },
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"triageLevel\": \"EMERGENCY\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/{{entryId}}/override-triage",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "{{entryId}}", "override-triage"]
+						}
+					}
+				},
+				{
+					"name": "Call Next (Doctor/Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/{{entryId}}/call-next",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "{{entryId}}", "call-next"]
+						}
+					}
+				},
+				{
+					"name": "Cancel Entry (Patient/Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/{{entryId}}/cancel",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "{{entryId}}", "cancel"]
+						}
+					}
+				},
+				{
+					"name": "Complete Consultation (Doctor/Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/{{entryId}}/complete",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "{{entryId}}", "complete"]
+						}
+					}
+				},
+				{
+					"name": "Live Overview (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/live",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "live"]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/queue/live", "host": ["{{baseUrl}}"], "path": ["api", "queue", "live"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"totalWaiting\": 14,\n  \"totalInProgress\": 3,\n  \"doctorsOnline\": 8,\n  \"doctorsOffline\": 2,\n  \"delayedConsultations\": 2,\n  \"averageWaitMinutes\": 22,\n  \"doctors\": [\n    {\n      \"doctorCatalogEntryId\": 1,\n      \"doctorName\": \"Dr. Arjun Sharma\",\n      \"doctorUserId\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"departmentName\": \"Cardiology\",\n      \"specialization\": \"Interventional Cardiology\",\n      \"avgConsultationTimeMinutes\": 15,\n      \"isAvailable\": true,\n      \"waitingCount\": 4,\n      \"inProgressCount\": 1,\n      \"delayedCount\": 1,\n      \"longestWaitMinutes\": 60\n    }\n  ]\n}"
+						}
+					]
+				},
+				{
+					"name": "Analytics Summary (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/queue/analytics/summary",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "queue", "analytics", "summary"]
+						}
+					},
+					"response": [
+						{
+							"name": "200 — Success",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": { "raw": "{{baseUrl}}/api/queue/analytics/summary", "host": ["{{baseUrl}}"], "path": ["api", "queue", "analytics", "summary"] }
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [{ "key": "Content-Type", "value": "application/json" }],
+							"body": "{\n  \"patientsPerDay\": [\n    { \"date\": \"2026-07-30\", \"count\": 0 },\n    { \"date\": \"2026-07-31\", \"count\": 3 },\n    { \"date\": \"2026-08-01\", \"count\": 2 },\n    { \"date\": \"2026-08-02\", \"count\": 0 },\n    { \"date\": \"2026-08-03\", \"count\": 5 },\n    { \"date\": \"2026-08-04\", \"count\": 1 },\n    { \"date\": \"2026-08-05\", \"count\": 0 }\n  ],\n  \"avgWaitTimeTrend\": [\n    { \"date\": \"2026-07-30\", \"avgWaitMinutes\": null },\n    { \"date\": \"2026-07-31\", \"avgWaitMinutes\": 12.5 },\n    { \"date\": \"2026-08-01\", \"avgWaitMinutes\": 8.0 },\n    { \"date\": \"2026-08-02\", \"avgWaitMinutes\": null },\n    { \"date\": \"2026-08-03\", \"avgWaitMinutes\": 15.0 },\n    { \"date\": \"2026-08-04\", \"avgWaitMinutes\": 20.0 },\n    { \"date\": \"2026-08-05\", \"avgWaitMinutes\": null }\n  ],\n  \"departmentDistribution\": [\n    { \"departmentName\": \"Cardiology\", \"patientCount\": 6 },\n    { \"departmentName\": \"Neurology\", \"patientCount\": 3 }\n  ]\n}"
+						}
+					]
+				}
+			]
+		}
+	]
+}
