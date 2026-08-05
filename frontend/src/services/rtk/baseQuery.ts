@@ -74,11 +74,13 @@ interface BackendErrorData {
 export function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
     const data = (error as { data?: BackendErrorData }).data;
-    if (data?.message) return data.message;
+    // Field-level validation errors are more useful than the generic
+    // "Request validation failed" message on 400s — surface them first.
     if (data?.validationErrors?.length) {
       const first = data.validationErrors[0];
       return first.field ? `${first.field}: ${first.message}` : (first.message ?? '');
     }
+    if (data?.message) return data.message;
     if (data?.error) return data.error;
   }
   if (error instanceof Error) return error.message;

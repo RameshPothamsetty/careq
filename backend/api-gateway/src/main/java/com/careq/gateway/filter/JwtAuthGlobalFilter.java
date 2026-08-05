@@ -49,6 +49,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        // Public health probes for every service (Day 9 review fix): the API
+        // contract documents all four /health endpoints as unauthenticated.
+        if (path.equals("/api/users/health")
+                || path.equals("/api/doctors/health")
+                || path.equals("/api/queue/health")) {
+            return chain.filter(exchange);
+        }
+
         // Skip Eureka routes (internal)
         if (path.startsWith("/api/eureka") || path.startsWith("/eureka")) {
             return chain.filter(exchange);
