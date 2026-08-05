@@ -224,11 +224,12 @@ async function request<T>(
   const data = await response.json();
 
   if (!response.ok) {
+    // Day 9: backend error shape is now { message, error, validationErrors } (was { details }).
     const errorMessage =
       data.message || data.error || 'An unexpected error occurred';
-    const error = new Error(errorMessage) as Error & { status: number; details: string[] };
+    const error = new Error(errorMessage) as Error & { status: number; validationErrors: { field: string; message: string }[] };
     error.status = response.status;
-    error.details = data.details || [];
+    error.validationErrors = data.validationErrors || [];
     throw error;
   }
 

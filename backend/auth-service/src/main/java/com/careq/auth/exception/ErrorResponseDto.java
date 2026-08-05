@@ -1,4 +1,4 @@
-package com.careq.doctor.exception;
+package com.careq.auth.exception;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -23,10 +23,10 @@ public class ErrorResponseDto {
     @Schema(description = "Short HTTP status reason phrase", example = "Not Found")
     private String error;
 
-    @Schema(description = "Human-readable error message", example = "Doctor catalog entry not found with id: 999")
+    @Schema(description = "Human-readable error message", example = "Queue entry not found with id: 999")
     private String message;
 
-    @Schema(description = "Request path that produced the error", example = "/api/doctors/999")
+    @Schema(description = "Request path that produced the error", example = "/api/queue/999/call-next")
     private String path;
 
     @Schema(description = "Field-level validation failures (only present on 400 validation errors)")

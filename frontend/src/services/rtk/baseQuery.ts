@@ -61,13 +61,24 @@ export const authenticatedBaseQuery: BaseQueryFn<
 
 /**
  * Normalizes RTK Query errors (FetchBaseQueryError / SerializedError / Error)
- * into a single user-facing message, matching the backend's
- * { message, details } error shape.
+ * into a single user-facing message, matching the backend's shared error
+ * shape: { message, error, validationErrors: [{ field, message }] } (Day 9).
  */
+interface BackendErrorData {
+  message?: string;
+  error?: string;
+  details?: string[]; // legacy — pre-Day-9 shape, kept for safety
+  validationErrors?: { field?: string; message?: string }[];
+}
+
 export function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
-    const data = (error as { data?: { message?: string; error?: string; details?: string[] } }).data;
+    const data = (error as { data?: BackendErrorData }).data;
     if (data?.message) return data.message;
+    if (data?.validationErrors?.length) {
+      const first = data.validationErrors[0];
+      return first.field ? `${first.field}: ${first.message}` : (first.message ?? '');
+    }
     if (data?.error) return data.error;
   }
   if (error instanceof Error) return error.message;
