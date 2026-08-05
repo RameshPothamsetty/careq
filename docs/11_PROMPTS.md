@@ -216,3 +216,58 @@ HARD CONSTRAINTS: no persisted/backend notification storage; no touching AI tria
 
 VERIFICATION CHECKLIST: confirm each of the 4 deliverable groups addressed; analytics endpoint tested against both populated and sparse data; notifications tested against a real status transition; exact git command sequence output; ready-to-paste PR description.
 ```
+
+---
+
+## Day 9: API Documentation (Swagger/OpenAPI, Postman, Error Consistency)
+
+**Prompt:** CareQ — Day 9 Prompt (API Documentation: Swagger/OpenAPI, Postman, Error Consistency)
+
+**Date Executed:** 2026-08-05
+
+**Branch:** `feature/api-documentation`
+
+**Summary:** API documentation & consistency pass across all four business services (no new business features).
+
+**Deliverables completed:**
+1. **Swagger/OpenAPI completeness** — added `springdoc-openapi-starter-webmvc-ui` 2.3.0 (managed centrally in the parent POM) to auth/user/doctor/queue services; `@Tag` on every controller, `@Operation` + `@ApiResponse` (schema-ref'd bodies, real examples on flagship endpoints) on every endpoint, `@Schema` with examples on every request/response DTO; per-service `OpenApiConfig` with a global HTTP Bearer security scheme (user/doctor/queue) so Swagger UI shows a working Authorize button.
+2. **Centralized Swagger UI at the gateway** — gateway routes `/v3/api-docs/{service}` → each service (RewritePath) + `springdoc.swagger-ui.urls`; single UI at `http://localhost:8080/swagger-ui.html`. Swagger/OpenAPI paths whitelisted in the gateway JWT filter and auth-service SecurityConfig. OpenAPI `servers` set to relative `/` so Try-it-out resolves against the gateway origin.
+3. **Consistent error shape** — standardized `ErrorResponseDto` to `{ timestamp, status, error, message, path, validationErrors[{field,message}] }` in all 4 services (moved auth's copy out of the `dto` package; new `ValidationError` class per service); every `GlobalExceptionHandler` now injects `HttpServletRequest` to populate `path` and returns `validationErrors` on 400s; **inconsistencies fixed:** doctor-service duplicate catalog entry 400→409 (duplicates are 409 everywhere); auth DTO in wrong package. Frontend error normalizers updated for the new shape.
+4. **API contract audit** — docs/05_API_CONTRACT.md bumped to v1.8; documented previously missing endpoints (GET/PUT `/api/users/me`, profile-picture upload/serve, `GET /api/users/{id}`, `GET /api/queue/my-history`, `GET /api/queue/doctor/{id}/analytics`, `PUT /api/queue/{id}/cancel`, health endpoints) and updated all error examples to the shared shape.
+5. **Postman collection** — `postman/CareQ.postman_collection.json` (v2.1, folders per service, 28 requests) + `postman/CareQ.postman_environment.json` (`baseUrl`, `authToken` + path variables); Login request test script auto-extracts the JWT into `{{authToken}}`; example success + error responses saved.
+6. **README** — Swagger UI + Postman import instructions and Day 9 status row.
+
+**Verification:** all backend modules compile; `mvn test` green (23 queue-service tests + Mockito fallback-path tests); frontend `tsc --noEmit` clean; Postman JSONs validated with Node; aggregated Swagger UI opened live and Try-it-out exercised per service (see session notes). `gh` CLI unavailable → Issue/PR created manually by the user.
+
+## Full Prompt Text
+
+```
+CareQ — Day 9 Prompt (API Documentation: Swagger/OpenAPI, Postman, Error Consistency)
+
+Save as the ninth entry in docs/11_PROMPTS.md. Paste everything below the --- into Freebuff exactly as-is. Assumes: Days 1-8 merged into develop, v0.1 tagged on main, all 6 services and the frontend working end-to-end. Freebuff has direct git access — execute git/GitHub commands directly per the workflow below.
+
+ROLE
+You are acting as a Senior Backend Engineer doing an API documentation and consistency pass across an existing, working application (CareQ). Today is not about new features — it's about making the API layer genuinely professional: complete, consistent, and easy for anyone (a teammate, an evaluator, a future you) to pick up and use without reading source code.
+
+PROJECT CONTEXT (recap)
+- Services: eureka-server, api-gateway, auth-service, user-service, doctor-service, queue-service
+- Current state: each service likely has partial or inconsistent Swagger annotations, since documentation quality wasn't the focus of Days 2-8. Error response shapes may have drifted between services since each day's GlobalExceptionHandler was written somewhat independently.
+
+TODAY'S DELIVERABLES
+0. Create today's Issue first: Day 9: API Documentation as a GitHub Issue, labeled day-9, docs, backend, on the CareQ — 15-Day Build board, referenced from the PR with Closes #<issue>.
+1. Swagger/OpenAPI completeness pass — every business service (auth, user, doctor, queue): springdoc configured, @Tag on controllers, @Operation + @ApiResponse for every real status code, @Schema on request DTOs with examples, correct security-scheme annotations so the Authorize lock icon works.
+2. Centralized Swagger UI via the Gateway — aggregate all services' OpenAPI docs behind one browsable Swagger UI (springdoc gateway aggregation, /v3/api-docs/{service}). One URL (http://localhost:8080/swagger-ui.html), demoable live in an interview.
+3. Consistent error response shape — one shared ErrorResponse DTO (timestamp, status, error, message, path, optional validationErrors list of field+message pairs for 400s); audit every GlobalExceptionHandler, list and fix every inconsistency; confirm status codes consistent (duplicate resource = 409 everywhere).
+4. docs/05_API_CONTRACT.md — audit endpoint by endpoint against the real implementation; fix drift and list every discrepancy found and corrected.
+5. Postman collection — single v2.1 collection covering every endpoint across the 4 business services, folders by service, environment file with baseUrl + authToken, a Login request whose test script auto-extracts the JWT into authToken, example bodies and saved example responses (success + one error per service). Export both JSONs to postman/.
+6. Sanity-check the collection (Newman if available; otherwise confirm the token-extraction script manually in Postman).
+7. README.md update — links to the centralized Swagger UI URL and the Postman collection location with a one-line import instruction.
+
+Explicitly OUT of scope today: new business features/endpoints, unit/integration testing (Day 10), changes to eureka-server's own docs.
+
+GIT WORKFLOW: pull develop → branch feature/api-documentation → build + test locally, actually open the aggregated Swagger UI and Try it out on one endpoint per service → commit in small increments (feat: OpenAPI annotations per service, feat: gateway Swagger aggregation, fix: standardized error shape, docs: contract audit, docs: Postman collection, docs: README links) → push → PR feature/api-documentation → develop titled "Day 9: API Documentation" with Closes #<issue> → self-review (import the collection and run Login to verify the auto-auth script) → merge into develop. Not merged into main/tagged today.
+
+HARD CONSTRAINTS: no new business logic or endpoints; do not skip services; state assumptions (springdoc aggregation approach, exact ErrorResponse field names) before making changes.
+
+VERIFICATION CHECKLIST: Issue/board/PR linkage; every error-response inconsistency found and fixed (service by service); every API-contract drift found and corrected; centralized Swagger UI URL confirmed tested, not just configured; auto-auth script verified (Newman or manual); exact git command sequence; ready-to-paste PR description.
+```
