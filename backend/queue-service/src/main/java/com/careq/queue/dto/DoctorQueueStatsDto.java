@@ -1,20 +1,44 @@
 package com.careq.queue.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
- * Per-doctor summary card data for the Admin live overview.
+ * Per-doctor summary card data for the Admin live overview (Day 9: fully documented).
  */
+@Schema(description = "Per-doctor queue summary for the Admin live overview.")
 public class DoctorQueueStatsDto {
 
+    @Schema(description = "Doctor catalog entry ID", example = "1")
     private Long doctorCatalogEntryId;
+
+    @Schema(description = "Doctor's display name", example = "Dr. Arjun Sharma")
     private String doctorName;
+
+    @Schema(description = "Doctor's user UUID", example = "550e8400-e29b-41d4-a716-446655440001")
     private String doctorUserId;
+
+    @Schema(description = "Department display name", example = "Cardiology")
     private String departmentName;
+
+    @Schema(description = "Specialization", example = "Interventional Cardiology")
     private String specialization;
+
+    @Schema(description = "Average consultation time in minutes", example = "15")
     private Integer avgConsultationTimeMinutes;
+
+    @Schema(description = "Whether the doctor is online", example = "true")
     private Boolean isAvailable;
+
+    @Schema(description = "Patients waiting in this doctor's queue", example = "4")
     private int waitingCount;
+
+    @Schema(description = "Patients currently in consultation", example = "1")
     private int inProgressCount;
+
+    @Schema(description = "Waiting patients exceeding the delay threshold", example = "1")
     private int delayedCount;
+
+    @Schema(description = "Longest predicted wait in this queue (minutes)", example = "60")
     private Integer longestWaitMinutes;
 
     public DoctorQueueStatsDto() {
