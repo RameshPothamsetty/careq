@@ -1,18 +1,34 @@
 package com.careq.queue.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
- * Admin-only live overview across all doctors.
+ * Admin-only live overview across all doctors (Day 9: fully documented).
  */
+@Schema(description = "Hospital-wide live queue overview (Admin).")
 public class LiveQueueOverviewDto {
 
+    @Schema(description = "Total patients waiting across all queues", example = "14")
     private int totalWaiting;
+
+    @Schema(description = "Total patients currently in consultation", example = "3")
     private int totalInProgress;
+
+    @Schema(description = "Number of doctors online", example = "8")
     private long doctorsOnline;
+
+    @Schema(description = "Number of doctors offline", example = "2")
     private long doctorsOffline;
+
+    @Schema(description = "Waiting patients whose predicted wait exceeds the delay threshold", example = "2")
     private int delayedConsultations;
+
+    @Schema(description = "Average predicted wait across waiting patients (minutes)", example = "22")
     private int averageWaitMinutes;
+
+    @Schema(description = "Per-doctor breakdown")
     private List<DoctorQueueStatsDto> doctors;
 
     public LiveQueueOverviewDto() {

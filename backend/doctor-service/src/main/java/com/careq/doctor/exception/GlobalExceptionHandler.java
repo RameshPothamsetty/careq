@@ -1,5 +1,8 @@
 package com.careq.doctor.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -11,96 +14,88 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Central error handling (Day 9: every response uses the shared
+ * ErrorResponseDto shape with {@code timestamp / status / error / message /
+ * path} and a {@code validationErrors} list on 400 validation failures).
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(DepartmentNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleDepartmentNotFound(DepartmentNotFoundException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.NOT_FOUND.value(),
-                "Not Found",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    public ResponseEntity<ErrorResponseDto> handleDepartmentNotFound(DepartmentNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(DoctorCatalogNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleDoctorCatalogNotFound(DoctorCatalogNotFoundException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.NOT_FOUND.value(),
-                "Not Found",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    public ResponseEntity<ErrorResponseDto> handleDoctorCatalogNotFound(DoctorCatalogNotFoundException ex, HttpServletRequest request) {
+        return build(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage(), request);
     }
 
+    /**
+     * Day 9 consistency fix: duplicate doctor catalog entries (duplicate
+     * userId) previously returned 400 here while the queue-service used 409
+     * for its duplicate case. Duplicate resources are now 409 everywhere.
+     */
     @ExceptionHandler(DuplicateDoctorCatalogEntryException.class)
-    public ResponseEntity<ErrorResponseDto> handleDuplicateDoctorEntry(DuplicateDoctorCatalogEntryException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ErrorResponseDto> handleDuplicateDoctorEntry(DuplicateDoctorCatalogEntryException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<ErrorResponseDto> handleForbidden(ForbiddenException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.FORBIDDEN.value(),
-                "Forbidden",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    public ResponseEntity<ErrorResponseDto> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), request);
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
-    public ResponseEntity<ErrorResponseDto> handleMissingHeader(MissingRequestHeaderException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.BAD_REQUEST.value(),
-                "Missing Header",
-                "Required request header '" + ex.getHeaderName() + "' is missing"
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ErrorResponseDto> handleMissingHeader(MissingRequestHeaderException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Missing Header",
+                "Required request header '" + ex.getHeaderName() + "' is missing", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponseDto> handleValidationErrors(MethodArgumentNotValidException ex) {
-        List<String> details = ex.getBindingResult().getAllErrors().stream()
+    public ResponseEntity<ErrorResponseDto> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
+        List<ValidationError> validationErrors = ex.getBindingResult().getAllErrors().stream()
                 .map(error -> {
                     if (error instanceof FieldError fieldError) {
-                        return fieldError.getField() + ": " + fieldError.getDefaultMessage();
+                        return new ValidationError(fieldError.getField(), fieldError.getDefaultMessage());
                     }
-                    return error.getDefaultMessage();
+                    return new ValidationError(null, error.getDefaultMessage());
                 })
                 .collect(Collectors.toList());
 
         ErrorResponseDto error = new ErrorResponseDto(
                 HttpStatus.BAD_REQUEST.value(),
                 "Validation Failed",
-                "Request validation failed",
-                details
+                "Request validation failed"
         );
+        error.setPath(request.getRequestURI());
+        error.setValidationErrors(validationErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponseDto> handleIllegalArgument(IllegalArgumentException ex) {
-        ErrorResponseDto error = new ErrorResponseDto(
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    public ResponseEntity<ErrorResponseDto> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponseDto> handleGeneralException(Exception ex) {
+    public ResponseEntity<ErrorResponseDto> handleGeneralException(Exception ex, HttpServletRequest request) {
+        log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         ErrorResponseDto error = new ErrorResponseDto(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
                 "An unexpected error occurred"
         );
+        error.setPath(request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    private ResponseEntity<ErrorResponseDto> build(HttpStatus status, String error, String message, HttpServletRequest request) {
+        ErrorResponseDto dto = new ErrorResponseDto(status.value(), error, message);
+        dto.setPath(request.getRequestURI());
+        return ResponseEntity.status(status).body(dto);
     }
 }

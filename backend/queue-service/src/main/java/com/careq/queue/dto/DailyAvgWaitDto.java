@@ -1,14 +1,21 @@
 package com.careq.queue.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDate;
 
 /**
  * One day's average wait time in minutes (called_at - joined_at) for
- * entries called on that day. Null when no patient was called that day.
+ * entries called on that day (Day 9: fully documented). Null when no
+ * patient was called that day.
  */
+@Schema(description = "Average patient wait on a single day.")
 public class DailyAvgWaitDto {
 
+    @Schema(description = "Calendar date", example = "2026-08-04")
     private LocalDate date;
+
+    @Schema(description = "Average wait in minutes (called_at - joined_at); null when no patient was called", example = "15.0")
     private Double avgWaitMinutes;
 
     public DailyAvgWaitDto() {

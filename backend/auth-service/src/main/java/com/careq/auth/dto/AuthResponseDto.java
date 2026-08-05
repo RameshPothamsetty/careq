@@ -1,12 +1,26 @@
 package com.careq.auth.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Authentication response containing the JWT and basic identity.")
 public class AuthResponseDto {
 
+    @Schema(description = "JWT access token. Send as \"Authorization: Bearer <token>\" on all other calls.", example = "eyJhbGciOiJIUzI1NiJ9...")
     private String token;
+
+    @Schema(description = "Token type (always Bearer)", example = "Bearer")
     private String tokenType;
+
+    @Schema(description = "User UUID", example = "550e8400-e29b-41d4-a716-446655440000")
     private String userId;
+
+    @Schema(description = "User email", example = "john@careq.com")
     private String email;
+
+    @Schema(description = "User's full display name", example = "John Patient")
     private String fullName;
+
+    @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN"})
     private String role;
 
     public AuthResponseDto() {

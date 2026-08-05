@@ -1,19 +1,41 @@
 package com.careq.user.dto;
 
 import com.careq.user.entity.UserProfile;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDate;
 
+@Schema(description = "A user's profile (shared shape for all roles).")
 public class UserProfileResponseDto {
 
+    @Schema(description = "Internal profile row id", example = "1")
     private Long id;
+
+    @Schema(description = "User UUID (matches the JWT subject)", example = "550e8400-e29b-41d4-a716-446655440000")
     private String userId;
+
+    @Schema(description = "Display name", example = "John Patient")
     private String fullName;
+
+    @Schema(description = "Email address", example = "john@careq.com")
     private String email;
+
+    @Schema(description = "Phone number", example = "+919876543210")
     private String phone;
+
+    @Schema(description = "Street address", example = "123 Main Street, Bengaluru")
     private String address;
+
+    @Schema(description = "Date of birth (yyyy-MM-dd)", example = "1990-05-15")
     private LocalDate dateOfBirth;
+
+    @Schema(description = "Gender", example = "MALE", allowableValues = {"MALE", "FEMALE", "OTHER"})
     private String gender;
+
+    @Schema(description = "Public URL of the stored profile picture, if any", example = "/api/users/profile-pictures/abc123.jpg")
     private String profilePictureUrl;
+
+    @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN"})
     private String role;
 
     public UserProfileResponseDto() {

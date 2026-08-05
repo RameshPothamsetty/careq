@@ -177,6 +177,7 @@ Creates the admin, one test patient, 10 doctors **with named catalog entries**, 
 | **Day 7a** | **Week 1 Stabilization & v0.1 Release** | ✅ Complete |
 | **Day 7b** | **Advanced Features (Analytics Dashboard + Notifications)** | ✅ Complete |
 | **Post-7b** | **Dashboard & UX Enhancement Pass** — live doctor dashboard (stats, call-next hero, personal analytics, department context), live patient dashboard (My-visit widget, recent visits + recommendations), leave-queue, admin doctor detail drawer | ✅ Complete |
+| **Day 9** | **API Documentation Pass** — complete Swagger/OpenAPI annotations on all 4 business services, centralized Swagger UI aggregated at the gateway, standardized shared error response shape, API contract audit, complete Postman collection with auto-auth script | ✅ Complete |
 | Days 8–15 | Deployment, hardening, Phase 2 roadmap | 📅 Planned |
 
 ---
@@ -193,6 +194,17 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 
 ---
 
+## API Documentation & Testing (Day 9)
+
+- **Swagger UI (centralized):** [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) — one browsable UI aggregating all four business services' OpenAPI docs through the API Gateway. Click **Authorize** (top right) and paste a JWT from login to test authenticated endpoints live with "Try it out".
+- **Postman collection:** [`postman/CareQ.postman_collection.json`](postman/CareQ.postman_collection.json) + [`postman/CareQ.postman_environment.json`](postman/CareQ.postman_environment.json)
+  1. Import **both** files into Postman (Import → select both).
+  2. Select the **CareQ Local** environment (dropdown top-right).
+  3. Run **Auth Service → Login** — its test script auto-captures the JWT into `{{authToken}}`.
+  4. Every other request is pre-authenticated via `Authorization: Bearer {{authToken}}`.
+
+> Swagger UI is intentionally public in this dev/demo setup; restrict `/v3/api-docs/**` and `/swagger-ui/**` before any production exposure.
+
 ## Documentation
 
 | Document | Description |
@@ -201,7 +213,7 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 | [02_REQUIREMENTS.md](docs/02_REQUIREMENTS.md) | SRS — features, user stories, non-functional requirements |
 | [03_ARCHITECTURE.md](docs/03_ARCHITECTURE.md) | Architecture diagram, service responsibilities, auth flow |
 | [04_DATABASE.md](docs/04_DATABASE.md) | ER diagram, MySQL schema, column design rationale |
-| [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services |
+| [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services (incl. shared error shape) |
 | [09_TESTING.md](docs/09_TESTING.md) | Unit test plans and results |
 | [11_PROMPTS.md](docs/11_PROMPTS.md) | Archive of daily development prompts |
 

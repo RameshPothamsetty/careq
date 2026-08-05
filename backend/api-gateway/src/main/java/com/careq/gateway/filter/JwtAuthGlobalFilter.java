@@ -49,8 +49,26 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        // Public health probes for every service (Day 9 review fix): the API
+        // contract documents all four /health endpoints as unauthenticated.
+        if (path.equals("/api/users/health")
+                || path.equals("/api/doctors/health")
+                || path.equals("/api/queue/health")) {
+            return chain.filter(exchange);
+        }
+
         // Skip Eureka routes (internal)
         if (path.startsWith("/api/eureka") || path.startsWith("/eureka")) {
+            return chain.filter(exchange);
+        }
+
+        // Skip Swagger / OpenAPI routes (Day 9) — the centralized docs UI is
+        // public in this dev/demo setup so it can be browsed and tested without
+        // a token. Swagger UI + aggregated specs + static assets are all covered.
+        if (path.startsWith("/v3/api-docs")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/webjars")
+                || path.equals("/favicon.ico")) {
             return chain.filter(exchange);
         }
 

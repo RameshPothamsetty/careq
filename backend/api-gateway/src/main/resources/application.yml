@@ -27,12 +27,58 @@ spring:
           predicates:
             - Path=/api/queue/**
 
+        # ── Day 9: OpenAPI aggregation routes ───────────────────────
+        # Each downstream service's /v3/api-docs is exposed through the
+        # gateway as /v3/api-docs/{service}, so one Swagger UI at
+        # http://localhost:8080/swagger-ui.html can browse every service.
+        - id: auth-service-docs
+          uri: lb://auth-service
+          predicates:
+            - Path=/v3/api-docs/auth-service
+          filters:
+            - RewritePath=/v3/api-docs/auth-service, /v3/api-docs
+
+        - id: user-service-docs
+          uri: lb://user-service
+          predicates:
+            - Path=/v3/api-docs/user-service
+          filters:
+            - RewritePath=/v3/api-docs/user-service, /v3/api-docs
+
+        - id: doctor-service-docs
+          uri: lb://doctor-service
+          predicates:
+            - Path=/v3/api-docs/doctor-service
+          filters:
+            - RewritePath=/v3/api-docs/doctor-service, /v3/api-docs
+
+        - id: queue-service-docs
+          uri: lb://queue-service
+          predicates:
+            - Path=/v3/api-docs/queue-service
+          filters:
+            - RewritePath=/v3/api-docs/queue-service, /v3/api-docs
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
+
+# ── Day 9: centralized Swagger UI ─────────────────────────────────
+# One browsable UI listing every business service's OpenAPI docs.
+springdoc:
+  swagger-ui:
+    urls:
+      - name: Auth Service
+        url: /v3/api-docs/auth-service
+      - name: User Service
+        url: /v3/api-docs/user-service
+      - name: Doctor Service
+        url: /v3/api-docs/doctor-service
+      - name: Queue Service
+        url: /v3/api-docs/queue-service
 
 app:
   jwt:
