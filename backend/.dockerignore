@@ -1,0 +1,13 @@
+# Day 11 — effective .dockerignore for the ./backend build context
+# (every backend service's Dockerfile is built with context=./backend).
+.git
+**/target/
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.log
+**/*.class
+**/*.jar.tmp
+.DS_Store
+Thumbs.db
+**/src/test/
