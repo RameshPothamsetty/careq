@@ -2,6 +2,8 @@ package com.careq.queue.controller;
 
 import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
+import com.careq.queue.dto.DoctorSuggestionRequestDto;
+import com.careq.queue.dto.DoctorSuggestionResponseDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
 import com.careq.queue.dto.LiveQueueOverviewDto;
 import com.careq.queue.dto.OverrideTriageRequestDto;
@@ -9,6 +11,7 @@ import com.careq.queue.dto.QueueEntryResponseDto;
 import com.careq.queue.dto.QueueStatusResponseDto;
 import com.careq.queue.exception.ErrorResponseDto;
 import com.careq.queue.exception.RoleGuard;
+import com.careq.queue.service.DoctorRecommendationService;
 import com.careq.queue.service.QueueService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -46,9 +49,12 @@ import java.util.List;
 public class QueueController {
 
     private final QueueService queueService;
+    private final DoctorRecommendationService doctorRecommendationService;
 
-    public QueueController(QueueService queueService) {
+    public QueueController(QueueService queueService,
+                           DoctorRecommendationService doctorRecommendationService) {
         this.queueService = queueService;
+        this.doctorRecommendationService = doctorRecommendationService;
     }
 
     /** Patient joins the queue for a doctor. Triggers AI triage. Returns entry with predicted wait. */
@@ -79,6 +85,33 @@ public class QueueController {
 
         RoleGuard.requireRole(role, "PATIENT");
         return ResponseEntity.status(HttpStatus.CREATED).body(queueService.joinQueue(userId, request));
+    }
+
+    /** AI doctor recommendation: symptoms → top ranked available doctors. */
+    @Operation(summary = "AI doctor recommendation (Patient)",
+            description = "Given free-text symptoms, the Groq LLM assesses urgency AND the most likely department, " +
+                    "then this endpoint ranks available doctors by relevance (tie-broken by the shortest live " +
+                    "predicted wait for a new joiner). The AI only recommends — the patient confirms a doctor " +
+                    "before joining. Degrades gracefully: no GROQ_API_KEY uses keyword matching; no specialty " +
+                    "match falls back to the nearest available doctor by wait.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "AI assessment + top-3 ranked doctor suggestions",
+                    content = @Content(schema = @Schema(implementation = DoctorSuggestionResponseDto.class),
+                            examples = @ExampleObject(value = "{\"triageLevel\":\"EMERGENCY\",\"suggestedDepartment\":\"Cardiology\",\"emergency\":true,\"urgencyNote\":\"EMERGENCY — please seek immediate attention. Nearest available specialists:\",\"suggestions\":[{\"doctorCatalogEntryId\":1,\"name\":\"Dr. Arjun Sharma\",\"departmentName\":\"Cardiology\",\"specialization\":\"Interventional Cardiology\",\"position\":2,\"predictedWaitMinutes\":15,\"matchReason\":\"Best match — Cardiology\"}]}"))),
+            @ApiResponse(responseCode = "400", description = "Validation failed (symptomText required)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not a PATIENT",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "503", description = "Doctor service temporarily unavailable",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
+    })
+    @PostMapping("/doctor-suggestions")
+    public ResponseEntity<DoctorSuggestionResponseDto> getDoctorSuggestions(
+            @Parameter(hidden = true) @RequestHeader("X-User-Role") String role,
+            @Valid @RequestBody DoctorSuggestionRequestDto request) {
+
+        RoleGuard.requireRole(role, "PATIENT");
+        return ResponseEntity.ok(doctorRecommendationService.recommend(request.getSymptomText()));
     }
 
     /** Patient's own current position + freshly recalculated predicted wait. */
