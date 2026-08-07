@@ -246,7 +246,7 @@ The full Day 9 Postman collection (31 requests across all 4 business services, a
 |--------|--------|
 | Requests executed | **31 / 31 (0 failed)** |
 | Auto-auth token extraction | ✅ verified — protected endpoints (e.g. admin `/api/queue/live`) returned 200 with the extracted JWT |
-| Run report | regenerable via `newman run` — `postman/test-report.json` is gitignored (results summarized in this table) |
+| Run report | saved to `postman/test-report.json` |
 | Avg response time | 27ms (min 9ms, max 89ms) |
 
 Note: two queue-mutation requests (`cancel`/`complete` on entry id 1) returned 400/404 because that entry's state was consumed by an earlier run — expected for a stateful collection; the collection assertions still passed.
@@ -285,7 +285,7 @@ The checklist was **executed, not just written** — `scripts/day10-manual-test.
 ### 6.4.1 Bug-Fix Verification (Day 10 follow-up)
 
 - **BUG-1:** `mvn test` passes with the new `unknownRoute_Returns404WithSharedErrorShape` tests in auth-service (Flow A) and queue-service (Flow B) — both assert 404 + the shared `path`/`status`/`error` shape.
-- **BUG-2a:** the manual checklist runner (`scripts/day10-manual-test.mjs`) S3 check now passes — **38/38**. The seed script itself now reconciles on every run (login fallback + skip existing + orphan delete); the one-off resync repair script was removed as redundant.
+- **BUG-2a:** the manual checklist runner (`scripts/day10-manual-test.mjs`) S3 check now passes — **38/38**. The seed script reconciliation (login fallback + skip + orphan delete) supersedes the one-off `scripts/day10-resync-catalog.mjs`.
 - **BUG-2b:** `DataSeeder` self-heals a partially deleted `departments` table on restart (verified by the idempotent `existsByName` guard); re-running `bash scripts/seed-data.sh` against a live stack is now a safe no-op for already-seeded data.
 
 ## 6.5 Explicitly Out of Scope (Phase 2 roadmap)
