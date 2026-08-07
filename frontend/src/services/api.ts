@@ -108,6 +108,34 @@ interface JoinQueuePayload {
   patientName?: string;
 }
 
+/** AI doctor-recommendation (Phase 1): symptoms → top ranked available doctors. */
+interface DoctorSuggestionPayload {
+  symptomText: string;
+}
+
+interface DoctorSuggestion {
+  doctorCatalogEntryId: number;
+  name: string;
+  departmentName: string;
+  specialization: string;
+  qualification: string;
+  experienceYears: number;
+  consultationFee: number;
+  avgConsultationTimeMinutes: number;
+  isAvailable: boolean;
+  position: number;
+  predictedWaitMinutes: number;
+  matchReason: string;
+}
+
+interface DoctorSuggestionResponse {
+  triageLevel: TriageLevel;
+  suggestedDepartment: string | null;
+  emergency: boolean;
+  urgencyNote: string | null;
+  suggestions: DoctorSuggestion[];
+}
+
 interface QueueEntryResponse {
   id: number;
   patientId: string;
@@ -269,6 +297,9 @@ export type {
   TriageLevel,
   QueueStatus,
   JoinQueuePayload,
+  DoctorSuggestionPayload,
+  DoctorSuggestion,
+  DoctorSuggestionResponse,
   QueueEntryResponse,
   QueueStatusResponse,
   OverrideTriagePayload,

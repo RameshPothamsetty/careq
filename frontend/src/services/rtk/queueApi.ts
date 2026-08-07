@@ -4,6 +4,8 @@ import type {
   QueueEntryResponse,
   QueueStatusResponse,
   JoinQueuePayload,
+  DoctorSuggestionPayload,
+  DoctorSuggestionResponse,
   OverrideTriagePayload,
   TriageLevel,
   LiveQueueOverview,
@@ -31,6 +33,17 @@ export const queueApi = createApi({
         body,
       }),
       invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
+    }),
+
+    // AI doctor recommendation (Phase 1) — symptoms first, then the patient
+    // picks one of the suggested doctors. A mutation so it only fires on demand
+    // (it makes a live Groq call plus live queue-load lookups).
+    doctorSuggestions: builder.mutation<DoctorSuggestionResponse, DoctorSuggestionPayload>({
+      query: (body) => ({
+        url: '/api/queue/doctor-suggestions',
+        method: 'POST',
+        body,
+      }),
     }),
 
     getMyQueueStatus: builder.query<QueueStatusResponse, void>({
@@ -118,6 +131,7 @@ export const queueApi = createApi({
 
 export const {
   useJoinQueueMutation,
+  useDoctorSuggestionsMutation,
   useGetMyQueueStatusQuery,
   useGetMyQueueHistoryQuery,
   useGetDoctorQueueQuery,

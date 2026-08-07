@@ -1,15 +1,16 @@
 import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { HeartPulse, RefreshCw, UserRound } from 'lucide-react';
+import { HeartPulse, RefreshCw, Sparkles, Wallet, Award, Clock, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import {
   useGetMyQueueStatusQuery,
   useJoinQueueMutation,
   useCancelQueueEntryMutation,
+  useDoctorSuggestionsMutation,
 } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
-import type { QueueEntryResponse } from '../services/api';
+import type { QueueEntryResponse, DoctorSuggestionResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { LiveBadge, StatusTag, Button } from '../components/ui';
 import { LoadingState, ErrorState } from '../components/ui/States';
@@ -195,16 +196,39 @@ function JoinFlow({
   // A single generous page keeps every available doctor in the dropdown.
   const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery({ size: 100 });
   const [joinQueue, { isLoading: isJoining }] = useJoinQueueMutation();
+  const [doctorSuggestions, { isLoading: isFinding }] = useDoctorSuggestionsMutation();
   const [selectedDoctor, setSelectedDoctor] = useState<string>(initialDoctorId ? String(initialDoctorId) : '');
   const [symptomText, setSymptomText] = useState('');
+  const [suggestions, setSuggestions] = useState<DoctorSuggestionResponse | null>(null);
+  // Browsing already chose a doctor (?doctor=id) → open the manual picker.
+  const [showManualPicker, setShowManualPicker] = useState<boolean>(initialDoctorId !== null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const doctors = (allDoctors?.content ?? []).filter((d) => d.isAvailable);
   const loadError = doctorsError ? getErrorMessage(doctorsError) : '';
 
-  const handleJoin = async () => {
-    if (!selectedDoctor || !symptomText.trim()) {
+  // Symptoms first → the AI recommends the best-matched available doctors.
+  const handleFindDoctors = async () => {
+    if (!symptomText.trim()) {
+      setError('Please describe your symptoms first — the AI uses them to find the right doctor.');
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setSuggestions(null);
+    setSelectedDoctor('');
+    try {
+      const result = await doctorSuggestions({ symptomText: symptomText.trim() }).unwrap();
+      setSuggestions(result);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleJoin = async (doctorId?: string) => {
+    const targetDoctor = doctorId ?? selectedDoctor;
+    if (!targetDoctor || !symptomText.trim()) {
       setError('Please choose a doctor and describe your symptoms.');
       return;
     }
@@ -212,7 +236,7 @@ function JoinFlow({
     setSuccess('');
     try {
       const entry = await joinQueue({
-        doctorCatalogEntryId: Number(selectedDoctor),
+        doctorCatalogEntryId: Number(targetDoctor),
         symptomText: symptomText.trim(),
         // Captured so the doctor's live queue can show real patient names (Day 7a).
         patientName: user?.fullName || undefined,
@@ -234,7 +258,7 @@ function JoinFlow({
           <div>
             <h2 className="text-lg font-bold text-slate-800">Join a queue</h2>
             <p className="text-sm text-slate-500">
-              Pick a doctor, describe your symptoms, and our AI will triage your priority instantly.
+              Describe your symptoms — our AI finds the right doctor and triages your priority instantly.
             </p>
           </div>
         </div>
@@ -251,47 +275,142 @@ function JoinFlow({
         )}
 
         <div className="mt-6 space-y-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Doctor</label>
-            {isLoadingDoctors ? (
-              <div className="h-11 animate-pulse rounded-xl bg-gray-100" />
-            ) : (
-              <select
-                value={selectedDoctor}
-                onChange={(e) => setSelectedDoctor(e.target.value)}
-                className="select-field"
-              >
-                <option value="">Select a doctor…</option>
-                {doctors.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name || doc.specialization} — {doc.specialization} ({doc.departmentName}, ≈{doc.avgConsultationTimeMinutes} min)
-                  </option>
-                ))}
-              </select>
-            )}
-            {!isLoadingDoctors && doctors.length === 0 && (
-              <p className="mt-2 text-xs text-slate-400">
-                No doctors are currently accepting new patients.
-              </p>
-            )}
-          </div>
-
+          {/* Symptoms first — the AI matches the right doctor (Phase 1) */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-700">Symptoms</label>
             <textarea
               value={symptomText}
-              onChange={(e) => setSymptomText(e.target.value)}
+              onChange={(e) => {
+                setSymptomText(e.target.value);
+                if (suggestions) setSuggestions(null);
+              }}
               rows={4}
               maxLength={2000}
-              placeholder="Describe what you're experiencing, e.g. 'Severe chest pain radiating to my left arm for the past hour'"
+              placeholder="Describe what you're experiencing, e.g. 'Persistent headache with blurred vision for two days'"
               className="input-field resize-none"
             />
             <p className="mt-1 text-right text-xs text-slate-400">{symptomText.length}/2000</p>
           </div>
 
-          <Button onClick={handleJoin} loading={isJoining} className="w-full py-3 text-base">
-            {isJoining ? 'Running AI triage…' : 'Join Queue →'}
+          <Button variant="secondary" onClick={handleFindDoctors} loading={isFinding} className="w-full">
+            <Sparkles className="h-4 w-4" />
+            {isFinding ? 'Analyzing your symptoms…' : 'Find the right doctor for me'}
           </Button>
+
+          {/* Always reachable manual path — no AI step required (e.g. the
+              patient already knows their doctor) */}
+          {!showManualPicker && (
+            <button
+              type="button"
+              onClick={() => setShowManualPicker(true)}
+              className="block w-full text-center text-xs font-semibold text-brand-600 hover:text-brand-700"
+            >
+              Prefer to pick yourself? Choose a doctor manually →
+            </button>
+          )}
+
+          {/* AI recommendation results */}
+          {suggestions && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-50 px-4 py-3">
+                <Sparkles className="h-4 w-4 text-brand-700" />
+                <span className="text-sm font-semibold text-brand-800">
+                  {suggestions.suggestedDepartment
+                    ? `AI suggests ${suggestions.suggestedDepartment}`
+                    : 'AI analysis'}
+                </span>
+                <StatusTag status={suggestions.triageLevel} />
+              </div>
+
+              {suggestions.emergency && suggestions.urgencyNote && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  ⚠ {suggestions.urgencyNote}
+                </div>
+              )}
+
+              {suggestions.suggestions.length === 0 ? (
+                <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500">
+                  No doctors are currently accepting new patients. Please try again shortly.
+                </p>
+              ) : (
+                suggestions.suggestions.map((s) => (
+                  <div
+                    key={s.doctorCatalogEntryId}
+                    className="card flex flex-col gap-3 p-4 transition-all duration-200 hover:shadow-lift sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-800">{s.name}</h3>
+                        <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
+                          {s.specialization}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {s.departmentName} · {s.matchReason}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
+                        <span className="inline-flex items-center gap-1">
+                          <Award className="h-3.5 w-3.5 text-slate-400" />
+                          {s.experienceYears} yrs
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Wallet className="h-3.5 w-3.5 text-slate-400" />
+                          ₹{s.consultationFee}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          ≈{s.predictedWaitMinutes} min wait · position {s.position}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => handleJoin(String(s.doctorCatalogEntryId))}
+                      loading={isJoining}
+                      className="w-full shrink-0 sm:w-auto"
+                    >
+                      Join this doctor →
+                    </Button>
+                  </div>
+                ))
+              )}
+
+            </div>
+          )}
+
+          {/* Manual picker (default when arriving from Browse, or via the link) */}
+          {showManualPicker && (
+            <>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Doctor</label>
+                {isLoadingDoctors ? (
+                  <div className="h-11 animate-pulse rounded-xl bg-gray-100" />
+                ) : (
+                  <select
+                    value={selectedDoctor}
+                    onChange={(e) => setSelectedDoctor(e.target.value)}
+                    className="select-field"
+                  >
+                    <option value="">Select a doctor…</option>
+                    {doctors.map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.name || doc.specialization} — {doc.specialization} ({doc.departmentName}, ≈{doc.avgConsultationTimeMinutes} min)
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!isLoadingDoctors && doctors.length === 0 && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    No doctors are currently accepting new patients.
+                  </p>
+                )}
+              </div>
+
+              <Button onClick={() => handleJoin()} loading={isJoining} className="w-full py-3 text-base">
+                {isJoining ? 'Running AI triage…' : 'Join Queue →'}
+              </Button>
+            </>
+          )}
+
           <p className="text-center text-xs text-slate-400">
             {user?.fullName} · Your position & estimated wait will update live once you're in.
           </p>
