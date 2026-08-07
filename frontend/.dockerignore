@@ -1,0 +1,12 @@
+# Day 11 — frontend build context exclusions.
+node_modules
+dist
+test-results
+playwright-report
+.git
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+e2e

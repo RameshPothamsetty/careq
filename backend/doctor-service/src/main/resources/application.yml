@@ -5,8 +5,9 @@ spring:
   application:
     name: doctor-service
   datasource:
-    url: jdbc:mysql://localhost:3306/careq_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
+    # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
@@ -21,7 +22,8 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      # Docker sets EUREKA_URI=http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
 

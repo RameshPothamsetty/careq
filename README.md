@@ -156,6 +156,30 @@ Creates the admin, one test patient, 10 doctors **with named catalog entries**, 
 
 ---
 
+## Run with Docker (Day 11)
+
+The **entire stack** — MySQL, Eureka, Gateway, all four business services, and the React frontend — runs with a single command:
+
+```bash
+cp .env.example .env          # set JWT_SECRET (and GROQ_API_KEY for real AI triage)
+docker compose up -d --build
+bash scripts/seed-data.sh     # optional demo data (admin + 10 doctors + catalog)
+node scripts/day11-smoke-test.mjs   # end-to-end validation of the Dockerized stack
+```
+
+| What | URL |
+|------|-----|
+| Frontend (React SPA via Nginx) | http://localhost:3030 |
+| API Gateway (+ centralized Swagger UI) | http://localhost:8080/swagger-ui.html |
+| Eureka dashboard | http://localhost:8761 |
+
+- The frontend bundle calls relative `/api` paths — Nginx reverse-proxies them to the gateway, so **no gateway URL is baked into the frontend**
+- Ports match the local (non-Docker) setup exactly, so switching between the two requires no relearning
+- Tear down: `docker compose down` (keep data) or `docker compose down -v` (full reset)
+- Full guide (env vars, healthchecks, logs, troubleshooting): [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md)
+
+---
+
 ## Demo
 
 > 🎥 **Demo video — coming soon.** A 2–3 minute walkthrough covering all three roles will be embedded here after recording.
@@ -178,7 +202,9 @@ Creates the admin, one test patient, 10 doctors **with named catalog entries**, 
 | **Day 7b** | **Advanced Features (Analytics Dashboard + Notifications)** | ✅ Complete |
 | **Post-7b** | **Dashboard & UX Enhancement Pass** — live doctor dashboard (stats, call-next hero, personal analytics, department context), live patient dashboard (My-visit widget, recent visits + recommendations), leave-queue, admin doctor detail drawer | ✅ Complete |
 | **Day 9** | **API Documentation Pass** — complete Swagger/OpenAPI annotations on all 4 business services, centralized Swagger UI aggregated at the gateway, standardized shared error response shape, API contract audit, complete Postman collection with auto-auth script | ✅ Complete |
-| Days 8–15 | Deployment, hardening, Phase 2 roadmap | 📅 Planned |
+| **Day 10** | **Testing Pass** — 104 backend tests (auth 14, user 13, doctor 38, queue 39) + 23 frontend tests, 2 integration flows, Newman API run (31/31), manual checklist (38/38), BUG-1 & BUG-2 fixed | ✅ Complete |
+| **Day 11** | **Docker Containerization** — multi-stage Dockerfiles (non-root, healthchecks), Nginx frontend + `/api` proxy, `docker-compose.yml` full stack, `.env.example`, end-to-end smoke test 14/14 inside the containers | ✅ Complete |
+| Days 12–15 | CI/CD, cloud deployment, hardening, Phase 2 roadmap | 📅 Planned |
 
 ---
 

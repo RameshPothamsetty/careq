@@ -314,3 +314,110 @@ HARD CONSTRAINTS: do not skip the AI fallback test (single most important test g
 
 VERIFICATION CHECKLIST: Issue/board/PR linkage; full bug list (found / fixed today / logged for later); AI fallback test explicitly passes; manual checklist executed, not just written; exact git command sequence; ready-to-paste PR description.
 ```
+---
+
+## Day 11: Docker Containerization (Dockerfiles, Compose, Local Validation)
+
+## Full Prompt Text
+
+```
+# CareQ — Day 11 Prompt (Docker: Dockerfiles, Compose, Local Validation)
+
+## ROLE
+
+You are acting as a **DevOps-minded Backend Engineer** containerizing an existing, tested application. Today's goal: every service and the frontend run correctly via a single `docker-compose up`, with no manual steps beyond providing environment variables.
+
+## PROJECT CONTEXT (recap)
+
+- **Services:** `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`, plus the React frontend
+- **External dependency:** MySQL (one instance, multiple schemas/databases — or one shared database, state your choice), and the Groq API (external, needs `GROQ_API_KEY`)
+- **Startup order matters**: Eureka must be up before other services register with it; MySQL must be ready before any service tries to connect; the Gateway should be reachable before the frontend is useful
+
+## TODAY'S DELIVERABLES
+
+### 0. Create today's Issue first
+Create `Day 11: Docker Containerization` as a GitHub Issue, checklist from below, labeled `day-11`, `infra`. Add to the Project board under `In Progress`. Reference with `Closes #<issue number>` in today's PR.
+
+### 1. Dockerfile per backend service
+For each of `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`:
+- **Multi-stage build**: a Maven build stage (compile + package the jar) and a slim JRE runtime stage (don't ship the JDK or Maven in the final image)
+- Run as a **non-root user** inside the container
+- Include a `HEALTHCHECK` instruction (hit the Spring Boot Actuator health endpoint if available, or a simple TCP check)
+- `.dockerignore` per service (exclude `target/`, `.git`, IDE files, etc.)
+
+### 2. Dockerfile for the frontend
+- Multi-stage: Node build stage (`npm run build`) → Nginx stage serving the static build
+- Nginx config: fallback to `index.html` for client-side React Router routes, and reverse-proxy `/api/*` to the `api-gateway` service (so the frontend doesn't need the gateway's URL hardcoded at build time — state clearly if you instead handle this via a build-time environment variable, and explain the trade-off)
+
+### 3. `docker-compose.yml` — full stack orchestration
+Must include:
+- MySQL service with a named volume for data persistence, initialized with required databases/schemas
+- `eureka-server`, started first (or with appropriate `depends_on` + `condition: service_healthy` so others wait for it)
+- `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service` — each depending on MySQL being healthy and Eureka being up before starting
+- The frontend service, depending on the gateway
+- All services on a shared custom Docker network
+- Environment variables sourced from a `.env` file — **never hardcoded in the compose file** — including `GROQ_API_KEY`, JWT signing secret, and MySQL credentials
+- Sensible container names and port mappings matching what's used in local (non-Docker) development, so switching between the two doesn't require relearning ports
+
+### 4. `.env.example`
+List every required environment variable with placeholder values and a one-line comment explaining each (e.g., `GROQ_API_KEY=your_groq_key_here # required for AI symptom triage`). Never commit a real `.env` — confirm it's in `.gitignore`.
+
+### 5. Local validation — actually run it
+Bring up the full stack with `docker-compose up`, then:
+- Confirm every service registers with Eureka (check the Eureka dashboard)
+- Confirm the Gateway correctly routes to each service
+- Confirm the frontend loads and can reach the backend through the Gateway
+- Run a smoke test end-to-end **inside the Dockerized stack**: signup → login → browse doctors → join queue → confirm AI triage and wait-time prediction work (this proves the `GROQ_API_KEY` env var is actually being read correctly inside the container)
+- Report the results of this validation explicitly — don't just say "it should work," show what was actually checked
+
+### 6. Documentation updates
+- Add a "Docker Setup" section to `docs/10_DEPLOYMENT.md` (or create it if it doesn't exist yet) — how to build, how to run, required env vars, how to view logs per service, how to tear down
+- Update `README.md` with a "Run with Docker" quick-start section as an alternative to the manual local setup instructions
+
+**Explicitly OUT of scope today:**
+- CI/CD pipeline (building/pushing images automatically) — that's Day 12
+- Cloud deployment — that's Day 13
+- Kubernetes or any orchestration beyond Docker Compose
+
+## OUTPUT FORMAT
+
+Same labeled-file-block format as previous days.
+
+Generate in this order: one Dockerfile + `.dockerignore` per backend service → frontend Dockerfile + Nginx config → `docker-compose.yml` → `.env.example` → doc updates.
+
+## GIT WORKFLOW (direct execution)
+
+1. **Pull `develop` first:** `git checkout develop` / `git pull origin develop`
+2. **Branch off it:** `git checkout -b feature/docker-setup`
+3. Build and actually run `docker-compose up` locally, iterating until the full smoke test in Deliverable 5 passes — don't commit a compose setup you haven't actually verified boots cleanly.
+4. Commit in small increments: one `feat: add Dockerfile for <service>` per service, `feat: add frontend Dockerfile and Nginx config`, `feat: add docker-compose.yml with full stack orchestration`, `docs: add Docker setup documentation and .env.example`
+5. **Push:** `git push origin feature/docker-setup`
+6. **Open a Pull Request** `feature/docker-setup → develop`. Title: `Day 11: Docker Containerization`. Include `Closes #<issue number>`. Description includes the actual validation results from Deliverable 5.
+7. Self-review — re-run `docker-compose up` from a clean state (`docker-compose down -v` first) to confirm it works reproducibly, not just on the first lucky run.
+8. Merge into `develop` once satisfied.
+
+**Definition of Done:**
+- [ ] Today's Issue created, added to board, closed via PR
+- [ ] Every service has a working multi-stage Dockerfile with a non-root user and healthcheck
+- [ ] Frontend Dockerfile builds and serves correctly via Nginx
+- [ ] `docker-compose up` brings up the full stack successfully from a clean state
+- [ ] All services confirmed registered with Eureka inside Docker
+- [ ] End-to-end smoke test (including real AI triage call) passes inside the Dockerized stack
+- [ ] `.env.example` complete and real `.env` confirmed gitignored
+- [ ] Documentation updated (`10_DEPLOYMENT.md`, `README.md`)
+- [ ] Pushed to `feature/docker-setup`, PR opened and self-reviewed, merged into `develop`
+
+## HARD CONSTRAINTS
+
+- Never hardcode secrets (JWT key, DB credentials, `GROQ_API_KEY`) in the Dockerfiles or `docker-compose.yml` — env vars only
+- Confirm `.env` is gitignored before committing anything
+- State assumptions (single vs. multiple MySQL databases, how the frontend resolves the API base URL) before generating files
+
+## VERIFICATION CHECKLIST (append at the end of your output)
+
+1. Confirm today's Issue/board/PR linkage
+2. Confirm the full stack was actually brought up and the end-to-end smoke test results, in detail
+3. Confirm `.env` is gitignored and `.env.example` is complete
+4. Output the exact `git` command sequence used
+5. Output a ready-to-paste PR description
+```

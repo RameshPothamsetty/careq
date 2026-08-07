@@ -7,7 +7,11 @@
  * screens) plus login/signup, which remain session-state calls owned by
  * AuthContext.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// Day 11: an EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
+// proxy (localhost:3030) handles them in dev, and the Docker Nginx container
+// reverse-proxies /api to the api-gateway in production. No gateway URL is
+// baked into the bundle. (??, not ||, so an empty string stays "relative".)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 interface SignupPayload {
   fullName: string;
