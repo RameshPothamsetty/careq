@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.8 (Day 10)  
-**Status:** Updated — All planned unit tests now built and passing: auth-service (10), user-service (13), doctor-service (36), queue-service (33). **92 tests total.**
+**Version:** 1.9 (Day 10 — Final Test Report)  
+**Status:** Complete — the full Day 10 testing pass is delivered: **100 backend tests** (auth 13, user 13, doctor 36, queue 38) + **23 frontend component tests**, 2 critical integration flows, a Newman API run (31/31), and a manually executed role-journey checklist (37/38, the 1 failure is a logged bug).
 
 ---
 
@@ -154,7 +154,7 @@ Standalone MockMvc + `GlobalExceptionHandler`; identity headers simulated direct
 
 ## 5. Queue Service Unit Tests (Day 5)
 
-These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **33 tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests).
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **33 unit tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests; Day 10 added 5 integration tests — see section 6).
 
 ### Test Class: `QueueOrderingServiceTest`
 
@@ -205,51 +205,120 @@ These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking t
 
 ---
 
-## 6. Integration / API Tests (Future Day)
+## 6. Integration Tests (Day 10)
 
-> **Note:** Integration tests requiring a running MySQL instance and full microservice stack will be added on the dedicated testing day later in the checklist. These will include:
->
-> - `POST /api/auth/signup` — full HTTP round-trip
-> - `POST /api/auth/login` — full HTTP round-trip
-> - Role-based access enforcement via API Gateway
-> - Duplicate email, invalid credentials, validation error response shapes
-> - `GET /api/users/me` — lazy-create verification
-> - `PUT /api/users/me` — profile update verification
-> - `GET /api/users/{id}` — Admin-only restriction verification
+Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
+
+**Choice: H2 (MySQL mode) instead of Testcontainers** — CareQ's JPA model is portable, the MySQL-native analytics queries are deliberately not exercised by these flows, and H2 keeps the suite runnable on any machine with zero Docker dependency. External calls (the Groq LLM and the doctor-service Feign catalog) are mocked at the bean layer per the Day 10 scope decision; the real controllers, services, transactions, JPA repositories and the real `AiTriageService` fallback wrapper all run.
+
+### Flow A — auth round-trip (`AuthFlowIntegrationTest`, auth-service, 3 tests)
+
+| Test | What it proves |
+|------|----------------|
+| `flowA_signupLoginAndJwtGrantsAccessToProtectedRoute` | Signup → 201 with real JWT; duplicate email → 409; login → 200; wrong password → 401; **the login JWT actually unlocks a protected route** (passes the `authenticated()` rule), while a missing or tampered token is rejected by Spring Security (403) |
+| `signupValidation_BlankFields_Returns400WithSharedErrorShape` | 400 with the shared `path` + `validationErrors` shape |
+| `login_UnknownEmail_Returns401` | Unknown account → 401 |
+
+### Flow B — full queue lifecycle (`QueueFlowIntegrationTest`, queue-service, 5 tests)
+
+| Test | What it proves |
+|------|----------------|
+| `flowB_fullLifecycle_joinToCompletedWithWaitTimeAndHistory` | Patient joins → 201 with AI triage assigned, `position=1`, `predictedWaitMinutes` present → `my-status` active → doctor queue view → call-next (`IN_PROGRESS` + `calledAt`) → complete (`COMPLETED` + `completedAt`) → visit appears in patient history |
+| `join_doctorServiceUnreachable_Returns503NotUnhandled500` | **Feign failure during join surfaces as a graceful 503**, never an unhandled 500 (the single most important queue failure path) |
+| `join_samePatientSecondActiveEntry_Returns409` | Duplicate active entry → 409 |
+| `join_nonPatientRole_Returns403` | Role guard enforced |
+| `join_blankSymptomText_Returns400WithValidationErrors` | Bean validation → 400 + `validationErrors` |
+
+## 6.1 API Testing — Postman / Newman (Day 10, leveraging Day 9's collection)
+
+The full Day 9 Postman collection (31 requests across all 4 business services, auto-auth token script) was run against the live stack with Newman:
+
+| Metric | Result |
+|--------|--------|
+| Requests executed | **31 / 31 (0 failed)** |
+| Auto-auth token extraction | ✅ verified — protected endpoints (e.g. admin `/api/queue/live`) returned 200 with the extracted JWT |
+| Run report | saved to `postman/test-report.json` |
+| Avg response time | 27ms (min 9ms, max 89ms) |
+
+Note: two queue-mutation requests (`cancel`/`complete` on entry id 1) returned 400/404 because that entry's state was consumed by an earlier run — expected for a stateful collection; the collection assertions still passed.
+
+## 6.2 UI Testing — Vitest + React Testing Library (Day 10)
+
+**23 tests across 4 files, all passing** (`npm test`). This is a light, risk-prioritized pass — not full coverage (full Playwright E2E remains the existing `npm run test:e2e` suite).
+
+| File | Tests | Covers |
+|------|-------|--------|
+| `LoginPage.test.tsx` | 3 | Renders the form; submits credentials and navigates to the role dashboard; shows the error banner on failure |
+| `ProtectedRoute.test.tsx` | 4 | Loading placeholder; redirect to `/login` when unauthenticated; role mismatch redirects to the user's own dashboard; renders children when allowed |
+| `StatusTag.test.tsx` | 12 | Correct label + color class for every triage/status/availability value; dot toggle; unknown-value fallback |
+| `RtkHookStates.test.tsx` | 4 | One RTK Query hook's loading / success / error states render correctly in a consuming component (real Provider wrapper, hook mocked at module level) + `getErrorMessage` normalization (incl. field-level `validationErrors`) |
+
+> **Known environment note:** driving the real RTK Query `fetchBaseQuery` against a stubbed global `fetch` in jsdom is blocked by an undici/jsdom realm mismatch — RTK v2.12 constructs `new Request(...)` with jsdom's `AbortSignal`, which undici rejects (`Expected signal to be an instance of AbortSignal`). The hook-state test therefore mocks the hook at module level; this is documented here rather than silently worked around in production code.
+
+## 6.3 Manual Testing — executed against the live stack (Day 10)
+
+The checklist was **executed, not just written** — `scripts/day10-manual-test.mjs` drove every journey through the API Gateway against the running 6-service stack. **37 of 38 checks passed.**
+
+| Journey | Checks | Result |
+|---------|--------|--------|
+| **Patient** (signup → browse doctors → join queue → track status → history → leave queue) | P1–P14 | ✅ all pass — incl. duplicate signup 409, wrong password 401, wait-time calculation (2nd patient = position 2, wait = avg consult time), duplicate join 409, cancel own 200, cancel another's 403, AI fallback to NORMAL live-verified (no GROQ_API_KEY) |
+| **Doctor** (login → view queue → search → override triage → call next → complete) | D0–D10 | ✅ all pass — incl. availability toggle, patient-name search, override jumps patient to position 1, non-owning doctor 403, call-next on non-WAITING 400 |
+| **Admin** (login → live overview → analytics → manage departments → manage users) | A1–A9 | ✅ all pass — incl. department CRUD (201/200/204), 7-day analytics window, admin-only user list, patient blocked 403 |
+| **Security / edge paths** | S1–S4 | ⚠ 3/4 — invalid JWT 401 ✅, patient on admin endpoint 403 ✅, **unknown route returns 500 instead of 404** ❌ (logged as BUG-1), departments browsable 200 ✅ |
+
+## 6.4 Bug List (Day 10)
+
+| # | Bug | Severity | Status |
+|---|-----|----------|--------|
+| BUG-1 | **Unmapped routes return HTTP 500 instead of 404.** Every service's `GlobalExceptionHandler` has `@ExceptionHandler(Exception.class)`, which intercepts Spring's `NoResourceFoundException` (thrown when no handler matches) and converts it to 500. Verified live: `GET /api/auth/nonexistent-path` → 500. Fix (later): dedicated `NoResourceFoundException` handler → 404. | Low (no core flow hits unmapped routes) | **Not fixed today** — issue text prepared (label `bug`), file it in the Day 10 git step |
+| BUG-2 | **`scripts/seed-data.sh` is not idempotent across DB resets.** (a) After an auth-DB reset, catalog entries point at deleted userIds and are never re-created (existing-user signups are skipped, so the catalog step no-ops) — orphaned entries. (b) doctor-service `DataSeeder` skips seeding when the departments table is non-empty, so a partially deleted table (observed: Cardiology missing) never heals. | Low (dev/demo tooling only; fresh installs correct) | **Not fixed today** — issue text prepared (label `bug`), file it in the Day 10 git step |
+
+## 6.5 Explicitly Out of Scope (Phase 2 roadmap)
+
+- Full E2E browser automation (Cypress) — the existing **Playwright** suite (`npm run test:e2e`) covers the E2E tier today; Cypress is not added
+- Load / performance testing
+- 100% code coverage — coverage is risk-prioritized, not exhaustive
 
 ---
 
 ## 7. Running Tests
 
 ```bash
-# Run all auth-service tests
-cd backend/auth-service
+# Run all backend tests across all modules (100 tests, incl. integration)
+cd backend
 mvn test
 
-# Run all user-service tests
-cd backend/user-service
-mvn test
-
-# Run doctor-service tests (Day 10)
-cd backend/doctor-service
-mvn test
-
-# Run queue-service tests (Day 5)
+# Run a single service
 cd backend/queue-service
 mvn test
 
-# Run a specific test class (queue-service)
-mvn test -Dtest=AiTriageServiceTest
+# Run just the integration tests (Flow A / Flow B)
+mvn test -pl auth-service -Dtest=AuthFlowIntegrationTest
+mvn test -pl queue-service -Dtest=QueueFlowIntegrationTest
 
-# Run all tests across all modules
-cd backend
-mvn test
+# Run the AI fallback unit tests
+mvn test -pl queue-service -Dtest=AiTriageServiceTest
+
+# Frontend component tests (Vitest, 23 tests)
+cd frontend
+npm test
+
+# Frontend E2E (Playwright — separate tier)
+npm run test:e2e
+
+# API testing (Newman, against a running stack)
+cd postman
+npx newman run CareQ.postman_collection.json -e CareQ.postman_environment.json
+
+# Manual testing checklist (against a running stack)
+node scripts/day10-manual-test.mjs
 ```
 
 ---
 
 ## 8. Test Coverage Target
 
-- **Service layer:** ≥ 70% (ADF Section 9 requirement)
-- **Controller layer:** ≥ 50% (via integration tests on testing day)
+- **Service layer:** ≥ 70% (ADF Section 9 requirement) — every service's core service classes are unit-tested
+- **Controller layer:** ≥ 50% (unit MockMvc tests in user/doctor/queue + integration flows in auth/queue)
 - **Utility classes (JwtService):** ≥ 80%
+- **Highest-risk logic** (AI fallback, JWT validation, queue ordering, wait-time, Feign failure): explicitly and deeply tested
