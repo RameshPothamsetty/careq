@@ -1,6 +1,7 @@
 package com.careq.queue.service;
 
 import com.careq.queue.client.DoctorServiceClient;
+import com.careq.queue.dto.AiAssessment;
 import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
@@ -81,6 +82,18 @@ public class QueueServiceImpl implements QueueService {
     @Override
     @Transactional
     public QueueEntryResponseDto joinQueue(String patientId, JoinQueueRequestDto request) {
+        return joinQueueInternal(patientId, request, null);
+    }
+
+    @Override
+    @Transactional
+    public QueueEntryResponseDto joinQueueWithAssessment(String patientId, JoinQueueRequestDto request,
+                                                         AiAssessment assessment) {
+        return joinQueueInternal(patientId, request, assessment);
+    }
+
+    private QueueEntryResponseDto joinQueueInternal(String patientId, JoinQueueRequestDto request,
+                                                    AiAssessment precomputed) {
         // 1. Fetch the doctor's live data via Feign — single source of truth.
         DoctorCatalogResponseDto doctor = fetchDoctor(request.getDoctorCatalogEntryId());
 
@@ -99,8 +112,13 @@ public class QueueServiceImpl implements QueueService {
                     "You already have an active queue entry for this doctor");
         }
 
-        // 4. AI symptom triage — always degrades gracefully to NORMAL.
-        TriageLevel triage = aiTriageService.classifyWithFallback(request.getSymptomText());
+        // 4. AI symptom triage — always degrades gracefully to NORMAL. The
+        //    auto-assign flow passes the assessment it already computed, so the
+        //    LLM is called once and the persisted triage matches what the UI
+        //    showed the patient.
+        TriageLevel triage = precomputed != null
+                ? precomputed.triage()
+                : aiTriageService.classifyWithFallback(request.getSymptomText());
 
         // 5. Persist the entry.
         QueueEntry entry = new QueueEntry();

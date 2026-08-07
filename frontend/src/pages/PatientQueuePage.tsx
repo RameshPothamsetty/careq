@@ -7,10 +7,10 @@ import {
   useGetMyQueueStatusQuery,
   useJoinQueueMutation,
   useCancelQueueEntryMutation,
-  useDoctorSuggestionsMutation,
+  useAutoAssignMutation,
 } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
-import type { QueueEntryResponse, DoctorSuggestionResponse } from '../services/api';
+import type { QueueEntryResponse, AutoAssignResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { LiveBadge, StatusTag, Button } from '../components/ui';
 import { LoadingState, ErrorState } from '../components/ui/States';
@@ -196,10 +196,10 @@ function JoinFlow({
   // A single generous page keeps every available doctor in the dropdown.
   const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery({ size: 100 });
   const [joinQueue, { isLoading: isJoining }] = useJoinQueueMutation();
-  const [doctorSuggestions, { isLoading: isFinding }] = useDoctorSuggestionsMutation();
+  const [autoAssign, { isLoading: isAutoAssigning }] = useAutoAssignMutation();
   const [selectedDoctor, setSelectedDoctor] = useState<string>(initialDoctorId ? String(initialDoctorId) : '');
   const [symptomText, setSymptomText] = useState('');
-  const [suggestions, setSuggestions] = useState<DoctorSuggestionResponse | null>(null);
+  const [suggestionResponse, setSuggestionResponse] = useState<AutoAssignResponse | null>(null);
   // Browsing already chose a doctor (?doctor=id) → open the manual picker.
   const [showManualPicker, setShowManualPicker] = useState<boolean>(initialDoctorId !== null);
   const [error, setError] = useState('');
@@ -208,19 +208,33 @@ function JoinFlow({
   const doctors = (allDoctors?.content ?? []).filter((d) => d.isAvailable);
   const loadError = doctorsError ? getErrorMessage(doctorsError) : '';
 
-  // Symptoms first → the AI recommends the best-matched available doctors.
-  const handleFindDoctors = async () => {
+  // Phase 2 — "describe and done": the AI picks the single best doctor and
+  // joins that queue automatically. When the symptoms are ambiguous (or no
+  // doctor is available) nothing is joined and the top candidates are shown
+  // for the patient to confirm.
+  const handleAutoJoin = async () => {
     if (!symptomText.trim()) {
-      setError('Please describe your symptoms first — the AI uses them to find the right doctor.');
+      setError('Please describe your symptoms first — the AI matches you with the right doctor.');
       return;
     }
     setError('');
     setSuccess('');
-    setSuggestions(null);
+    setSuggestionResponse(null);
     setSelectedDoctor('');
     try {
-      const result = await doctorSuggestions({ symptomText: symptomText.trim() }).unwrap();
-      setSuggestions(result);
+      const result = await autoAssign({
+        symptomText: symptomText.trim(),
+        // Captured so the doctor's live queue can show real patient names (Day 7a).
+        patientName: user?.fullName || undefined,
+      }).unwrap();
+      const entry = result.entry;
+      if (result.assigned && entry) {
+        setSuccess(result.message ?? 'You\'ve been matched — joining the queue…');
+        setTimeout(() => onJoined(entry), 1200);
+      } else {
+        // Ambiguous / no available doctors → offer the candidates to confirm.
+        setSuggestionResponse(result);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     }
@@ -258,7 +272,8 @@ function JoinFlow({
           <div>
             <h2 className="text-lg font-bold text-slate-800">Join a queue</h2>
             <p className="text-sm text-slate-500">
-              Describe your symptoms — our AI finds the right doctor and triages your priority instantly.
+              Describe your symptoms — the AI matches you with the right doctor, triages your priority and joins
+              instantly.
             </p>
           </div>
         </div>
@@ -282,7 +297,7 @@ function JoinFlow({
               value={symptomText}
               onChange={(e) => {
                 setSymptomText(e.target.value);
-                if (suggestions) setSuggestions(null);
+                if (suggestionResponse) setSuggestionResponse(null);
               }}
               rows={4}
               maxLength={2000}
@@ -292,9 +307,11 @@ function JoinFlow({
             <p className="mt-1 text-right text-xs text-slate-400">{symptomText.length}/2000</p>
           </div>
 
-          <Button variant="secondary" onClick={handleFindDoctors} loading={isFinding} className="w-full">
+          {/* The primary action: describe and done. The AI joins the single
+              best doctor; ambiguous symptoms fall back to a manual pick. */}
+          <Button onClick={handleAutoJoin} loading={isAutoAssigning} className="w-full py-3 text-base">
             <Sparkles className="h-4 w-4" />
-            {isFinding ? 'Analyzing your symptoms…' : 'Find the right doctor for me'}
+            {isAutoAssigning ? 'Matching you with the best doctor…' : 'Auto-join — the AI picks the best doctor'}
           </Button>
 
           {/* Always reachable manual path — no AI step required (e.g. the
@@ -309,31 +326,47 @@ function JoinFlow({
             </button>
           )}
 
-          {/* AI recommendation results */}
-          {suggestions && (
+          {/* AI result: either the patient must confirm (ambiguous / none),
+              or the assigned confirmation is shown by the success banner */}
+          {suggestionResponse && (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-50 px-4 py-3">
-                <Sparkles className="h-4 w-4 text-brand-700" />
-                <span className="text-sm font-semibold text-brand-800">
-                  {suggestions.suggestedDepartment
-                    ? `AI suggests ${suggestions.suggestedDepartment}`
-                    : 'AI analysis'}
-                </span>
-                <StatusTag status={suggestions.triageLevel} />
-              </div>
-
-              {suggestions.emergency && suggestions.urgencyNote && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                  ⚠ {suggestions.urgencyNote}
+              {suggestionResponse.reason === 'AMBIGUOUS_SYMPTOMS' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                  ⚠ {suggestionResponse.message ??
+                    "Your symptoms don't clearly point to one specialty — please pick a doctor below."}
+                </div>
+              )}
+              {suggestionResponse.reason === 'NO_AVAILABLE_DOCTORS' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                  ⚠ {suggestionResponse.message ??
+                    'No doctors are currently accepting new patients — please try again shortly.'}
                 </div>
               )}
 
-              {suggestions.suggestions.length === 0 ? (
-                <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500">
-                  No doctors are currently accepting new patients. Please try again shortly.
-                </p>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-50 px-4 py-3">
+                <Sparkles className="h-4 w-4 text-brand-700" />
+                <span className="text-sm font-semibold text-brand-800">
+                  {suggestionResponse.suggestedDepartment
+                    ? `AI suggests ${suggestionResponse.suggestedDepartment}`
+                    : 'AI analysis'}
+                </span>
+                <StatusTag status={suggestionResponse.triageLevel} />
+              </div>
+
+              {suggestionResponse.emergency && suggestionResponse.urgencyNote && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  ⚠ {suggestionResponse.urgencyNote}
+                </div>
+              )}
+
+              {suggestionResponse.suggestions.length === 0 ? (
+                suggestionResponse.reason !== 'NO_AVAILABLE_DOCTORS' && (
+                  <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500">
+                    No doctors are currently accepting new patients. Please try again shortly.
+                  </p>
+                )
               ) : (
-                suggestions.suggestions.map((s) => (
+                suggestionResponse.suggestions.map((s) => (
                   <div
                     key={s.doctorCatalogEntryId}
                     className="card flex flex-col gap-3 p-4 transition-all duration-200 hover:shadow-lift sm:flex-row sm:items-center"
