@@ -184,4 +184,38 @@ class DoctorRecommendationServiceTest {
         assertThatThrownBy(() -> recommendationService.recommend("fever"))
                 .isInstanceOf(DoctorServiceUnavailableException.class);
     }
+
+    @Test
+    void rank_ExposesFullSortedList_SingleBestIsLowestWait() {
+        // Four cardiologists: Dr. One is busy (2 active patients), the rest free.
+        // rank() must expose the WHOLE sorted list (not just the top 3) so the
+        // auto-assign flow can take the single best = lowest predicted wait.
+        DoctorCatalogResponseDto one = doctor(1L, "Dr. One", "Cardiology", "Cardiology", true);
+        DoctorCatalogResponseDto two = doctor(2L, "Dr. Two", "Cardiology", "Cardiology", true);
+        DoctorCatalogResponseDto three = doctor(3L, "Dr. Three", "Cardiology", "Cardiology", true);
+        DoctorCatalogResponseDto four = doctor(4L, "Dr. Four", "Cardiology", "Cardiology", true);
+        stubCatalog(one, two, three, four);
+
+        given(aiTriageService.assessWithFallback("chest pain", List.of("Cardiology")))
+                .willReturn(new AiAssessment(TriageLevel.HIGH, "Cardiology"));
+        com.careq.queue.entity.QueueEntry busy1 = new com.careq.queue.entity.QueueEntry();
+        busy1.setDoctorCatalogEntryId(1L);
+        com.careq.queue.entity.QueueEntry busy2 = new com.careq.queue.entity.QueueEntry();
+        busy2.setDoctorCatalogEntryId(1L);
+        given(queueEntryRepository.findAllByStatusIn(anyList())).willReturn(List.of(busy1, busy2));
+
+        DoctorRecommendationService.RankedResult ranked = recommendationService.rank("chest pain");
+
+        // All four evaluated, best first: the free cardiologists (0 wait,
+        // alphabetical name tiebreak) then the busy one (30 min) last — so the
+        // single best (candidate 0) is never the slowest queue.
+        assertThat(ranked.candidates()).hasSize(4);
+        assertThat(ranked.candidates()).allSatisfy(c -> assertThat(c.score()).isEqualTo(100));
+        assertThat(ranked.candidates().get(0).doctor().getName()).isEqualTo("Dr. Four");
+        assertThat(ranked.candidates().get(0).predictedWaitMinutes()).isZero();
+        assertThat(ranked.candidates().get(3).doctor().getName()).isEqualTo("Dr. One");
+        assertThat(ranked.candidates().get(3).predictedWaitMinutes()).isEqualTo(30);
+        assertThat(ranked.assessment().triage()).isEqualTo(TriageLevel.HIGH);
+        assertThat(ranked.suggestedDepartment()).isEqualTo("Cardiology");
+    }
 }

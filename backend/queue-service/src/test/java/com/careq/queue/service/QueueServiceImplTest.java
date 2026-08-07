@@ -1,6 +1,7 @@
 package com.careq.queue.service;
 
 import com.careq.queue.client.DoctorServiceClient;
+import com.careq.queue.dto.AiAssessment;
 import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DailyAvgWaitDto;
 import com.careq.queue.dto.DailyPatientCountDto;
@@ -42,7 +43,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 /**
  * Service-layer tests for the queue module (Day 5).
  * doctor-service is simulated by mocking the Feign client; the AI triage
@@ -141,6 +141,38 @@ class QueueServiceImplTest {
 
         assertThatThrownBy(() -> queueService.joinQueue(PATIENT, request))
                 .isInstanceOf(DuplicateQueueEntryException.class);
+    }
+
+    @Test
+    void joinQueueWithAssessment_UsesPrecomputedTriage_WithoutSecondAiCall() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.existsByPatientIdAndDoctorCatalogEntryIdAndStatusIn(
+                eq(PATIENT), eq(10L), anyList())).willReturn(false);
+        // No aiTriageService stub — proves the precomputed assessment is used.
+
+        QueueEntry saved = new QueueEntry();
+        saved.setId(1L);
+        saved.setPatientId(PATIENT);
+        saved.setDoctorCatalogEntryId(10L);
+        saved.setSymptomText("severe chest pain");
+        saved.setAiSuggestedTriage(TriageLevel.EMERGENCY);
+        saved.setStatus(QueueStatus.WAITING);
+        saved.setJoinedAt(LocalDateTime.of(2026, 8, 1, 9, 0));
+        given(queueEntryRepository.save(any(QueueEntry.class))).willReturn(saved);
+        given(queueEntryRepository.findByDoctorCatalogEntryIdAndStatusInOrderByJoinedAtAsc(eq(10L), anyList()))
+                .willReturn(List.of(saved));
+
+        JoinQueueRequestDto request = new JoinQueueRequestDto();
+        request.setDoctorCatalogEntryId(10L);
+        request.setSymptomText("severe chest pain");
+
+        QueueEntryResponseDto response = queueService.joinQueueWithAssessment(
+                PATIENT, request, new AiAssessment(TriageLevel.EMERGENCY, "Cardiology"));
+
+        assertThat(response.getAiSuggestedTriage()).isEqualTo(TriageLevel.EMERGENCY);
+        assertThat(response.getPosition()).isEqualTo(1);
+        // The AI wrapper is never consulted again on this path — single LLM call.
+        verify(aiTriageService, never()).classifyWithFallback(any());
     }
 
     @Test

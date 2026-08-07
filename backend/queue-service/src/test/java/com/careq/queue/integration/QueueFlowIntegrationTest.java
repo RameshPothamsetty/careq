@@ -226,6 +226,109 @@ class QueueFlowIntegrationTest {
     }
 
     @Test
+    void autoAssign_ConfidentMatch_JoinsBestDoctorAndReturnsEntry() throws Exception {
+        // One available cardiologist; the AI (mocked) says Cardiology → a
+        // confident match → the patient is joined automatically (201).
+        DoctorCatalogPageDto page = new DoctorCatalogPageDto();
+        DoctorCatalogResponseDto doctor = new DoctorCatalogResponseDto();
+        doctor.setId(DOCTOR_CATALOG_ID);
+        doctor.setName("Dr. Flow Test");
+        doctor.setDepartmentName("Cardiology");
+        doctor.setSpecialization("Cardiology");
+        doctor.setAvgConsultationTimeMinutes(15);
+        doctor.setIsAvailable(true);
+        page.setContent(List.of(doctor));
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willReturn(page);
+
+        mockMvc.perform(post("/api/queue/auto-assign")
+                        .header("X-User-Id", PATIENT)
+                        .header("X-User-Role", "PATIENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"patientName\":\"Auto Flow\"," +
+                                "\"symptomText\":\"chest pain radiating to my left arm\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.assigned").value(true))
+                .andExpect(jsonPath("$.reason").value("ASSIGNED"))
+                .andExpect(jsonPath("$.triageLevel").value("HIGH"))
+                .andExpect(jsonPath("$.entry.id").isNumber())
+                .andExpect(jsonPath("$.entry.doctorName").value("Dr. Flow Test"))
+                .andExpect(jsonPath("$.entry.aiSuggestedTriage").value("HIGH"))
+                .andExpect(jsonPath("$.entry.status").value("WAITING"))
+                .andExpect(jsonPath("$.entry.position").value(1))
+                .andExpect(jsonPath("$.assignedDoctor.doctorCatalogEntryId").value(DOCTOR_CATALOG_ID))
+                .andExpect(jsonPath("$.suggestions").isEmpty());
+    }
+
+    @Test
+    void autoAssign_AmbiguousSymptoms_ReturnsSuggestionsWithoutJoining() throws Exception {
+        // One available dermatologist, but the AI suggests a department that
+        // doesn't exist → no confident match → nothing joined (200), the
+        // candidate is offered for the patient to confirm.
+        DoctorCatalogPageDto page = new DoctorCatalogPageDto();
+        DoctorCatalogResponseDto doctor = new DoctorCatalogResponseDto();
+        doctor.setId(DOCTOR_CATALOG_ID);
+        doctor.setName("Dr. Flow Test");
+        doctor.setDepartmentName("Dermatology");
+        doctor.setSpecialization("Dermatology");
+        doctor.setAvgConsultationTimeMinutes(15);
+        doctor.setIsAvailable(true);
+        page.setContent(List.of(doctor));
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willReturn(page);
+        given(triageAiClient.assess(anyString(), anyList()))
+                .willReturn(Optional.of(new AiAssessment(TriageLevel.NORMAL, "Radiology")));
+
+        mockMvc.perform(post("/api/queue/auto-assign")
+                        .header("X-User-Id", PATIENT)
+                        .header("X-User-Role", "PATIENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"vague complaints\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assigned").value(false))
+                .andExpect(jsonPath("$.reason").value("AMBIGUOUS_SYMPTOMS"))
+                .andExpect(jsonPath("$.suggestions.length()").value(1))
+                .andExpect(jsonPath("$.suggestions[0].doctorCatalogEntryId").value(DOCTOR_CATALOG_ID))
+                .andExpect(jsonPath("$.entry").doesNotExist());
+    }
+
+    @Test
+    void autoAssign_NonPatientRole_Returns403() throws Exception {
+        mockMvc.perform(post("/api/queue/auto-assign")
+                        .header("X-User-Id", DOCTOR_USER)
+                        .header("X-User-Role", "DOCTOR")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"cough\"}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void autoAssign_blankSymptomText_Returns400WithValidationErrors() throws Exception {
+        mockMvc.perform(post("/api/queue/auto-assign")
+                        .header("X-User-Id", PATIENT)
+                        .header("X-User-Role", "PATIENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors").isArray());
+    }
+
+    @Test
+    void autoAssign_DoctorServiceDown_Returns503NotUnhandled500() throws Exception {
+        // Feign failure while loading the catalog must surface as a graceful
+        // 503, never an unhandled 500 — the same contract as the join path.
+        given(doctorServiceClient.getAllDoctors(0, 1000))
+                .willThrow(new RuntimeException("connection refused"));
+
+        mockMvc.perform(post("/api/queue/auto-assign")
+                        .header("X-User-Id", PATIENT)
+                        .header("X-User-Role", "PATIENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"severe chest pain\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value(
+                        org.hamcrest.Matchers.containsString("temporarily unavailable")));
+    }
+
+    @Test
     void join_nonPatientRole_Returns403() throws Exception {
         mockMvc.perform(post("/api/queue/join")
                         .header("X-User-Id", DOCTOR_USER)
