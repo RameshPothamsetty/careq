@@ -1,0 +1,234 @@
+# =====================================================================
+# CareQ — full-stack Docker Compose (Day 11)
+#
+# Bring up:      docker compose up -d --build
+# Tear down:     docker compose down            (keep data)
+# Full reset:    docker compose down -v         (delete volumes)
+#
+# Ports match the local (non-Docker) development setup so switching
+# between the two requires no relearning:
+#   frontend :3030   gateway :8080   eureka :8761
+#   auth :8081   user :8082   doctor :8083   queue :8084
+#
+# Secrets come from the root .env file (see .env.example) — never
+# hardcoded here. The real .env is gitignored.
+# =====================================================================
+name: careq
+
+services:
+  # ── Database: one MySQL instance, one shared schema `careq_db`
+  #    (matches the local setup; JPA ddl-auto:update creates the tables).
+  mysql:
+    image: mysql:8.0
+    container_name: careq-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: careq_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - careq-net
+    # No host port by default — services reach it on the internal network
+    # (avoids clashing with a local MySQL on :3306). Uncomment for local
+    # tooling:  ports: ["3306:3306"]
+
+  # ── Service registry — must be healthy before anything else starts.
+  eureka-server:
+    build:
+      context: ./backend
+      dockerfile: eureka-server/Dockerfile
+    container_name: careq-eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    environment:
+      EUREKA_HOSTNAME: eureka-server
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - careq-net
+
+  # ── API Gateway (JWT validation + routing) — depends on Eureka.
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
+    container_name: careq-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:-CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - careq-net
+
+  # ── Business services: each waits for MySQL + Eureka to be healthy.
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: auth-service/Dockerfile
+    container_name: careq-auth
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - careq-net
+
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: user-service/Dockerfile
+    container_name: careq-user
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+    volumes:
+      - uploads-data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - careq-net
+
+  doctor-service:
+    build:
+      context: ./backend
+      dockerfile: doctor-service/Dockerfile
+    container_name: careq-doctor
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - careq-net
+
+  queue-service:
+    build:
+      context: ./backend
+      dockerfile: queue-service/Dockerfile
+    container_name: careq-queue
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      # Optional: without it, AI triage falls back to NORMAL (by design).
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - careq-net
+
+  # ── Frontend (Nginx) — depends on the gateway being healthy.
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: careq-frontend
+    restart: unless-stopped
+    ports:
+      - "3030:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    # 127.0.0.1, not localhost: busybox wget resolves localhost to ::1 and
+    # Nginx is IPv4-only here, which made the check falsely fail.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - careq-net
+
+volumes:
+  mysql-data:
+  uploads-data:
+
+networks:
+  careq-net:
+    driver: bridge
