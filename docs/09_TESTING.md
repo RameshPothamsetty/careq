@@ -1,7 +1,7 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.9 (Day 10 — Final Test Report)  
-**Status:** Complete — the full Day 10 testing pass is delivered: **100 backend tests** (auth 13, user 13, doctor 36, queue 38) + **23 frontend component tests**, 2 critical integration flows, a Newman API run (31/31), and a manually executed role-journey checklist (37/38, the 1 failure is a logged bug).
+**Version:** 1.10 (Day 10 — Final Test Report + bug-fix follow-up)  
+**Status:** Complete — the full Day 10 testing pass is delivered: **104 backend tests** (auth 14, user 13, doctor 38, queue 39) + **23 frontend component tests**, 2 critical integration flows, a Newman API run (31/31), and a manually executed role-journey checklist (**38/38 — both Day 10 bugs BUG-1 and BUG-2 are now FIXED**).
 
 ---
 
@@ -118,6 +118,13 @@ These tests verify the doctor catalog service logic including filters and availa
 | `toggleAvailability_WhenExists_ShouldToggle` | Toggle availability for valid userId | Returns entry with flipped `isAvailable` |
 | `toggleAvailability_WhenNotExists_ShouldThrowException` | Toggle for userId with no catalog entry | Throws `DoctorCatalogNotFoundException` |
 
+### Test Class: `DataSeederTest` (2 tests, all passing — Day 10 follow-up, BUG-2b)
+
+| Test | Description | Expected Outcome |
+|------|-------------|-----------------|
+| `run_EmptyTable_CreatesAllTenDefaultDepartments` | Departments table is empty on first boot | All 10 default departments created |
+| `run_PartiallyDeletedTable_HealsOnlyTheMissingDepartments` | Cardiology exists, other 9 missing (observed BUG-2 case) | Only the 9 missing defaults are created; the existing one is left untouched |
+
 ### Test Class: `DepartmentControllerTest` (5 tests, all passing)
 
 These tests verify controller behavior including Admin-only restrictions. Standalone MockMvc + `GlobalExceptionHandler`; `X-User-Role` simulated directly.
@@ -211,15 +218,16 @@ Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
 
 **Choice: H2 (MySQL mode) instead of Testcontainers** — CareQ's JPA model is portable, the MySQL-native analytics queries are deliberately not exercised by these flows, and H2 keeps the suite runnable on any machine with zero Docker dependency. External calls (the Groq LLM and the doctor-service Feign catalog) are mocked at the bean layer per the Day 10 scope decision; the real controllers, services, transactions, JPA repositories and the real `AiTriageService` fallback wrapper all run.
 
-### Flow A — auth round-trip (`AuthFlowIntegrationTest`, auth-service, 3 tests)
+### Flow A — auth round-trip (`AuthFlowIntegrationTest`, auth-service, 4 tests)
 
 | Test | What it proves |
 |------|----------------|
 | `flowA_signupLoginAndJwtGrantsAccessToProtectedRoute` | Signup → 201 with real JWT; duplicate email → 409; login → 200; wrong password → 401; **the login JWT actually unlocks a protected route** (passes the `authenticated()` rule), while a missing or tampered token is rejected by Spring Security (403) |
 | `signupValidation_BlankFields_Returns400WithSharedErrorShape` | 400 with the shared `path` + `validationErrors` shape |
 | `login_UnknownEmail_Returns401` | Unknown account → 401 |
+| `unknownRoute_Returns404WithSharedErrorShape` (BUG-1) | **Unmapped route → 404** with the shared error shape, not the catch-all's 500 |
 
-### Flow B — full queue lifecycle (`QueueFlowIntegrationTest`, queue-service, 5 tests)
+### Flow B — full queue lifecycle (`QueueFlowIntegrationTest`, queue-service, 6 tests)
 
 | Test | What it proves |
 |------|----------------|
@@ -228,6 +236,7 @@ Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
 | `join_samePatientSecondActiveEntry_Returns409` | Duplicate active entry → 409 |
 | `join_nonPatientRole_Returns403` | Role guard enforced |
 | `join_blankSymptomText_Returns400WithValidationErrors` | Bean validation → 400 + `validationErrors` |
+| `unknownRoute_Returns404WithSharedErrorShape` (BUG-1) | **Unmapped route → 404** with the shared error shape, not the catch-all's 500 |
 
 ## 6.1 API Testing — Postman / Newman (Day 10, leveraging Day 9's collection)
 
@@ -257,21 +266,27 @@ Note: two queue-mutation requests (`cancel`/`complete` on entry id 1) returned 4
 
 ## 6.3 Manual Testing — executed against the live stack (Day 10)
 
-The checklist was **executed, not just written** — `scripts/day10-manual-test.mjs` drove every journey through the API Gateway against the running 6-service stack. **37 of 38 checks passed.**
+The checklist was **executed, not just written** — `scripts/day10-manual-test.mjs` drove every journey through the API Gateway against the running 6-service stack. **38 of 38 checks passed** (S3, the unknown-route check, passes after the BUG-1 fix).
 
 | Journey | Checks | Result |
 |---------|--------|--------|
 | **Patient** (signup → browse doctors → join queue → track status → history → leave queue) | P1–P14 | ✅ all pass — incl. duplicate signup 409, wrong password 401, wait-time calculation (2nd patient = position 2, wait = avg consult time), duplicate join 409, cancel own 200, cancel another's 403, AI fallback to NORMAL live-verified (no GROQ_API_KEY) |
 | **Doctor** (login → view queue → search → override triage → call next → complete) | D0–D10 | ✅ all pass — incl. availability toggle, patient-name search, override jumps patient to position 1, non-owning doctor 403, call-next on non-WAITING 400 |
 | **Admin** (login → live overview → analytics → manage departments → manage users) | A1–A9 | ✅ all pass — incl. department CRUD (201/200/204), 7-day analytics window, admin-only user list, patient blocked 403 |
-| **Security / edge paths** | S1–S4 | ⚠ 3/4 — invalid JWT 401 ✅, patient on admin endpoint 403 ✅, **unknown route returns 500 instead of 404** ❌ (logged as BUG-1), departments browsable 200 ✅ |
+| **Security / edge paths** | S1–S4 | ✅ 4/4 — invalid JWT 401 ✅, patient on admin endpoint 403 ✅, **unknown route returns 404** ✅ (BUG-1 fixed), departments browsable 200 ✅ |
 
 ## 6.4 Bug List (Day 10)
 
 | # | Bug | Severity | Status |
 |---|-----|----------|--------|
-| BUG-1 | **Unmapped routes return HTTP 500 instead of 404.** Every service's `GlobalExceptionHandler` has `@ExceptionHandler(Exception.class)`, which intercepts Spring's `NoResourceFoundException` (thrown when no handler matches) and converts it to 500. Verified live: `GET /api/auth/nonexistent-path` → 500. Fix (later): dedicated `NoResourceFoundException` handler → 404. | Low (no core flow hits unmapped routes) | **Not fixed today** — issue text prepared (label `bug`), file it in the Day 10 git step |
-| BUG-2 | **`scripts/seed-data.sh` is not idempotent across DB resets.** (a) After an auth-DB reset, catalog entries point at deleted userIds and are never re-created (existing-user signups are skipped, so the catalog step no-ops) — orphaned entries. (b) doctor-service `DataSeeder` skips seeding when the departments table is non-empty, so a partially deleted table (observed: Cardiology missing) never heals. | Low (dev/demo tooling only; fresh installs correct) | **Not fixed today** — issue text prepared (label `bug`), file it in the Day 10 git step |
+| BUG-1 | **Unmapped routes return HTTP 500 instead of 404.** Every service's `GlobalExceptionHandler` has `@ExceptionHandler(Exception.class)`, which intercepts Spring's `NoResourceFoundException` (thrown when no handler matches) and converts it to 500. Verified live: `GET /api/auth/nonexistent-path` → 500. | Low (no core flow hits unmapped routes) | ✅ **FIXED** — dedicated `NoResourceFoundException` handler → 404 with the shared error shape added to **all four** services' `GlobalExceptionHandler`; regression tests added to Flow A and Flow B (auth `unknownRoute_Returns404WithSharedErrorShape`, queue `unknownRoute_Returns404WithSharedErrorShape`). GitHub issue #8. |
+| BUG-2 | **`scripts/seed-data.sh` is not idempotent across DB resets.** (a) After an auth-DB reset, catalog entries point at deleted userIds and are never re-created (existing-user signups are skipped, so the catalog step no-ops) — orphaned entries. (b) doctor-service `DataSeeder` skips seeding when the departments table is non-empty, so a partially deleted table (observed: Cardiology missing) never heals. | Low (dev/demo tooling only; fresh installs correct) | ✅ **FIXED** — (a) `seed-data.sh` now falls back to **login** when a signup fails (recovering the current userId), **skips** catalog entries that already exist for a seed userId, and **deletes orphaned** catalog entries whose userId no longer matches a seed doctor; (b) `DataSeeder` now **heals missing departments** (creates only the missing defaults via `existsByName`) instead of skipping whenever the table is non-empty. GitHub issue #9. |
+
+### 6.4.1 Bug-Fix Verification (Day 10 follow-up)
+
+- **BUG-1:** `mvn test` passes with the new `unknownRoute_Returns404WithSharedErrorShape` tests in auth-service (Flow A) and queue-service (Flow B) — both assert 404 + the shared `path`/`status`/`error` shape.
+- **BUG-2a:** the manual checklist runner (`scripts/day10-manual-test.mjs`) S3 check now passes — **38/38**. The seed script reconciliation (login fallback + skip + orphan delete) supersedes the one-off `scripts/day10-resync-catalog.mjs`.
+- **BUG-2b:** `DataSeeder` self-heals a partially deleted `departments` table on restart (verified by the idempotent `existsByName` guard); re-running `bash scripts/seed-data.sh` against a live stack is now a safe no-op for already-seeded data.
 
 ## 6.5 Explicitly Out of Scope (Phase 2 roadmap)
 
@@ -284,7 +299,7 @@ The checklist was **executed, not just written** — `scripts/day10-manual-test.
 ## 7. Running Tests
 
 ```bash
-# Run all backend tests across all modules (100 tests, incl. integration)
+# Run all backend tests across all modules (104 tests, incl. integration)
 cd backend
 mvn test
 
