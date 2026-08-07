@@ -3,7 +3,8 @@ server:
 
 eureka:
   instance:
-    hostname: localhost
+    # Docker sets EUREKA_HOSTNAME=eureka-server so the dashboard links resolve.
+    hostname: ${EUREKA_HOSTNAME:localhost}
   client:
     register-with-eureka: false
     fetch-registry: false

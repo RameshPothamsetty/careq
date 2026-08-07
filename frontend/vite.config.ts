@@ -13,6 +13,17 @@ export default defineConfig({
       },
     },
   },
+  // Day 11: `vite preview` does NOT apply server.proxy — mirror it here so
+  // `npm run build && npm run preview` keeps working with relative /api calls.
+  preview: {
+    port: 3030,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   // Day 10: component tests run in jsdom with the jest-dom matchers loaded once.
   // (Only src is included — the Playwright E2E specs under e2e/ are run via
   // `npm run test:e2e`, not Vitest.)

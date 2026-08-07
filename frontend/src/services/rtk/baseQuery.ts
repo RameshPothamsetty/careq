@@ -14,7 +14,10 @@ import {
  * stays decoupled from React context (baseQuery is module-scoped and cannot
  * call useAuth()).
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// Day 11: an EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
+// proxy handles them in dev, and the Docker Nginx container reverse-proxies
+// /api to the api-gateway in production. (??, not ||, keeps empty = relative.)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const baseFetch = fetchBaseQuery({
   baseUrl: API_BASE_URL,
