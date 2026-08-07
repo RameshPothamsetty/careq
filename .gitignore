@@ -36,3 +36,6 @@ docker/.env
 
 # Runtime uploads (user-service profile pictures)
 uploads/
+
+# Newman API test run report (regenerable via `newman run`)
+postman/test-report.json
