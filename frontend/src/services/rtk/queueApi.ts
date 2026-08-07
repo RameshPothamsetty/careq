@@ -6,6 +6,8 @@ import type {
   JoinQueuePayload,
   DoctorSuggestionPayload,
   DoctorSuggestionResponse,
+  AutoAssignPayload,
+  AutoAssignResponse,
   OverrideTriagePayload,
   TriageLevel,
   LiveQueueOverview,
@@ -44,6 +46,19 @@ export const queueApi = createApi({
         method: 'POST',
         body,
       }),
+    }),
+
+    // Phase 2 — full auto-assignment: the AI picks the single best doctor and
+    // joins that queue automatically. Ambiguous symptoms return suggestions
+    // instead (assigned=false), so the patient still confirms. Invalidates the
+    // same tags as a manual join — a real queue entry may have been created.
+    autoAssign: builder.mutation<AutoAssignResponse, AutoAssignPayload>({
+      query: (body) => ({
+        url: '/api/queue/auto-assign',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
     }),
 
     getMyQueueStatus: builder.query<QueueStatusResponse, void>({
@@ -132,6 +147,7 @@ export const queueApi = createApi({
 export const {
   useJoinQueueMutation,
   useDoctorSuggestionsMutation,
+  useAutoAssignMutation,
   useGetMyQueueStatusQuery,
   useGetMyQueueHistoryQuery,
   useGetDoctorQueueQuery,

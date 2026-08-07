@@ -136,6 +136,34 @@ interface DoctorSuggestionResponse {
   suggestions: DoctorSuggestion[];
 }
 
+// ---- Auto-assign (Phase 2) ----
+
+/** Why an auto-assign call ended the way it did. */
+type AutoAssignReason = 'ASSIGNED' | 'AMBIGUOUS_SYMPTOMS' | 'NO_AVAILABLE_DOCTORS';
+
+interface AutoAssignPayload {
+  symptomText: string;
+  patientName?: string;
+}
+
+/**
+ * Response for POST /api/queue/auto-assign.
+ * assigned=true → entry + assignedDoctor (the AI joined automatically);
+ * assigned=false → suggestions for the patient to confirm (ambiguous / none).
+ */
+interface AutoAssignResponse {
+  assigned: boolean;
+  reason: AutoAssignReason | null;
+  message: string | null;
+  triageLevel: TriageLevel;
+  suggestedDepartment: string | null;
+  emergency: boolean;
+  urgencyNote: string | null;
+  assignedDoctor: DoctorSuggestion | null;
+  entry: QueueEntryResponse | null;
+  suggestions: DoctorSuggestion[];
+}
+
 interface QueueEntryResponse {
   id: number;
   patientId: string;
@@ -300,6 +328,9 @@ export type {
   DoctorSuggestionPayload,
   DoctorSuggestion,
   DoctorSuggestionResponse,
+  AutoAssignPayload,
+  AutoAssignReason,
+  AutoAssignResponse,
   QueueEntryResponse,
   QueueStatusResponse,
   OverrideTriagePayload,
