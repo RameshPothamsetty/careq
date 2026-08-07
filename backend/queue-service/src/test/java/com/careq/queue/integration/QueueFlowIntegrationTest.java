@@ -2,6 +2,8 @@ package com.careq.queue.integration;
 
 import com.careq.queue.client.DoctorServiceClient;
 import com.careq.queue.client.TriageAiClient;
+import com.careq.queue.dto.AiAssessment;
+import com.careq.queue.dto.DoctorCatalogPageDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.entity.TriageLevel;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,8 +20,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -83,7 +87,8 @@ class QueueFlowIntegrationTest {
         doctor.setIsAvailable(true);
         given(doctorServiceClient.getDoctorById(DOCTOR_CATALOG_ID)).willReturn(doctor);
         // The Groq client is mocked; the real AiTriageService fallback wrapper still runs.
-        given(triageAiClient.classify(anyString())).willReturn(Optional.of(TriageLevel.HIGH));
+        given(triageAiClient.assess(anyString(), anyList()))
+                .willReturn(Optional.of(new AiAssessment(TriageLevel.HIGH, "Cardiology")));
     }
 
     @Test
@@ -181,6 +186,43 @@ class QueueFlowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"doctorCatalogEntryId\":10,\"symptomText\":\"fever again\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void doctorSuggestions_Patient_ReturnsRankedSuggestions() throws Exception {
+        // One available cardiologist in the catalog; the AI suggests Cardiology.
+        DoctorCatalogPageDto page = new DoctorCatalogPageDto();
+        DoctorCatalogResponseDto doctor = new DoctorCatalogResponseDto();
+        doctor.setId(DOCTOR_CATALOG_ID);
+        doctor.setName("Dr. Flow Test");
+        doctor.setDepartmentName("Cardiology");
+        doctor.setSpecialization("Cardiology");
+        doctor.setAvgConsultationTimeMinutes(15);
+        doctor.setIsAvailable(true);
+        page.setContent(List.of(doctor));
+        given(doctorServiceClient.getAllDoctors(0, 1000)).willReturn(page);
+
+        mockMvc.perform(post("/api/queue/doctor-suggestions")
+                        .header("X-User-Id", PATIENT)
+                        .header("X-User-Role", "PATIENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"chest pain radiating to my left arm\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.triageLevel").value("HIGH"))
+                .andExpect(jsonPath("$.suggestedDepartment").value("Cardiology"))
+                .andExpect(jsonPath("$.suggestions.length()").value(1))
+                .andExpect(jsonPath("$.suggestions[0].doctorCatalogEntryId").value(DOCTOR_CATALOG_ID))
+                .andExpect(jsonPath("$.suggestions[0].position").value(1));
+    }
+
+    @Test
+    void doctorSuggestions_NonPatientRole_Returns403() throws Exception {
+        mockMvc.perform(post("/api/queue/doctor-suggestions")
+                        .header("X-User-Id", DOCTOR_USER)
+                        .header("X-User-Role", "DOCTOR")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symptomText\":\"cough\"}"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
