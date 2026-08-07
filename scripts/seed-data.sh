@@ -3,6 +3,13 @@
 # CareQ Seed Script — Creates doctors, admin, patient & catalog entries
 # Run this AFTER all microservices are running (eureka, auth, user, doctor)
 # Usage: bash scripts/seed-data.sh
+#
+# BUG-2 fix (Day 10 follow-up): this script is now idempotent across DB
+# resets. Re-running it (or running it after an auth-DB reset) will:
+#   1. reuse existing accounts (signup fails -> login to recover the userId),
+#   2. skip catalog entries that already exist for a seed doctor's userId,
+#   3. delete ORPHANED catalog entries whose userId no longer matches any
+#      seed doctor (leftovers from a previous auth DB).
 # ================================================================
 
 API_BASE="http://localhost:8080"
@@ -13,9 +20,13 @@ echo "=========================================="
 echo ""
 
 # ─── Helper: signup a user and extract token ───
+# Idempotent: if the account already exists, falls back to login so the
+# caller still gets a response containing the (current) userId.
 signup_user() {
   local name="$1" email="$2" password="$3" role="$4"
-  echo "  Creating $role: $name ($email)..."
+  # Diagnostics go to stderr so stdout carries ONLY the JSON response —
+  # callers capture it and parse the userId from it.
+  echo "  Creating $role: $name ($email)..." >&2
 
   RESPONSE=$(curl -s -X POST "$API_BASE/api/auth/signup" \
     -H "Content-Type: application/json" \
@@ -23,14 +34,18 @@ signup_user() {
 
   # Check for error
   if echo "$RESPONSE" | grep -q "message\|error"; then
-    echo "  ⚠️  Could not create $email — may already exist"
-    echo "     $RESPONSE"
-    echo ""
+    echo "  ⚠️  $email may already exist — logging in to reuse the account" >&2
+    LOGIN_RESP=$(login_user "$email" "$password")
+    if echo "$LOGIN_RESP" | grep -q "token"; then
+      echo "     ✅ Logged in as existing $role" >&2
+      echo "$LOGIN_RESP"
+      return 0
+    fi
+    echo "     ❌ Login failed: $LOGIN_RESP" >&2
     return 1
   fi
 
   echo "$RESPONSE"
-  echo ""
   return 0
 }
 
@@ -94,7 +109,7 @@ RESP=$(signup_user "Karthik Joshi" "dr.karthik@careq.com" "password123" "DOCTOR"
 RESP=$(signup_user "Lakshmi Rao" "dr.lakshmi@careq.com" "password123" "DOCTOR")
 [ $? -eq 0 ] && DOCTOR_RESPONSES+=("$RESP")
 
-echo "✅ Created ${#DOCTOR_RESPONSES[@]} doctor accounts"
+echo "✅ ${#DOCTOR_RESPONSES[@]} doctor accounts ready (created or reused)"
 echo ""
 
 # ─── Step 2: Sign up Admin + Patient ───
@@ -104,8 +119,8 @@ echo "--------------------------------------------------"
 ADMIN_RESP=$(signup_user "Admin CareQ" "admin@careq.com" "admin123" "ADMIN")
 PATIENT_RESP=$(signup_user "John Patient" "john@careq.com" "password123" "PATIENT")
 
-echo "✅ Admin created: admin@careq.com / admin123"
-echo "✅ Patient created: john@careq.com / password123"
+echo "✅ Admin ready: admin@careq.com / admin123"
+echo "✅ Patient ready: john@careq.com / password123"
 echo ""
 
 # ─── Step 3: Get departments (to map department IDs) ───
@@ -125,15 +140,15 @@ fi
 DEPT_RESPONSE=$(curl -s "$API_BASE/api/departments" \
   -H "Authorization: Bearer $ADMIN_TOKEN")
 
-echo "   Departments loaded"
+echo "   Departments loaded (doctor-service DataSeeder heals any missing ones)"
 echo ""
 
-# ─── Step 4: Create doctor catalog entries ───
-echo "📋 Step 4/4: Creating doctor catalog entries..."
+# ─── Step 4: Reconcile doctor catalog entries (idempotent) ───
+echo "📋 Step 4/4: Reconciling doctor catalog entries..."
 echo "-------------------------------------------------"
 
 # Doctor catalog data: name, departmentId, specialization, qualification, experience, fee, avgTime
-# Department IDs match the seeded order:
+# Department IDs match the seeded order (DataSeeder heals any missing on restart):
 #   1=Cardiology, 2=Neurology, 3=Orthopedics, 4=Pediatrics, 5=Dermatology,
 #   6=Ophthalmology, 7=ENT, 8=Gastroenterology, 9=Pulmonology, 10=Nephrology
 
@@ -150,7 +165,20 @@ CATALOG_DATA=(
   "Dr. Lakshmi Rao:9:Sleep Medicine:MD Pulmonology:9:550:15"
 )
 
+# Fetch the current catalog so we can skip entries that already exist for a
+# seed userId and delete orphans left over from a previous auth DB (BUG-2).
+CATALOG_RESP=$(curl -s "$API_BASE/api/doctors?page=0&size=100" \
+  -H "Authorization: Bearer $ADMIN_TOKEN")
+
+# Each catalog entry object carries "id" then "userId"; extract them in
+# document order so the two arrays align by index.
+EXISTING_IDS=($(echo "$CATALOG_RESP" | grep -o '"id":[0-9]*' | sed 's/"id"://'))
+EXISTING_USER_IDS=($(echo "$CATALOG_RESP" | grep -o '"userId":"[^"]*"' | sed 's/"userId":"//;s/"$//'))
+
 COUNT=0
+SKIPPED=0
+declare -a SEED_USER_IDS
+
 for i in "${!DOCTOR_RESPONSES[@]}"; do
   RESP="${DOCTOR_RESPONSES[$i]}"
   USER_ID=$(get_json_value "$RESP" "userId")
@@ -159,9 +187,17 @@ for i in "${!DOCTOR_RESPONSES[@]}"; do
     echo "  ⚠️  Could not extract userId from response #$((i+1))"
     continue
   fi
+  SEED_USER_IDS+=("$USER_ID")
 
   # Get catalog data for this doctor
   IFS=':' read -r NAME DEPT_ID SPECIALIZATION QUALIFICATION EXP FEE AVG_TIME <<< "${CATALOG_DATA[$i]}"
+
+  # Idempotency: this doctor already has a catalog entry — leave it alone.
+  if [[ " ${EXISTING_USER_IDS[*]} " == *" $USER_ID "* ]]; then
+    echo "  ⏭️  $NAME already cataloged — skipping (idempotent)"
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
 
   echo "  Creating: $NAME — $SPECIALIZATION (Dept #$DEPT_ID, ${EXP}yrs, ₹$FEE)..."
 
@@ -186,13 +222,30 @@ for i in "${!DOCTOR_RESPONSES[@]}"; do
   fi
 done
 
+# Orphan cleanup (BUG-2 fix): delete catalog entries whose userId is not one
+# of the current seed doctors — e.g. leftovers from a previous auth DB that
+# no longer has those accounts.
+ORPHAN_COUNT=0
+for idx in "${!EXISTING_USER_IDS[@]}"; do
+  uid="${EXISTING_USER_IDS[$idx]}"
+  if [[ ! " ${SEED_USER_IDS[*]} " == *" $uid "* ]]; then
+    oid="${EXISTING_IDS[$idx]}"
+    echo "  🧹 Removing orphaned catalog entry #$oid (userId $uid no longer exists)"
+    curl -s -X DELETE "$API_BASE/api/doctors/$oid" \
+      -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
+    ORPHAN_COUNT=$((ORPHAN_COUNT + 1))
+  fi
+done
+
 echo ""
 echo "=========================================="
 echo "  ✅ Seeding Complete!"
 echo "=========================================="
 echo ""
-echo "  Doctors created:  $COUNT"
-echo "  Departments:      10 (auto-seeded by doctor-service)"
+echo "  Doctors created:      $COUNT"
+echo "  Already cataloged:    $SKIPPED"
+echo "  Orphans removed:      $ORPHAN_COUNT"
+echo "  Departments:          10 (healed by doctor-service DataSeeder)"
 echo ""
 echo "  ── Login Credentials ──"
 echo "  Admin:   admin@careq.com / admin123"
@@ -202,7 +255,7 @@ echo "  Doctor accounts (login to check availability toggle):"
 echo "  dr.arjun@careq.com   (Interventional Cardiology)"
 echo "  dr.priya@careq.com   (Pediatric Cardiology)"
 echo "  dr.vikram@careq.com  (Stroke Neurology)"
-echo "  dr.ananya@careq.com  (Joint Replacement)"  
+echo "  dr.ananya@careq.com  (Joint Replacement)"
 echo "  dr.rajesh@careq.com  (Neonatology)"
 echo "  dr.meera@careq.com   (Cosmetic Dermatology)"
 echo "  dr.suresh@careq.com  (Cataract Surgery)"
