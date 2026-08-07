@@ -1,0 +1,10 @@
+# Per-service .dockerignore (documentation + standalone builds).
+# Note: the docker-compose build uses context=./backend, where
+# backend/.dockerignore is the effective ignore file.
+target/
+.git
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
