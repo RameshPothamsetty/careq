@@ -271,3 +271,46 @@ HARD CONSTRAINTS: no new business logic or endpoints; do not skip services; stat
 
 VERIFICATION CHECKLIST: Issue/board/PR linkage; every error-response inconsistency found and fixed (service by service); every API-contract drift found and corrected; centralized Swagger UI URL confirmed tested, not just configured; auto-auth script verified (Newman or manual); exact git command sequence; ready-to-paste PR description.
 ```
+
+---
+
+## Day 10: Testing (Unit, Integration, API, UI, Manual)
+
+## Full Prompt Text
+
+```
+CareQ — Day 10 Prompt (Testing: Unit, Integration, API, UI, Manual)
+
+Save as the tenth entry in docs/11_PROMPTS.md. Paste everything below the --- into Freebuff exactly as-is. Assumes: Days 1-9 merged into develop, v0.1 tagged, all 6 services + frontend + Swagger/Postman documentation working. Run this BEFORE Day 11 (Docker) — you want confidence in what you're containerizing, not the other way around. You'll run the git commands yourself this time (good for actually learning the workflow) — Freebuff should output each command clearly, explain what it does in one line, and tell you what to check before moving to the next step, rather than executing them for you.
+
+ROLE
+You are acting as a Senior QA-minded Backend/Frontend Engineer running a focused testing pass across CareQ. Today's checklist item spans unit, integration, API, UI, and manual testing — given time constraints (two full checklist days are being completed today, this and Day 11), scope is prioritized, not exhaustive. Read the scoping decision below before writing anything.
+
+SCOPING DECISION FOR TODAY
+Full, exhaustive test coverage across every class in every service is not realistic in one session alongside tomorrow's Docker work. Prioritize in this order:
+1. Highest-risk logic gets the deepest testing: AiTriageService's fallback behavior, JWT generation/validation, queue priority ordering, wait-time calculation
+2. Every service gets solid but not exhaustive unit coverage of its service layer
+3. 2-3 critical end-to-end integration flows, not every possible flow
+4. A light frontend test pass on a few key components, not full coverage
+5. Full E2E browser automation (Cypress/Playwright) is explicitly Phase 2 roadmap — not built today, state this clearly in docs
+
+TODAY'S DELIVERABLES
+0. Create today's Issue first: Day 10: Testing (Unit, Integration, API, UI, Manual) as a GitHub Issue, checklist from below, labeled day-10, backend, frontend, bug. Add to the Project board under In Progress. Reference with Closes #<issue number> in today's PR.
+1. Unit tests — backend, per service: auth-service (signup success, duplicate email rejection, login success, wrong password, JWT valid, JWT expired/tampered), user-service (lazy profile creation, update validation, Admin-only restriction on GET /api/users/{id}), doctor-service (catalog CRUD, duplicate catalog entry per userId rejected, department filter, pagination/sorting), queue-service (thorough: AiTriageService success + explicit fallback path — failed/timed-out/unparseable AI returns NORMAL without throwing; wait-time calculation; queue ordering + re-ordering after override; Feign failure handling — doctor-service unreachable must not be an unhandled 500).
+2. Integration tests — 2-3 critical flows only, @SpringBootTest + MockMvc (H2 or Testcontainers MySQL, state choice and why): Flow A signup → login → use JWT on a protected endpoint; Flow B patient joins queue → AI triage (mock Groq) → wait time present → doctor calls next → IN_PROGRESS → complete → COMPLETED.
+3. API testing — run the full Day 9 Postman collection via Newman against a running local instance; save the run report to docs/09_TESTING.md and/or postman/test-report.json.
+4. UI testing — light pass, Vitest + RTL: LoginPage renders and submits; ProtectedRoute redirects unauthorized role; StatusTag renders correct color/label per value; one RTK Query hook's loading/error/success states render correctly in a consuming component.
+5. Manual testing checklist — documented in docs/09_TESTING.md, covering full user journeys per role (Patient: signup → browse doctors → join queue → track status; Doctor: login → view queue → override triage → call next → complete; Admin: login → manage departments/doctors → view analytics). Actually walk through each and mark pass/fail — execute it, don't just write it.
+6. Bug list — log every bug found. Fix anything critical; log non-critical bugs as GitHub Issues labeled bug, listed explicitly.
+7. docs/09_TESTING.md — finalize as the ADF-required Test Report: strategy/scope decision, unit test summary (covered + intentionally not), integration summary, API test results (Postman/Newman), UI summary, manual results (pass/fail per journey), full bug list with status.
+
+Explicitly OUT of scope today: full E2E browser automation (Cypress/Playwright — Phase 2), load/performance testing (Phase 2), 100% code coverage (risk-prioritized instead).
+
+OUTPUT FORMAT: same labeled-file-block format as previous days. Bug list and test summary as clear markdown lists before the file blocks.
+
+GIT WORKFLOW (you run this yourself — Freebuff guides, doesn't execute): pull develop → branch feature/testing-suite → write and run tests locally after each meaningful addition → commit in small increments (test: per-service unit tests, test: integration tests, test: frontend component tests, fix: per critical bug, docs: finalize test report) → push → PR feature/testing-suite → develop titled "Day 10: Testing" with Closes #<issue> (description: coverage summary, critical bugs fixed, non-critical bugs logged) → self-review (confirm full suite passes) → merge into develop yourself.
+
+HARD CONSTRAINTS: do not skip the AI fallback test (single most important test given Day 5's design decision); do not silently fix bugs without logging them; state assumptions (H2 vs Testcontainers, deferred non-critical bugs) before making changes.
+
+VERIFICATION CHECKLIST: Issue/board/PR linkage; full bug list (found / fixed today / logged for later); AI fallback test explicitly passes; manual checklist executed, not just written; exact git command sequence; ready-to-paste PR description.
+```

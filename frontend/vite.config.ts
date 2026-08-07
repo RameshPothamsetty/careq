@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -12,5 +12,13 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  // Day 10: component tests run in jsdom with the jest-dom matchers loaded once.
+  // (Only src is included — the Playwright E2E specs under e2e/ are run via
+  // `npm run test:e2e`, not Vitest.)
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 });
