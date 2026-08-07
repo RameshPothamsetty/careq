@@ -1,5 +1,6 @@
 package com.careq.queue.service;
 
+import com.careq.queue.dto.AiAssessment;
 import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.JoinQueueRequestDto;
@@ -17,6 +18,14 @@ public interface QueueService {
 
     /** Patient joins the doctor's queue; runs AI triage; returns entry with predicted wait. */
     QueueEntryResponseDto joinQueue(String patientId, JoinQueueRequestDto request);
+
+    /**
+     * Patient joins a doctor's queue using a PRE-COMPUTED AI assessment (the
+     * auto-assign flow) — the triage the patient was shown is the triage that
+     * is persisted, and the LLM is called once instead of twice.
+     */
+    QueueEntryResponseDto joinQueueWithAssessment(String patientId, JoinQueueRequestDto request,
+                                                  AiAssessment assessment);
 
     /** Patient's own current position + freshly recalculated predicted wait time. */
     QueueStatusResponseDto getMyStatus(String patientId);

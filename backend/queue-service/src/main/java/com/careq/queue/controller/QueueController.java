@@ -1,6 +1,8 @@
 package com.careq.queue.controller;
 
 import com.careq.queue.dto.AnalyticsSummaryDto;
+import com.careq.queue.dto.AutoAssignRequestDto;
+import com.careq.queue.dto.AutoAssignResponseDto;
 import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorSuggestionRequestDto;
 import com.careq.queue.dto.DoctorSuggestionResponseDto;
@@ -11,6 +13,7 @@ import com.careq.queue.dto.QueueEntryResponseDto;
 import com.careq.queue.dto.QueueStatusResponseDto;
 import com.careq.queue.exception.ErrorResponseDto;
 import com.careq.queue.exception.RoleGuard;
+import com.careq.queue.service.AutoAssignService;
 import com.careq.queue.service.DoctorRecommendationService;
 import com.careq.queue.service.QueueService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,19 +45,23 @@ import java.util.List;
  * API Gateway (same convention as Days 3-4). All business logic lives in
  * {@link QueueService}.
  */
-@Tag(name = "Queue Management", description = "Patient queue operations, AI symptom triage and live wait-time prediction. " +
-        "Role rules: PATIENT for join/status/history; DOCTOR (own queue) or ADMIN for queue actions and analytics.")
+@Tag(name = "Queue Management", description = "Patient queue operations, AI symptom triage, AI doctor matching and live " +
+        "wait-time prediction. Role rules: PATIENT for join/auto-assign/suggestions/status/history; DOCTOR (own queue) " +
+        "or ADMIN for queue actions and analytics.")
 @RestController
 @RequestMapping("/api/queue")
 public class QueueController {
 
     private final QueueService queueService;
     private final DoctorRecommendationService doctorRecommendationService;
+    private final AutoAssignService autoAssignService;
 
     public QueueController(QueueService queueService,
-                           DoctorRecommendationService doctorRecommendationService) {
+                           DoctorRecommendationService doctorRecommendationService,
+                           AutoAssignService autoAssignService) {
         this.queueService = queueService;
         this.doctorRecommendationService = doctorRecommendationService;
+        this.autoAssignService = autoAssignService;
     }
 
     /** Patient joins the queue for a doctor. Triggers AI triage. Returns entry with predicted wait. */
@@ -112,6 +119,43 @@ public class QueueController {
 
         RoleGuard.requireRole(role, "PATIENT");
         return ResponseEntity.ok(doctorRecommendationService.recommend(request.getSymptomText()));
+    }
+
+    /** Phase 2 — full auto-assignment: symptoms → AI joins the single best doctor (ambiguous → suggestions). */
+    @Operation(summary = "Auto-assign to the best doctor (Patient)",
+            description = "Given free-text symptoms, the Groq LLM assesses urgency AND the most likely department, the engine " +
+                    "ranks available doctors and — when the top match is confident — the patient is joined to that doctor's " +
+                    "queue immediately (triage, live position and predicted wait returned, HTTP 201). When the symptoms are " +
+                    "ambiguous or no doctor is available, nothing is joined: the top candidates are returned for the patient " +
+                    "to confirm manually (HTTP 200, assigned=false). Emergency symptoms are still auto-assigned, with a " +
+                    "prominent urgency warning. One LLM call; degrades gracefully: no GROQ_API_KEY uses curated keyword " +
+                    "matching.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Assigned — patient joined; entry + assignedDoctor returned",
+                    content = @Content(schema = @Schema(implementation = AutoAssignResponseDto.class),
+                            examples = @ExampleObject(value = "{\"assigned\":true,\"reason\":\"ASSIGNED\",\"message\":\"You've been matched with Dr. Arjun Sharma (Cardiology) — estimated wait ≈ 15 min\",\"triageLevel\":\"EMERGENCY\",\"suggestedDepartment\":\"Cardiology\",\"emergency\":true,\"urgencyNote\":\"EMERGENCY — please seek immediate attention. Matching you with the nearest available specialist.\",\"assignedDoctor\":{\"doctorCatalogEntryId\":1,\"name\":\"Dr. Arjun Sharma\",\"departmentName\":\"Cardiology\",\"specialization\":\"Interventional Cardiology\",\"position\":2,\"predictedWaitMinutes\":15,\"matchReason\":\"Best match — Cardiology\"},\"entry\":{\"id\":1,\"patientId\":\"550e8400-e29b-41d4-a716-446655440010\",\"doctorCatalogEntryId\":1,\"doctorName\":\"Dr. Arjun Sharma\",\"aiSuggestedTriage\":\"EMERGENCY\",\"status\":\"WAITING\",\"position\":2,\"predictedWaitMinutes\":15},\"suggestions\":[]}"))),
+            @ApiResponse(responseCode = "200", description = "Ambiguous symptoms or no available doctors — suggestions returned, nothing joined",
+                    content = @Content(schema = @Schema(implementation = AutoAssignResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed (symptomText required)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not a PATIENT",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "409", description = "Doctor unavailable, or patient already has an active entry for the assigned doctor",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "503", description = "Doctor service temporarily unavailable",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
+    })
+    @PostMapping("/auto-assign")
+    public ResponseEntity<AutoAssignResponseDto> autoAssign(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
+            @Parameter(hidden = true) @RequestHeader("X-User-Role") String role,
+            @Valid @RequestBody AutoAssignRequestDto request) {
+
+        RoleGuard.requireRole(role, "PATIENT");
+        AutoAssignResponseDto response = autoAssignService.autoAssign(userId, request);
+        return response.isAssigned()
+                ? ResponseEntity.status(HttpStatus.CREATED).body(response)
+                : ResponseEntity.ok(response);
     }
 
     /** Patient's own current position + freshly recalculated predicted wait. */

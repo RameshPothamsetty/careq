@@ -92,8 +92,17 @@ public class DoctorRecommendationService {
         this.maxDoctorsToLoad = maxDoctorsToLoad;
     }
 
+    /**
+     * Full ranked result for one symptom description: the AI assessment, the
+     * normalized department pick, and every available doctor scored and sorted
+     * (best relevance first, then shortest live wait, then name).
+     *
+     * The Phase 1 suggestion endpoint takes the top 3 from this list; the
+     * Phase 2 auto-assign flow takes the single best. Both share one LLM call
+     * and one grouped queue-load query.
+     */
     @Transactional(readOnly = true)
-    public DoctorSuggestionResponseDto recommend(String symptomText) {
+    public RankedResult rank(String symptomText) {
         List<DoctorCatalogResponseDto> doctors = fetchAllDoctors();
 
         // Canonical department names the LLM may pick from (live from the catalog).
@@ -114,15 +123,22 @@ public class DoctorRecommendationService {
                 .thenComparingInt(ScoredDoctor::predictedWaitMinutes)
                 .thenComparing(s -> s.doctor().getName() == null ? "" : s.doctor().getName()));
 
-        List<DoctorSuggestionDto> suggestions = candidates.stream()
+        return new RankedResult(assessment, suggestedDepartment, candidates);
+    }
+
+    @Transactional(readOnly = true)
+    public DoctorSuggestionResponseDto recommend(String symptomText) {
+        RankedResult ranked = rank(symptomText);
+
+        List<DoctorSuggestionDto> suggestions = ranked.candidates().stream()
                 .limit(TOP_N)
                 .map(this::toDto)
                 .collect(Collectors.toList());
 
         DoctorSuggestionResponseDto response = new DoctorSuggestionResponseDto();
-        response.setTriageLevel(assessment.triage());
-        response.setSuggestedDepartment(suggestedDepartment);
-        response.setEmergency(assessment.triage() == TriageLevel.EMERGENCY);
+        response.setTriageLevel(ranked.assessment().triage());
+        response.setSuggestedDepartment(ranked.suggestedDepartment());
+        response.setEmergency(ranked.assessment().triage() == TriageLevel.EMERGENCY);
         response.setUrgencyNote(response.isEmergency()
                 ? "EMERGENCY — please seek immediate attention. Nearest available specialists:"
                 : null);
@@ -291,7 +307,13 @@ public class DoctorRecommendationService {
         return haystack.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
     }
 
-    private DoctorSuggestionDto toDto(ScoredDoctor s) {
+    /** Result of {@link #rank}: the assessment + the full sorted candidate list. */
+    public record RankedResult(AiAssessment assessment, String suggestedDepartment,
+                               List<ScoredDoctor> candidates) {
+    }
+
+    /** Package-visible so the auto-assign flow can read the single best candidate. */
+    DoctorSuggestionDto toDto(ScoredDoctor s) {
         DoctorCatalogResponseDto d = s.doctor();
         DoctorSuggestionDto dto = new DoctorSuggestionDto();
         dto.setDoctorCatalogEntryId(d.getId());
@@ -320,7 +342,7 @@ public class DoctorRecommendationService {
     }
 
     /** Internal holder pairing a catalog doctor with its computed match data. */
-    private record ScoredDoctor(DoctorCatalogResponseDto doctor, int score,
-                                int position, int predictedWaitMinutes, String reason) {
+    record ScoredDoctor(DoctorCatalogResponseDto doctor, int score,
+                        int position, int predictedWaitMinutes, String reason) {
     }
 }
