@@ -203,4 +203,14 @@ class QueueFlowIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.validationErrors").isArray());
     }
+
+    @Test
+    void unknownRoute_Returns404WithSharedErrorShape() throws Exception {
+        // BUG-1: an unmapped route must be 404, never the catch-all handler's 500.
+        mockMvc.perform(get("/api/nonexistent-path"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.path").value("/api/nonexistent-path"));
+    }
 }
