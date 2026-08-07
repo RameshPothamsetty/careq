@@ -1,0 +1,26 @@
+# Day 10: test profile for @SpringBootTest integration tests.
+# H2 in MySQL mode (no MySQL server needed). The Groq + Feign clients are
+# mocked at the bean level in the tests, so ai.groq values are just placeholders.
+spring:
+  datasource:
+    url: jdbc:h2:mem:queuedb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+eureka:
+  client:
+    enabled: false
+
+ai:
+  groq:
+    api-key: dummy-key-for-tests
+    url: http://localhost:9999/unused
+    model: llama-3.1-8b-instant
+    timeout-seconds: 1

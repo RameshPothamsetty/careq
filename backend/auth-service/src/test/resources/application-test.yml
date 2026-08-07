@@ -1,0 +1,24 @@
+# Day 10: test profile for @SpringBootTest integration tests.
+# H2 in MySQL mode (no MySQL server needed); the same app.jwt properties
+# as production so JWT round-trips are genuine.
+spring:
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+eureka:
+  client:
+    enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
+    expiration-ms: 3600000
