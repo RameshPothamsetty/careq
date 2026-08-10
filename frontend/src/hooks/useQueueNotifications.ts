@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useI18n, type I18nT } from '../i18n';
 import { useGetMyQueueStatusQuery } from '../services/rtk/queueApi';
 
 /** An event derived client-side from a queue status transition (Day 7b). */
@@ -23,13 +24,14 @@ const POLL_INTERVAL_MS = 10_000;
  *
  * The FIRST successful poll is treated as a baseline (no events fired) so a
  * page refresh mid-queue never replays "you joined" spam. Everything here is
- * client-side and session-only — there is no backend notification store, and
- * the history resets on refresh by design (see docs/03_ARCHITECTURE.md).
+ * client-side and session-only — the durable record lives in
+ * notification-service (Day 13).
  */
 export function useQueueNotifications(
   onEvent: (event: QueueNotificationEvent) => void,
 ): void {
   const { isAuthenticated, user } = useAuth();
+  const { t } = useI18n();
   const isPatient = isAuthenticated && user?.role === 'PATIENT';
 
   const { data } = useGetMyQueueStatusQuery(undefined, {
@@ -45,10 +47,15 @@ export function useQueueNotifications(
     position: number | null;
   } | null>(null);
   const onEventRef = useRef(onEvent);
+  const tRef = useRef<I18nT>(t);
 
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     if (!data) return;
@@ -79,13 +86,16 @@ export function useQueueNotifications(
       return;
     }
 
-    const doctorName = entry?.doctorName?.trim() || 'your doctor';
+    const doctorName = entry?.doctorName?.trim() || tRef.current('queue.yourDoctor');
 
     // 1. Joined the queue (was inactive, now active).
     if (prev === null && current) {
       onEventRef.current({
-        title: 'Queue joined',
-        message: `You joined ${doctorName}'s queue — position #${current.position ?? '—'}.`,
+        title: tRef.current('toast.queueJoined'),
+        message: tRef.current('toast.joinedMessage', {
+          doctor: doctorName,
+          position: current.position ?? '—',
+        }),
         kind: 'success',
       });
       return;
@@ -94,8 +104,13 @@ export function useQueueNotifications(
     // 2. Consultation finished: entry left the active queue, or was explicitly completed.
     if (current === null || (prev?.status === 'IN_PROGRESS' && current.status === 'COMPLETED')) {
       onEventRef.current({
-        title: 'Consultation complete',
-        message: `${prev?.status === 'IN_PROGRESS' ? `Dr. ${doctorName} has finished — ` : ''}thanks for visiting, take care!`,
+        title: tRef.current('toast.consultationComplete'),
+        message: tRef.current('toast.completeMessage', {
+          prefix:
+            prev?.status === 'IN_PROGRESS'
+              ? tRef.current('toast.completePrefix', { doctor: doctorName })
+              : '',
+        }),
         kind: 'success',
       });
       return;
@@ -104,8 +119,8 @@ export function useQueueNotifications(
     // 3. Called: WAITING → IN_PROGRESS. The flagship transition.
     if (prev?.status === 'WAITING' && current.status === 'IN_PROGRESS') {
       onEventRef.current({
-        title: "It's your turn!",
-        message: `${doctorName} has called you — please head to the consultation room.`,
+        title: tRef.current('toast.yourTurn'),
+        message: tRef.current('toast.calledMessage', { doctor: doctorName }),
         kind: 'warning',
       });
       return;
@@ -120,8 +135,11 @@ export function useQueueNotifications(
       current.position < prev.position
     ) {
       onEventRef.current({
-        title: 'Position moved up',
-        message: `You're now #${current.position} in ${doctorName}'s queue.`,
+        title: tRef.current('toast.positionMovedUp'),
+        message: tRef.current('toast.movedUpMessage', {
+          position: current.position,
+          doctor: doctorName,
+        }),
         kind: 'info',
       });
     }

@@ -4,6 +4,7 @@ import { Activity, FilterX, Stethoscope, Wallet, Clock, Award, MapPin } from 'lu
 import { useAuth } from '../context/AuthContext';
 import { useGetDepartmentsQuery, useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
+import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatCard, StatusTag, AvatarInitials, Button } from '../components/ui';
 import { LoadingState, EmptyState } from '../components/ui/States';
@@ -11,6 +12,7 @@ import { LoadingState, EmptyState } from '../components/ui/States';
 export default function PatientDoctorBrowser() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useI18n();
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [searchInput, setSearchInput] = useState('');
   const [searchSpecialization, setSearchSpecialization] = useState('');
@@ -54,28 +56,30 @@ export default function PatientDoctorBrowser() {
     setSearchSpecialization('');
   };
 
+  const hasFilters = selectedDeptId || searchSpecialization;
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🔍"
-          title="Browse Doctors"
-          subtitle="Find the right specialist for your care"
+          title={t('browse.title')}
+          subtitle={t('browse.subtitle')}
           dashboardPath="/patient"
         />
 
         {/* Stats */}
         {!isLoading && total > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-            <StatCard label="Total Doctors" value={stats.total} icon={<Stethoscope className="h-5 w-5" />} />
+            <StatCard label={t('browse.totalDoctors')} value={stats.total} icon={<Stethoscope className="h-5 w-5" />} />
             <StatCard
-              label="Available Now"
+              label={t('browse.availableNow')}
               value={stats.available}
               icon={<Activity className="h-5 w-5" />}
               accent="bg-emerald-50 text-emerald-700"
             />
             <StatCard
-              label="Departments"
+              label={t('browse.departments')}
               value={stats.departments}
               icon={<MapPin className="h-5 w-5" />}
               accent="bg-amber-50 text-amber-700"
@@ -88,14 +92,14 @@ export default function PatientDoctorBrowser() {
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                🏥 Department
+                {t('browse.department')}
               </label>
               <select
                 value={selectedDeptId}
                 onChange={(e) => setSelectedDeptId(e.target.value)}
                 className="select-field !min-w-[200px]"
               >
-                <option value="">All Departments</option>
+                <option value="">{t('browse.allDepartments')}</option>
                 {departments.map((dept) => (
                   <option key={dept.id} value={dept.id}>{dept.name}</option>
                 ))}
@@ -103,19 +107,19 @@ export default function PatientDoctorBrowser() {
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                🔎 Specialization
+                {t('browse.specialization')}
               </label>
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="e.g. Cardiology"
+                placeholder={t('browse.specializationPlaceholder')}
                 className="input-field !min-w-[220px]"
               />
             </div>
             <Button variant="secondary" onClick={clearFilters}>
               <FilterX className="h-4 w-4" />
-              Clear
+              {t('browse.clear')}
             </Button>
           </div>
         </div>
@@ -127,19 +131,15 @@ export default function PatientDoctorBrowser() {
         )}
 
         {isLoading ? (
-          <LoadingState label="Finding doctors for you…" />
+          <LoadingState label={t('browse.loading')} />
         ) : total === 0 ? (
           <EmptyState
             icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
-            title="No doctors found"
-            message={
-              selectedDeptId || searchSpecialization
-                ? 'Try adjusting your filters to see more results'
-                : 'Doctor catalog entries will appear here once added by an Admin'
-            }
+            title={t('browse.emptyTitle')}
+            message={hasFilters ? t('browse.emptyFiltered') : t('browse.emptyNone')}
             action={
-              (selectedDeptId || searchSpecialization) ? (
-                <Button onClick={clearFilters}>Clear All Filters</Button>
+              hasFilters ? (
+                <Button onClick={clearFilters}>{t('browse.clearAllFilters')}</Button>
               ) : undefined
             }
           />
@@ -169,7 +169,7 @@ export default function PatientDoctorBrowser() {
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
                       <span className="inline-flex items-center gap-1">
                         <Award className="h-3.5 w-3.5 text-slate-400" />
-                        {doc.experienceYears} years exp
+                        {t('browse.yearsExp', { y: doc.experienceYears })}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Wallet className="h-3.5 w-3.5 text-slate-400" />
@@ -177,7 +177,7 @@ export default function PatientDoctorBrowser() {
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        ≈{doc.avgConsultationTimeMinutes} min
+                        {t('browse.min', { m: doc.avgConsultationTimeMinutes })}
                       </span>
                     </div>
                   </div>
@@ -190,7 +190,7 @@ export default function PatientDoctorBrowser() {
                     onClick={() => navigate(`/patient/queue?doctor=${doc.id}`)}
                     className="w-full sm:w-auto"
                   >
-                    {doc.isAvailable ? 'Join Queue →' : 'Unavailable'}
+                    {doc.isAvailable ? t('browse.joinQueue') : t('browse.unavailable')}
                   </Button>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export default function PatientDoctorBrowser() {
         )}
 
         <footer className="pt-4 text-center text-xs text-slate-400">
-          CareQ — SmartOPD AI | Find the right specialist · {user?.fullName}
+          CareQ — SmartOPD AI | {t('browse.subtitle')} · {user?.fullName}
         </footer>
       </div>
     </div>

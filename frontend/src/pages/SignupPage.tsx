@@ -2,17 +2,20 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Activity, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useI18n } from '../i18n';
 import Button from '../components/ui/Button';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const ROLES = [
-  { value: 'PATIENT', label: 'Patient', icon: '👤', desc: 'Browse doctors & join queues' },
-  { value: 'DOCTOR', label: 'Doctor', icon: '🩺', desc: 'Manage your live queue' },
-  { value: 'ADMIN', label: 'Admin', icon: '⚙️', desc: 'Departments, doctors & oversight' },
-];
+  { value: 'PATIENT', icon: '👤', labelKey: 'auth.rolePatient', descKey: 'auth.rolePatientDesc' },
+  { value: 'DOCTOR', icon: '🩺', labelKey: 'auth.roleDoctor', descKey: 'auth.roleDoctorDesc' },
+  { value: 'ADMIN', icon: '⚙️', labelKey: 'auth.roleAdmin', descKey: 'auth.roleAdminDesc' },
+] as const;
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { signup } = useAuth();
+  const { t } = useI18n();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,12 +35,14 @@ export default function SignupPage() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Signup failed. Please try again.');
+        setError(t('auth.signupFailed'));
       }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const selectedRole = ROLES.find((r) => r.value === role);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
@@ -45,13 +50,18 @@ export default function SignupPage() {
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-sky-200/30 blur-3xl" />
 
+      {/* Language switcher — always reachable, even before sign-in */}
+      <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
+        <LanguageSwitcher />
+      </div>
+
       <div className="card w-full max-w-md animate-fade-in-up p-8 sm:p-10">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
             <Activity className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-800">Create Account</h1>
-          <p className="mt-1 text-sm text-slate-500">Join CareQ — SmartOPD AI</p>
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-800">{t('auth.createAccount')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('auth.joinCareQ')}</p>
         </div>
 
         {error && (
@@ -62,24 +72,24 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Full Name</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.fullName')}</label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Dr. John Doe"
+              placeholder={t('auth.fullNamePlaceholder')}
               required
               className="input-field"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.email')}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="john@hospital.com"
+              placeholder={t('auth.emailPlaceholder')}
               required
               autoComplete="email"
               className="input-field"
@@ -87,12 +97,12 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Password</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.password')}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
+              placeholder={t('auth.passwordHint')}
               required
               minLength={6}
               autoComplete="new-password"
@@ -101,7 +111,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">I am a…</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.iamA')}</label>
             <div className="grid grid-cols-3 gap-2">
               {ROLES.map((r) => (
                 <button
@@ -116,26 +126,26 @@ export default function SignupPage() {
                 >
                   <span className="text-xl">{r.icon}</span>
                   <span className={`text-xs font-semibold ${role === r.value ? 'text-brand-700' : 'text-slate-600'}`}>
-                    {r.label}
+                    {t(r.labelKey)}
                   </span>
                 </button>
               ))}
             </div>
             <p className="mt-1.5 text-xs text-slate-400">
-              {ROLES.find((r) => r.value === role)?.desc}
+              {selectedRole ? t(selectedRole.descKey) : ''}
             </p>
           </div>
 
           <Button type="submit" loading={isSubmitting} className="w-full py-3 text-base">
             {!isSubmitting && <UserPlus className="h-4 w-4" />}
-            {isSubmitting ? 'Creating account…' : 'Create Account'}
+            {isSubmitting ? t('auth.creatingAccount') : t('auth.createAccount')}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{' '}
+          {t('auth.alreadyHaveAccount')}{' '}
           <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline">
-            Sign in
+            {t('auth.signIn')}
           </Link>
         </p>
       </div>

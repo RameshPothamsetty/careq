@@ -2,9 +2,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { LayoutDashboard, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useI18n } from '../i18n';
 import AvatarInitials from './ui/AvatarInitials';
 import Button from './ui/Button';
 import NotificationBell from './NotificationBell';
+import LanguageSwitcher from './LanguageSwitcher';
 
 export default function QueuePageHeader({
   icon,
@@ -22,6 +24,7 @@ export default function QueuePageHeader({
   backTo?: string;
 }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -42,19 +45,20 @@ export default function QueuePageHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <NotificationBell />
+        <LanguageSwitcher />
         {backTo ? (
           <Link to={backTo} className="btn-secondary">
-            ← Back
+            {t('common.back')}
           </Link>
         ) : showDashboard ? (
           <Link to={dashboardPath} className="btn-secondary">
             <LayoutDashboard className="h-4 w-4" />
-            Dashboard
+            {t('common.dashboard')}
           </Link>
         ) : null}
         <Link to="/profile" className="btn-secondary">
           <User className="h-4 w-4" />
-          Profile
+          {t('common.profile')}
         </Link>
         <div className="ml-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-3">
           <AvatarInitials name={user?.fullName || 'U'} size="sm" />
@@ -64,7 +68,7 @@ export default function QueuePageHeader({
         </div>
         <Button variant="danger" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
-          Logout
+          {t('common.logout')}
         </Button>
       </div>
     </header>

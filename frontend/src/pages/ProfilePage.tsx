@@ -7,6 +7,7 @@ import {
 } from '../services/rtk/userApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { UpdateProfilePayload, UserProfileResponse } from '../services/api';
+import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
 import AvatarInitials from '../components/ui/AvatarInitials';
 import Button from '../components/ui/Button';
@@ -14,6 +15,7 @@ import { LoadingState, ErrorState } from '../components/ui/States';
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   const {
     data: profile,
@@ -85,7 +87,7 @@ export default function ProfilePage() {
 
       // Both mutations invalidate the 'Profile' tag — the query refetches
       // automatically and the view updates with the fresh data.
-      setSuccess('Profile updated successfully');
+      setSuccess(t('profile.updated'));
       setSelectedFile(null);
       setPreviewUrl(null);
       setIsEditing(false);
@@ -106,7 +108,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <LoadingState label="Loading profile…" />
+          <LoadingState label={t('profile.loading')} />
         </div>
       </div>
     );
@@ -124,22 +126,32 @@ export default function ProfilePage() {
 
   const displayUrl = previewUrl || profile?.profilePictureUrl;
   const isSaving = isUpdating || isUploading;
+  const rolePath = user?.role.toLowerCase() || 'patient';
+
+  const viewRows = [
+    { label: t('profile.phone'), value: profile?.phone || t('common.notSet') },
+    { label: t('auth.email'), value: user?.email || '' },
+    { label: t('profile.gender'), value: profile?.gender || t('common.notSet') },
+    { label: t('profile.dateOfBirth'), value: profile?.dateOfBirth || t('common.notSet') },
+    { label: t('profile.address'), value: profile?.address || t('common.notSet') },
+    { label: t('profile.profilePicture'), value: profile?.profilePictureUrl || t('common.notSet') },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-4xl space-y-6">
         <QueuePageHeader
           icon="👤"
-          title="My Profile"
-          subtitle={`Welcome, ${user?.fullName || 'User'}`}
-          dashboardPath={`/${user?.role.toLowerCase() || 'patient'}`}
+          title={t('profile.title')}
+          subtitle={t('profile.subtitle', { name: user?.fullName || 'User' })}
+          dashboardPath={`/${rolePath}`}
           showDashboard={false}
-          backTo={`/${user?.role.toLowerCase() || 'patient'}`}
+          backTo={`/${rolePath}`}
         />
 
         {isError && (
           <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            ⚠ {getErrorMessage(queryError)} — showing the last saved profile.
+            ⚠ {t('profile.staleWarning', { error: getErrorMessage(queryError) })}
           </div>
         )}
         {error && !isError && (
@@ -169,34 +181,27 @@ export default function ProfilePage() {
           {/* Body */}
           {!isEditing ? (
             <div className="space-y-0 p-6">
-              {[
-                { label: 'Phone', value: profile?.phone || 'Not set' },
-                { label: 'Email', value: user?.email || '' },
-                { label: 'Gender', value: profile?.gender || 'Not set' },
-                { label: 'Date of Birth', value: profile?.dateOfBirth || 'Not set' },
-                { label: 'Address', value: profile?.address || 'Not set' },
-                { label: 'Profile Picture', value: profile?.profilePictureUrl || 'Not set' },
-              ].map((row, i) => (
+              {viewRows.map((row, i) => (
                 <div
                   key={row.label}
-                  className={`flex items-center justify-between gap-4 py-3.5 ${i < 5 ? 'border-b border-slate-100' : ''}`}
+                  className={`flex items-center justify-between gap-4 py-3.5 ${i < viewRows.length - 1 ? 'border-b border-slate-100' : ''}`}
                 >
                   <span className="text-sm font-medium text-slate-500">{row.label}</span>
                   <span
-                    className={`text-sm font-semibold ${row.value === 'Not set' ? 'text-slate-400' : 'text-slate-800'}`}
+                    className={`text-sm font-semibold ${row.value === t('common.notSet') ? 'text-slate-400' : 'text-slate-800'}`}
                   >
                     {row.value}
                   </span>
                 </div>
               ))}
               <div className="pt-4">
-                <Button onClick={handleEdit}>Edit Profile</Button>
+                <Button onClick={handleEdit}>{t('common.editProfile')}</Button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5 p-6">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Phone</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('profile.phone')}</label>
                 <input
                   type="tel"
                   value={phone}
@@ -209,16 +214,16 @@ export default function ProfilePage() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Gender</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('profile.gender')}</label>
                   <select value={gender} onChange={(e) => setGender(e.target.value)} className="select-field">
-                    <option value="">Select gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
+                    <option value="">{t('profile.selectGender')}</option>
+                    <option value="MALE">{t('profile.male')}</option>
+                    <option value="FEMALE">{t('profile.female')}</option>
+                    <option value="OTHER">{t('profile.other')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Date of Birth</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('profile.dateOfBirth')}</label>
                   <input
                     type="date"
                     value={dateOfBirth}
@@ -229,18 +234,18 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Address</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('profile.address')}</label>
                 <textarea
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Enter your address"
+                  placeholder={t('profile.enterAddress')}
                   rows={3}
                   className="input-field resize-none"
                 />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Profile Picture</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('profile.profilePicture')}</label>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
                   <input
                     type="file"
@@ -255,20 +260,20 @@ export default function ProfilePage() {
                     onClick={() => fileInputRef.current?.click()}
                     className="!py-2 text-xs"
                   >
-                    Choose Image
+                    {t('auth.chooseImage')}
                   </Button>
                   <span className="truncate text-sm text-slate-400">
-                    {selectedFile ? selectedFile.name : profile?.profilePictureUrl || 'No file selected'}
+                    {selectedFile ? selectedFile.name : profile?.profilePictureUrl || t('profile.noFileSelected')}
                   </span>
                 </div>
               </div>
 
               <div className="flex gap-3 pt-1">
                 <Button type="submit" loading={isSaving}>
-                  {isSaving ? 'Saving…' : 'Save Changes'}
+                  {isSaving ? t('common.saving') : t('common.saveChanges')}
                 </Button>
                 <Button type="button" variant="secondary" onClick={handleCancel}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
               </div>
             </form>
@@ -276,7 +281,7 @@ export default function ProfilePage() {
         </div>
 
         <footer className="pt-4 text-center text-xs text-slate-400">
-          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+          {t('patient.footer')}
         </footer>
       </div>
     </div>

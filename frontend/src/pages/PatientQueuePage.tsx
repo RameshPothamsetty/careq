@@ -11,6 +11,7 @@ import {
 } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { QueueEntryResponse, AutoAssignResponse } from '../services/api';
+import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { LiveBadge, StatusTag, Button } from '../components/ui';
 import { LoadingState, ErrorState } from '../components/ui/States';
@@ -36,6 +37,7 @@ function LiveStatusView({
   isCancelling: boolean;
   cancelError: string;
 }) {
+  const { t } = useI18n();
   const isInProgress = entry.status === 'IN_PROGRESS';
   const isCompleted = entry.status === 'COMPLETED';
   const secondsAgo = Math.max(0, Math.round((Date.now() - lastUpdatedAt) / 1000));
@@ -46,12 +48,12 @@ function LiveStatusView({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
           <LiveBadge lastUpdatedSeconds={secondsAgo} />
-          <span>Polling every 10s</span>
+          <span>{t('queue.pollingEvery10s')}</span>
         </div>
         {isStale && (
           <Button variant="secondary" onClick={onRefresh} className="!py-1 text-xs">
             <RefreshCw className="h-3.5 w-3.5" />
-            Retry
+            {t('common.retry')}
           </Button>
         )}
       </div>
@@ -59,7 +61,7 @@ function LiveStatusView({
       {isStale && (
         <div className="card flex items-center justify-between gap-3 border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-medium text-amber-700">
-            ⚠ Showing the last known status — a refresh just failed.
+            {t('queue.staleWarning')}
           </p>
         </div>
       )}
@@ -80,10 +82,10 @@ function LiveStatusView({
             </p>
             <h2 className="mt-1 text-lg font-bold">
               {isCompleted
-                ? 'Consultation complete'
+                ? t('queue.consultationComplete')
                 : isInProgress
-                  ? "It's your turn!"
-                  : 'Your position in queue'}
+                  ? t('queue.yourTurn')
+                  : t('queue.yourPosition')}
             </h2>
           </div>
           <StatusTag status={entry.effectiveTriage} className="!bg-white/15 !border-white/25 !text-white" />
@@ -96,16 +98,16 @@ function LiveStatusView({
                 {isInProgress ? '→' : entry.position ?? '—'}
               </div>
               <p className="mt-2 text-sm font-medium text-brand-100">
-                {isInProgress ? 'Called — please head to the doctor' : 'Position in queue'}
+                {isInProgress ? t('queue.calledHeadToDoctor') : t('queue.positionInQueue')}
               </p>
             </div>
           )}
           <div>
             <div className="text-5xl font-extrabold leading-none tracking-tight">
-              {isCompleted ? '✓' : isInProgress ? 'Now' : `${entry.predictedWaitMinutes ?? 0} min`}
+              {isCompleted ? '✓' : isInProgress ? t('queue.now') : `${entry.predictedWaitMinutes ?? 0} min`}
             </div>
             <p className="mt-2 text-sm font-medium text-brand-100">
-              {isCompleted ? 'All done — take care!' : isInProgress ? 'Being attended to' : 'Estimated wait'}
+              {isCompleted ? t('queue.allDone') : isInProgress ? t('queue.beingAttended') : t('queue.estimatedWait')}
             </p>
           </div>
         </div>
@@ -113,9 +115,9 @@ function LiveStatusView({
         {!isCompleted && (
           <div className="relative mt-7">
             <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-brand-100">
-              <span className={entry.status === 'WAITING' ? 'text-white' : ''}>Joined</span>
-              <span className={entry.status === 'IN_PROGRESS' ? 'text-white' : ''}>Called</span>
-              <span>Completed</span>
+              <span className={entry.status === 'WAITING' ? 'text-white' : ''}>{t('queue.joined')}</span>
+              <span className={entry.status === 'IN_PROGRESS' ? 'text-white' : ''}>{t('queue.called')}</span>
+              <span>{t('queue.completed')}</span>
             </div>
             <div className="mt-2 flex items-center">
               <div className="flex-1">
@@ -137,23 +139,25 @@ function LiveStatusView({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <StatusTag status={entry.status} />
           <p className="text-xs text-slate-400">
-            Joined at {new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {t('queue.joinedAt', {
+              time: new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            })}
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Symptoms reported</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('queue.symptomsReported')}</p>
           <p className="mt-1.5 rounded-xl bg-gray-50 p-3.5 text-sm leading-relaxed text-slate-800">{entry.symptomText}</p>
         </div>
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-gray-50 p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">AI triage</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('queue.aiTriage')}</p>
             <p className="mt-1 font-semibold text-slate-800">{entry.aiSuggestedTriage}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3.5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Doctor's final decision
+              {t('queue.doctorsFinalDecision')}
             </p>
-            <p className="mt-1 font-semibold text-slate-800">{entry.doctorOverrideTriage ?? 'No override yet'}</p>
+            <p className="mt-1 font-semibold text-slate-800">{entry.doctorOverrideTriage ?? t('queue.noOverride')}</p>
           </div>
         </div>
         {cancelError && (
@@ -162,9 +166,9 @@ function LiveStatusView({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={onRefresh} className="w-full sm:w-auto" title="Fetch the latest status">
+          <Button variant="secondary" onClick={onRefresh} className="w-full sm:w-auto" title={t('queue.refreshTitle')}>
             <RefreshCw className="h-4 w-4" />
-            Refresh now
+            {t('queue.refreshNow')}
           </Button>
           {entry.status === 'WAITING' && (
             <Button
@@ -172,9 +176,9 @@ function LiveStatusView({
               onClick={onCancel}
               loading={isCancelling}
               className="w-full sm:w-auto"
-              title="Leave the queue before being seen — your spot will be released"
+              title={t('queue.leaveTitle')}
             >
-              Leave queue
+              {t('queue.leaveQueue')}
             </Button>
           )}
         </div>
@@ -193,6 +197,7 @@ function JoinFlow({
   onJoined: (entry: QueueEntryResponse) => void;
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   // A single generous page keeps every available doctor in the dropdown.
   const { data: allDoctors, isLoading: isLoadingDoctors, error: doctorsError } = useGetDoctorsQuery({ size: 100 });
   const [joinQueue, { isLoading: isJoining }] = useJoinQueueMutation();
@@ -214,7 +219,7 @@ function JoinFlow({
   // for the patient to confirm.
   const handleAutoJoin = async () => {
     if (!symptomText.trim()) {
-      setError('Please describe your symptoms first — the AI matches you with the right doctor.');
+      setError(t('queue.symptomsError'));
       return;
     }
     setError('');
@@ -229,7 +234,7 @@ function JoinFlow({
       }).unwrap();
       const entry = result.entry;
       if (result.assigned && entry) {
-        setSuccess(result.message ?? 'You\'ve been matched — joining the queue…');
+        setSuccess(result.message ?? t('queue.matched'));
         setTimeout(() => onJoined(entry), 1200);
       } else {
         // Ambiguous / no available doctors → offer the candidates to confirm.
@@ -243,7 +248,7 @@ function JoinFlow({
   const handleJoin = async (doctorId?: string) => {
     const targetDoctor = doctorId ?? selectedDoctor;
     if (!targetDoctor || !symptomText.trim()) {
-      setError('Please choose a doctor and describe your symptoms.');
+      setError(t('queue.joinError'));
       return;
     }
     setError('');
@@ -255,7 +260,7 @@ function JoinFlow({
         // Captured so the doctor's live queue can show real patient names (Day 7a).
         patientName: user?.fullName || undefined,
       }).unwrap();
-      setSuccess('Queue joined successfully — AI triage complete.');
+      setSuccess(t('queue.joinSuccess'));
       setTimeout(() => onJoined(entry), 900);
     } catch (err: unknown) {
       setError(getErrorMessage(err));
@@ -270,10 +275,9 @@ function JoinFlow({
             <HeartPulse className="h-5 w-5 text-brand-700" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Join a queue</h2>
+            <h2 className="text-lg font-bold text-slate-800">{t('queue.joinAQueue')}</h2>
             <p className="text-sm text-slate-500">
-              Describe your symptoms — the AI matches you with the right doctor, triages your priority and joins
-              instantly.
+              {t('queue.joinHint')}
             </p>
           </div>
         </div>
@@ -292,7 +296,7 @@ function JoinFlow({
         <div className="mt-6 space-y-5">
           {/* Symptoms first — the AI matches the right doctor (Phase 1) */}
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Symptoms</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('queue.symptoms')}</label>
             <textarea
               value={symptomText}
               onChange={(e) => {
@@ -301,7 +305,7 @@ function JoinFlow({
               }}
               rows={4}
               maxLength={2000}
-              placeholder="Describe what you're experiencing, e.g. 'Persistent headache with blurred vision for two days'"
+              placeholder={t('queue.symptomsPlaceholder')}
               className="input-field resize-none"
             />
             <p className="mt-1 text-right text-xs text-slate-400">{symptomText.length}/2000</p>
@@ -311,7 +315,7 @@ function JoinFlow({
               best doctor; ambiguous symptoms fall back to a manual pick. */}
           <Button onClick={handleAutoJoin} loading={isAutoAssigning} className="w-full py-3 text-base">
             <Sparkles className="h-4 w-4" />
-            {isAutoAssigning ? 'Matching you with the best doctor…' : 'Auto-join — the AI picks the best doctor'}
+            {isAutoAssigning ? t('queue.matchingYou') : t('queue.autoJoin')}
           </Button>
 
           {/* Always reachable manual path — no AI step required (e.g. the
@@ -322,7 +326,7 @@ function JoinFlow({
               onClick={() => setShowManualPicker(true)}
               className="block w-full text-center text-xs font-semibold text-brand-600 hover:text-brand-700"
             >
-              Prefer to pick yourself? Choose a doctor manually →
+              {t('queue.pickManually')}
             </button>
           )}
 
@@ -332,14 +336,12 @@ function JoinFlow({
             <div className="space-y-3">
               {suggestionResponse.reason === 'AMBIGUOUS_SYMPTOMS' && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                  ⚠ {suggestionResponse.message ??
-                    "Your symptoms don't clearly point to one specialty — please pick a doctor below."}
+                  ⚠ {suggestionResponse.message ?? t('queue.ambiguousDefault')}
                 </div>
               )}
               {suggestionResponse.reason === 'NO_AVAILABLE_DOCTORS' && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                  ⚠ {suggestionResponse.message ??
-                    'No doctors are currently accepting new patients — please try again shortly.'}
+                  ⚠ {suggestionResponse.message ?? t('queue.noDoctorsDefault')}
                 </div>
               )}
 
@@ -347,8 +349,8 @@ function JoinFlow({
                 <Sparkles className="h-4 w-4 text-brand-700" />
                 <span className="text-sm font-semibold text-brand-800">
                   {suggestionResponse.suggestedDepartment
-                    ? `AI suggests ${suggestionResponse.suggestedDepartment}`
-                    : 'AI analysis'}
+                    ? t('queue.aiSuggests', { dept: suggestionResponse.suggestedDepartment })
+                    : t('queue.aiAnalysis')}
                 </span>
                 <StatusTag status={suggestionResponse.triageLevel} />
               </div>
@@ -362,7 +364,7 @@ function JoinFlow({
               {suggestionResponse.suggestions.length === 0 ? (
                 suggestionResponse.reason !== 'NO_AVAILABLE_DOCTORS' && (
                   <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500">
-                    No doctors are currently accepting new patients. Please try again shortly.
+                    {t('queue.noDoctorsAccepting')}
                   </p>
                 )
               ) : (
@@ -384,7 +386,7 @@ function JoinFlow({
                       <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1">
                           <Award className="h-3.5 w-3.5 text-slate-400" />
-                          {s.experienceYears} yrs
+                          {t('browse.yearsExp', { y: s.experienceYears })}
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Wallet className="h-3.5 w-3.5 text-slate-400" />
@@ -392,7 +394,7 @@ function JoinFlow({
                         </span>
                         <span className="inline-flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5 text-slate-400" />
-                          ≈{s.predictedWaitMinutes} min wait · position {s.position}
+                          {t('queue.minWait', { m: s.predictedWaitMinutes, p: s.position })}
                         </span>
                       </div>
                     </div>
@@ -401,7 +403,7 @@ function JoinFlow({
                       loading={isJoining}
                       className="w-full shrink-0 sm:w-auto"
                     >
-                      Join this doctor →
+                      {t('queue.joinThisDoctor')}
                     </Button>
                   </div>
                 ))
@@ -414,7 +416,7 @@ function JoinFlow({
           {showManualPicker && (
             <>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Doctor</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('queue.doctor')}</label>
                 {isLoadingDoctors ? (
                   <div className="h-11 animate-pulse rounded-xl bg-gray-100" />
                 ) : (
@@ -423,29 +425,29 @@ function JoinFlow({
                     onChange={(e) => setSelectedDoctor(e.target.value)}
                     className="select-field"
                   >
-                    <option value="">Select a doctor…</option>
+                    <option value="">{t('queue.selectDoctor')}</option>
                     {doctors.map((doc) => (
                       <option key={doc.id} value={doc.id}>
-                        {doc.name || doc.specialization} — {doc.specialization} ({doc.departmentName}, ≈{doc.avgConsultationTimeMinutes} min)
+                        {doc.name || doc.specialization} — {doc.specialization} ({doc.departmentName}, {t('browse.min', { m: doc.avgConsultationTimeMinutes })})
                       </option>
                     ))}
                   </select>
                 )}
                 {!isLoadingDoctors && doctors.length === 0 && (
                   <p className="mt-2 text-xs text-slate-400">
-                    No doctors are currently accepting new patients.
+                    {t('queue.noDoctorsAccepting')}
                   </p>
                 )}
               </div>
 
               <Button onClick={() => handleJoin()} loading={isJoining} className="w-full py-3 text-base">
-                {isJoining ? 'Running AI triage…' : 'Join Queue →'}
+                {isJoining ? t('queue.runningTriage') : t('browse.joinQueue')}
               </Button>
             </>
           )}
 
           <p className="text-center text-xs text-slate-400">
-            {user?.fullName} · Your position & estimated wait will update live once you're in.
+            {t('queue.footerHint', { name: user?.fullName ?? '' })}
           </p>
         </div>
       </div>
@@ -456,6 +458,7 @@ function JoinFlow({
 // ─── Page ─────────────────────────────────────────────────────────────
 
 export default function PatientQueuePage() {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const initialDoctorId = searchParams.get('doctor') ? Number(searchParams.get('doctor')) : null;
 
@@ -496,7 +499,7 @@ export default function PatientQueuePage() {
   const handleCancel = async () => {
     const target = liveEntry ?? joinedEntry;
     if (!target) return;
-    if (!window.confirm('Leave the queue? Your position will be released.')) return;
+    if (!window.confirm(t('queue.confirmLeave'))) return;
     setCancelError('');
     try {
       await cancelQueueEntry(target.id).unwrap();
@@ -512,13 +515,13 @@ export default function PatientQueuePage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon={<UserRound className="h-6 w-6 text-white" />}
-          title="My Queue"
-          subtitle="Live position, estimated wait & AI triage"
+          title={t('queue.title')}
+          subtitle={t('queue.subtitle')}
           dashboardPath="/patient"
         />
 
         {isLoading && !liveEntry ? (
-          <LoadingState label="Checking your queue status…" />
+          <LoadingState label={t('queue.checking')} />
         ) : isError && !status ? (
           <ErrorState message={getErrorMessage(error)} onRetry={refetch} />
         ) : liveEntry ? (
@@ -536,7 +539,7 @@ export default function PatientQueuePage() {
         )}
 
         <footer className="pt-4 text-center text-xs text-slate-400">
-          CareQ — SmartOPD AI | AI wait-time prediction & symptom triage
+          {t('queue.footer')}
         </footer>
       </div>
     </div>

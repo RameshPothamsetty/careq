@@ -21,6 +21,7 @@ import {
 } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
+import { useI18n, type I18nT } from '../i18n';
 import { LiveBadge, StatusTag, Button, AvatarInitials } from '../components/ui';
 import type { DoctorCatalogResponse, QueueEntryResponse } from '../services/api';
 
@@ -32,25 +33,25 @@ const NAV_CARDS = [
   {
     to: '/patient/doctors',
     icon: <Search className="h-6 w-6 text-white" />,
-    title: 'Browse Doctors',
-    desc: 'Find and filter doctors by department and specialization',
+    titleKey: 'patient.navBrowseDoctors',
+    descKey: 'patient.navBrowseDoctorsDesc',
     tint: 'from-brand-500 to-brand-700',
   },
   {
     to: '/patient/queue',
     icon: <Clock className="h-6 w-6 text-white" />,
-    title: 'My Queue',
-    desc: 'Join a queue, see your live position and AI-estimated wait time',
+    titleKey: 'patient.navMyQueue',
+    descKey: 'patient.navMyQueueDesc',
     tint: 'from-sky-500 to-sky-700',
   },
 ] as const;
 
 /** "Today · 2:10 PM" for today's visits, "Mon, Jul 30 · 9:05 AM" otherwise. */
-function visitLabel(iso: string) {
+function visitLabel(iso: string, t: I18nT) {
   const d = new Date(iso);
   const today = new Date();
   const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (d.toDateString() === today.toDateString()) return `Today · ${time}`;
+  if (d.toDateString() === today.toDateString()) return t('visit.todayPrefix', { time });
   return `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · ${time}`;
 }
 
@@ -76,6 +77,7 @@ function MyVisitCard({
   isCancelling: boolean;
   cancelError: string;
 }) {
+  const { t } = useI18n();
   const isInProgress = entry.status === 'IN_PROGRESS';
   const stage = isInProgress ? 1 : 0;
 
@@ -90,7 +92,7 @@ function MyVisitCard({
             {entry.specialization} · {entry.departmentName}
           </p>
           <h2 className="mt-1 text-lg font-bold">
-            {isInProgress ? "It's your turn!" : 'Your live queue position'}
+            {isInProgress ? t('visit.yourTurn') : t('visit.livePosition')}
           </h2>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -105,23 +107,23 @@ function MyVisitCard({
             {isInProgress ? '→' : entry.position ?? '—'}
           </div>
           <p className="mt-2 text-sm font-medium text-brand-100">
-            {isInProgress ? 'Called — head to the doctor' : 'Position in queue'}
+            {isInProgress ? t('visit.calledHeadToDoctor') : t('visit.positionInQueue')}
           </p>
         </div>
         <div>
           <div className="text-5xl font-extrabold leading-none tracking-tight">
-            {isInProgress ? 'Now' : `${entry.predictedWaitMinutes ?? 0} min`}
+            {isInProgress ? t('visit.now') : `${entry.predictedWaitMinutes ?? 0} min`}
           </div>
-          <p className="mt-2 text-sm font-medium text-brand-100">Estimated wait</p>
+          <p className="mt-2 text-sm font-medium text-brand-100">{t('visit.estimatedWait')}</p>
         </div>
       </div>
 
       {/* Joined → Called → Completed progress */}
       <div className="relative mt-6">
         <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-brand-100">
-          <span className={stage >= 0 ? 'text-white' : ''}>Joined</span>
-          <span className={stage >= 1 ? 'text-white' : ''}>Called</span>
-          <span>Completed</span>
+          <span className={stage >= 0 ? 'text-white' : ''}>{t('visit.joined')}</span>
+          <span className={stage >= 1 ? 'text-white' : ''}>{t('visit.called')}</span>
+          <span>{t('visit.completed')}</span>
         </div>
         <div className="mt-2 flex items-center">
           {[0, 1, 2].map((i) => (
@@ -138,14 +140,16 @@ function MyVisitCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold">{entry.doctorName}</p>
           <p className="text-xs text-brand-100/80">
-            Joined at {new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {t('visit.joinedAt', {
+              time: new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            })}
           </p>
         </div>
         <Link
           to="/patient/queue"
           className="shrink-0 text-xs font-bold text-white underline-offset-2 hover:underline"
         >
-          Open My Queue →
+          {t('visit.openMyQueue')}
         </Link>
       </div>
 
@@ -155,14 +159,14 @@ function MyVisitCard({
           {cancelError ? (
             <p className="text-xs font-medium text-red-200">⚠ {cancelError}</p>
           ) : (
-            <span className="text-xs text-brand-100/80">Changed your mind? You can leave while waiting.</span>
+            <span className="text-xs text-brand-100/80">{t('visit.changedMind')}</span>
           )}
           <button
             onClick={onCancel}
             disabled={isCancelling}
             className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-white/10 disabled:opacity-60"
           >
-            {isCancelling ? 'Leaving…' : 'Leave queue'}
+            {isCancelling ? t('visit.leaving') : t('visit.leaveQueue')}
           </button>
         </div>
       )}
@@ -173,11 +177,12 @@ function MyVisitCard({
 // ─── Recent visits ───────────────────────────────────────────────────
 
 function RecentVisitsCard({ history }: { history: QueueEntryResponse[] }) {
+  const { t } = useI18n();
   return (
     <div className="card p-5">
       <div className="flex items-center gap-2">
         <History className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">Recent visits</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">{t('patient.recentVisits')}</h2>
       </div>
       <div className="mt-2 divide-y divide-slate-100">
         {history.map((entry) => (
@@ -192,7 +197,7 @@ function RecentVisitsCard({ history }: { history: QueueEntryResponse[] }) {
               </p>
             </div>
             <StatusTag status={entry.status} />
-            <span className="w-36 text-right text-xs text-slate-500">{visitLabel(entry.joinedAt)}</span>
+            <span className="w-36 text-right text-xs text-slate-500">{visitLabel(entry.joinedAt, t)}</span>
           </div>
         ))}
       </div>
@@ -203,6 +208,7 @@ function RecentVisitsCard({ history }: { history: QueueEntryResponse[] }) {
 // ─── Recommended doctor ──────────────────────────────────────────────
 
 function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
+  const { t } = useI18n();
   return (
     <div className="card flex flex-col gap-3 p-5">
       <div className="flex items-center gap-3">
@@ -220,20 +226,20 @@ function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
           <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1">
               <Award className="h-3.5 w-3.5 text-slate-400" />
-              {doctor.experienceYears}y exp
+              {t('patient.expYears', { y: doctor.experienceYears })}
             </span>
             <span className="inline-flex items-center gap-1">
               <Wallet className="h-3.5 w-3.5 text-slate-400" />
               ₹{doctor.consultationFee}
             </span>
             <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
-              ● Available now
+              {t('patient.available')}
             </span>
           </div>
         </div>
       </div>
       <Link to={`/patient/queue?doctor=${doctor.id}`} className="mt-auto">
-        <Button className="w-full">Join Queue →</Button>
+        <Button className="w-full">{t('patient.joinQueueBtn')}</Button>
       </Link>
     </div>
   );
@@ -241,6 +247,7 @@ function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [cancelQueueEntry, { isLoading: isCancelling }] = useCancelQueueEntryMutation();
   const [cancelError, setCancelError] = useState('');
   const {
@@ -300,7 +307,7 @@ export default function PatientDashboard() {
 
   const handleCancel = async () => {
     if (!entry) return;
-    if (!window.confirm('Leave the queue? Your position will be released.')) return;
+    if (!window.confirm(t('queue.confirmLeave'))) return;
     setCancelError('');
     try {
       await cancelQueueEntry(entry.id).unwrap();
@@ -317,8 +324,8 @@ export default function PatientDashboard() {
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="👤"
-          title="Patient Dashboard"
-          subtitle={`Welcome, ${user?.fullName || 'Patient'}`}
+          title={t('patient.title')}
+          subtitle={t('patient.welcome', { name: user?.fullName || t('patient.roleValue') })}
           dashboardPath="/patient"
           showDashboard={false}
         />
@@ -329,11 +336,11 @@ export default function PatientDashboard() {
         ) : isError && !status ? (
           <div className="card flex flex-col items-center justify-between gap-3 border-amber-200 bg-amber-50 p-5 sm:flex-row">
             <p className="text-sm font-medium text-amber-700">
-              ⚠ Couldn't check your queue status right now.
+              {t('patient.queueError')}
             </p>
             <Button variant="secondary" onClick={refetch} className="shrink-0 !py-1.5 text-xs">
               <RefreshCw className="h-3.5 w-3.5" />
-              Retry
+              {t('common.retry')}
             </Button>
           </div>
         ) : entry ? (
@@ -351,14 +358,14 @@ export default function PatientDashboard() {
                 <HeartPulse className="h-6 w-6 text-brand-700" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-800">No active visit</h2>
+                <h2 className="text-base font-bold text-slate-800">{t('patient.noActiveVisit')}</h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  When you join a queue, your live position &amp; estimated wait will appear right here.
+                  {t('patient.noActiveVisitHint')}
                 </p>
               </div>
             </div>
             <Link to="/patient/queue" className="shrink-0">
-              <Button>Join a queue →</Button>
+              <Button>{t('patient.joinQueue')}</Button>
             </Link>
           </div>
         )}
@@ -375,8 +382,7 @@ export default function PatientDashboard() {
                 <History className="h-5 w-5 text-slate-400" />
               </div>
               <p className="text-sm text-slate-500">
-                No visits yet — your completed consultations will appear here, with today's visits
-                marked.
+                {t('patient.noVisitsYet')}
               </p>
             </div>
           )}
@@ -388,13 +394,15 @@ export default function PatientDashboard() {
             <div className="flex items-center justify-between px-1">
               <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-slate-400">
                 <Sparkles className="h-4 w-4 text-brand-500" />
-                {recBasedOnVisit ? `Recommended for you · ${lastVisitDept}` : 'Doctors available now'}
+                {recBasedOnVisit
+                  ? t('patient.recommendedForYou', { dept: lastVisitDept ?? '' })
+                  : t('patient.availableNow')}
               </h2>
               <Link
                 to="/patient/doctors"
                 className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700"
               >
-                Browse all →
+                {t('patient.browseAll')}
               </Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -418,32 +426,32 @@ export default function PatientDashboard() {
                 </div>
                 <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
               </div>
-              <h2 className="mt-4 text-lg font-bold text-slate-800">{card.title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{card.desc}</p>
+              <h2 className="mt-4 text-lg font-bold text-slate-800">{t(card.titleKey)}</h2>
+              <p className="mt-1 text-sm text-slate-500">{t(card.descKey)}</p>
             </Link>
           ))}
         </div>
 
         <div className="card p-6">
-          <h2 className="mb-4 text-base font-bold text-slate-800">Account Info</h2>
+          <h2 className="mb-4 text-base font-bold text-slate-800">{t('patient.accountInfo')}</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
             <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('patient.name')}</p>
               <p className="mt-1 font-semibold text-slate-800">{user?.fullName}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('auth.email')}</p>
               <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
             </div>
             <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</p>
-              <p className="mt-1 font-semibold text-slate-800">Patient</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('patient.role')}</p>
+              <p className="mt-1 font-semibold text-slate-800">{t('patient.roleValue')}</p>
             </div>
           </div>
         </div>
 
         <footer className="pt-4 text-center text-xs text-slate-400">
-          CareQ — SmartOPD AI | Intelligent Patient Flow Platform
+          {t('patient.footer')}
         </footer>
       </div>
     </div>
