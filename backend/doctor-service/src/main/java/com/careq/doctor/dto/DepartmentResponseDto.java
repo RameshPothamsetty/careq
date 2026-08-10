@@ -3,8 +3,12 @@ package com.careq.doctor.dto;
 import com.careq.doctor.entity.Department;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.io.Serializable;
+
 @Schema(description = "A hospital department.")
-public class DepartmentResponseDto {
+public class DepartmentResponseDto implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Schema(description = "Department ID", example = "1")
     private Long id;

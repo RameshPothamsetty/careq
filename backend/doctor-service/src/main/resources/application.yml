@@ -18,6 +18,15 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  # Day 13: Redis caching for the doctor/department catalog (60s TTL).
+  # Live queue data (position, wait time, availability) is deliberately NOT
+  # cached — see docs/03_ARCHITECTURE.md. Docker sets REDIS_HOST=redis.
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 eureka:
   client:

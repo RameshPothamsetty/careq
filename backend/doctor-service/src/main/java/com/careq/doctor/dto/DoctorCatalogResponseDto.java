@@ -4,9 +4,12 @@ import com.careq.doctor.entity.DoctorCatalogEntry;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
+import java.io.Serializable;
 
 @Schema(description = "A doctor catalog entry with its department name and live availability.")
-public class DoctorCatalogResponseDto {
+public class DoctorCatalogResponseDto implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Schema(description = "Catalog entry ID", example = "1")
     private Long id;

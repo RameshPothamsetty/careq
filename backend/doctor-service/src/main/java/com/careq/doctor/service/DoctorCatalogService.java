@@ -30,4 +30,12 @@ public interface DoctorCatalogService {
     void deleteDoctor(Long id);
 
     DoctorCatalogResponseDto toggleAvailability(String userId, AvailabilityRequestDto request);
+
+    /**
+     * Day 13: resolves the CALLING doctor's own catalog entry by their userId
+     * (header-based identity). Returns 404 when the account is not linked to
+     * a catalog entry yet — the frontend uses this instead of scanning the
+     * whole paginated catalog, which is fragile once the catalog grows.
+     */
+    DoctorCatalogResponseDto getMyDoctor(String userId);
 }
