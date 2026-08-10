@@ -481,3 +481,54 @@ Every previous day avoided touching already-finished services. This day intentio
 ## GIT WORKFLOW
 
 Branch `feature/redis-rabbitmq-notifications` off `develop`; small incremental commits (see the repo history); PR titled `Feature: Redis Caching + RabbitMQ Notification Service` closing the Day 13 issue, explicitly noting the intentional reopening of doctor-service and queue-service.
+
+---
+
+## Day 14: CI/CD Pipeline (GitHub Actions)
+
+**Prompt:** CareQ — Day 14 Prompt (CI/CD: GitHub Actions Pipeline)
+
+**Date Executed:** 2026-08-10
+
+**Branch:** `feature/ci-cd-pipeline`
+
+**Summary:** Built the GitHub Actions CI/CD pipeline. `ci.yml` runs on every PR to develop/main: a matrix job builds and tests each of the 7 backend services (`mvn -pl <service> test`, Java 17 temurin, Maven cache), the frontend runs `npm ci` → Vitest → tsc + Vite production build, a `docker-build` matrix builds all 8 images (loaded locally with compose-compatible `careq-<service>:latest` tags), and `docker-smoke` boots the full stack inside the runner via `docker compose up -d`, waits for every container health check, and smokes the gateway, all five service health endpoints, the SPA root, and a real signup→login flow. `cd-develop.yml` re-runs the gate on every push to develop, then pushes all images to `ghcr.io/rameshpothamsetty/careq-<service>` tagged with the commit SHA + `develop-latest` (built-in `GITHUB_TOKEN`, `packages: write`). `cd-release.yml` runs on main pushes and `v*` tags, pushing `latest` + the version tag, and documents the Day 15 `deploy` plug-in point. README gained the CI badge + pipeline overview; docs/10_DEPLOYMENT.md gained § 3. Note: the pasted prompt was titled "Day 13: CI/CD", but our Day 13 (Redis/RabbitMQ/notification-service) was already complete — this work is filed as Day 14 per the README roadmap. `gh` CLI is not authenticated here, so the Issue/PR were opened manually by the user; CI verification happens in the Actions tab after the branch is pushed.
+
+## Full Prompt Text
+
+```
+# CareQ — Day 13 Prompt (CI/CD: GitHub Actions Pipeline)
+
+## ROLE
+
+You are acting as a DevOps-minded Backend Engineer building a CI/CD pipeline with GitHub Actions. Today's scope ends at "tested, containerized images sitting in a registry, ready to deploy" — actual deployment to a live cloud environment is tomorrow's work, not today's.
+
+## PROJECT CONTEXT (recap)
+
+- Services: eureka-server, api-gateway, auth-service, user-service, doctor-service, queue-service, and notification-service (merged), plus the React frontend
+- Container registry: GitHub Container Registry (ghcr.io) — authenticates with the repo's built-in GITHUB_TOKEN
+- Existing test suite (Day 10) and Docker setup (Day 11) — this pipeline automates both
+
+## TODAY'S DELIVERABLES
+
+0. Create today's Issue first (Day 14: CI/CD Pipeline, labeled day-14, infra).
+1. CI workflow — .github/workflows/ci.yml on pull_request to develop/main: checkout, Java + Node setup, matrix build+test per backend service (fail the workflow on any failure), frontend install/test/production build, clear per-service failure attribution.
+2. CD workflow — .github/workflows/cd-develop.yml on push to develop: re-run the test gate, build a Docker image for every service and the frontend, tag with short commit SHA + develop-latest, push to ghcr.io/<owner>/careq-<service>. No deployment yet.
+3. Release workflow — .github/workflows/cd-release.yml on push to main and/or version tags: same sequence, images tagged with the release version + latest; state where Day 15's deploy step plugs in.
+4. Health check step — spin up the full stack via docker-compose inside the CI runner using freshly built images, wait for health checks, run a basic smoke test (gateway health + one real endpoint per service).
+5. Secrets — document exactly which GitHub Actions secrets are needed (GITHUB_TOKEN suffices; GROQ_API_KEY optional); add a CI status badge to README.
+6. Documentation — CI/CD section in docs/10_DEPLOYMENT.md; README badge + pipeline overview.
+
+Explicitly OUT of scope today: live deployment (Day 15), Kubernetes beyond Compose, pipeline failure alerts.
+
+## GIT WORKFLOW
+
+Pull develop → branch feature/ci-cd-pipeline → build the workflow files → commit in small increments (feat: CI workflow / feat: CD develop workflow / feat: release workflow / feat: in-pipeline health check / docs: badge + pipeline docs) → push → open a draft PR early to trigger and watch a real CI run → self-review against a green Actions run → merge into develop yourself → watch cd-develop.yml run and confirm images appear in the Packages tab.
+
+## HARD CONSTRAINTS
+
+- Never hardcode secrets in workflow files — use GitHub Actions secrets
+- Never push an image without the test gate passing first
+- Do not deploy anywhere live today
+- State assumptions before generating workflow files
+```
