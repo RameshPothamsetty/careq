@@ -1,0 +1,49 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: notification-service
+  datasource:
+    # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+  # Day 13: RabbitMQ — this service CONSUMES the careq.events topic exchange
+  # (binding queue careq.notifications with routing keys queue.*) and persists
+  # one NotificationEntry per event. Docker sets RABBITMQ_HOST=rabbitmq.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        # If the broker is briefly unavailable at startup, keep retrying
+        # instead of failing the whole service (Spring default behavior).
+        retry:
+          enabled: true
+          initial-interval: 2000
+          max-attempts: 3
+
+eureka:
+  client:
+    service-url:
+      # Docker sets EUREKA_URI=http://eureka-server:8761/eureka/
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+# Pagination bound for GET /api/notifications/me (never trust the caller's size).
+notifications:
+  max-page-size: 50

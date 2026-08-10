@@ -283,4 +283,26 @@ class DoctorCatalogServiceImplTest {
         assertThatThrownBy(() -> service.toggleAvailability(USER_ID, request))
                 .isInstanceOf(DoctorCatalogNotFoundException.class);
     }
+
+    @Test
+    void getMyDoctor_WhenLinked_ShouldReturnCallersEntry() {
+        when(doctorCatalogRepository.findByUserId(USER_ID))
+                .thenReturn(Optional.of(entry(USER_ID, "Dr. Arjun Sharma", DEPT_ID, "Cardiology")));
+        stubDepartmentName();
+
+        DoctorCatalogResponseDto result = service.getMyDoctor(USER_ID);
+
+        assertThat(result.getUserId()).isEqualTo(USER_ID);
+        assertThat(result.getName()).isEqualTo("Dr. Arjun Sharma");
+        assertThat(result.getDepartmentName()).isEqualTo("Cardiology");
+    }
+
+    @Test
+    void getMyDoctor_WhenNotLinked_ShouldThrowException() {
+        when(doctorCatalogRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getMyDoctor(USER_ID))
+                .isInstanceOf(DoctorCatalogNotFoundException.class)
+                .hasMessageContaining("admin");
+    }
 }

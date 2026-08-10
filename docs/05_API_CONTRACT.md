@@ -1,7 +1,7 @@
 # CareQ — API Contract
 
-**Version:** 1.8 (Day 9)
-**Status:** Full audit against the real implementation — every endpoint documented, shared error response shape, live Swagger UI aggregated at the gateway, complete Postman collection
+**Version:** 1.9 (Day 13)
+**Status:** Added notification-service endpoints (`/api/notifications`), `GET /api/doctors/me`, health probe for notification-service
 
 ---
 
@@ -620,6 +620,24 @@ PUT /api/doctors/me/availability
 
 ---
 
+### 11b. Get My Catalog Entry (Doctor) — NEW Day 13
+
+```
+GET /api/doctors/me
+```
+
+**Auth:** DOCTOR
+
+**Headers:** `X-User-Id`, `X-User-Role` (set by gateway).
+
+**Description:** Resolves the CALLING doctor's own catalog entry from their `X-User-Id` (header-based identity). The doctor dashboard and queue page use this instead of scanning the whole paginated catalog to find "which entry is mine" — which silently broke once the catalog outgrew one page. A 404 here is expected for accounts not yet linked to a catalog entry (the UI turns it into a friendly setup state).
+
+**Success Response (200):** `DoctorCatalogResponseDto` (same shape as `GET /api/doctors/{id}`).
+
+**Error Responses:** `403` (not a DOCTOR), `404` (no catalog entry for this account — "Ask an admin to create one in Admin → Manage Doctors").
+
+---
+
 ## Queue Endpoints (`/api/queue`) — Day 5
 
 All queue endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway.
@@ -1000,6 +1018,74 @@ GET /api/queue/analytics/summary
 
 ---
 
+## Notification Endpoints (`/api/notifications`) — Day 13
+
+All endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway — the same header-trust pattern as every other service. Notifications are written by the RabbitMQ consumer (one row per `queue.joined` / `queue.triaged` / `queue.called` / `queue.completed` event published by queue-service).
+
+### 20. My Notifications (paginated)
+
+```
+GET /api/notifications/me?page=0&size=20
+```
+
+**Auth:** Any authenticated role (in practice only PATIENTs receive events today).
+
+**Query Parameters (all optional):**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| page | int | 0 | Zero-based page number |
+| size | int | 20 | Page size (clamped to max 50) |
+
+**Description:** Returns the caller's OWN notifications, newest first. The response mirrors the Spring Data Page JSON shape plus a total `unreadCount` (for the bell badge — independent of the loaded page).
+
+**Success Response (200):**
+```json
+{
+  "content": [
+    {
+      "id": 12,
+      "type": "queue.called",
+      "message": "Dr. Arjun Sharma has called you — please head to the consultation room.",
+      "read": false,
+      "createdAt": "2026-08-10T09:00:00"
+    }
+  ],
+  "totalElements": 4,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": true,
+  "empty": false,
+  "unreadCount": 3
+}
+```
+
+**Event type → title/kind (frontend mapping):** `queue.joined` → Queue joined (success); `queue.triaged` → Urgency updated (info); `queue.called` → It's your turn! (warning); `queue.completed` → Consultation complete (success).
+
+**Error Responses:** `400` (missing identity header).
+
+### 21. Mark Notification as Read
+
+```
+PUT /api/notifications/{id}/read
+```
+
+**Auth:** The recipient, or ADMIN (any).
+
+**Path Variables:**
+| Name | Type | Description |
+|------|------|-------------|
+| id | Long | Notification ID |
+
+**Description:** Marks the notification read. Ownership-checked — a doctor must never flip another patient's read state. Idempotent (marking an already-read notification is a no-op).
+
+**Success Response (200):** The updated `NotificationResponseDto` with `read: true`.
+
+**Error Responses:** `403` (not the recipient and not admin), `404` (notification not found).
+
+---
+
 ## Status Codes Summary
 
 | Code | Meaning |
@@ -1026,6 +1112,7 @@ Each service exposes a public health probe (no auth, whitelisted at the gateway)
 | `GET /api/users/health` | user-service (:8082) |
 | `GET /api/doctors/health` | doctor-service (:8083) |
 | `GET /api/queue/health` | queue-service (:8084) |
+| `GET /api/notifications/health` | notification-service (:8085) |
 
 All return `200` with `{ "service": "<name>", "status": "UP", "timestamp": <epoch-ms> }`.
 

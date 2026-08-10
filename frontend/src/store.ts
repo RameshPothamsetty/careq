@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { userApi } from './services/rtk/userApi';
 import { doctorApi } from './services/rtk/doctorApi';
 import { queueApi } from './services/rtk/queueApi';
+import { notificationApi } from './services/rtk/notificationApi';
 
 /**
  * Redux store — holds only server-state caches (RTK Query slices).
@@ -14,9 +15,15 @@ export const store = configureStore({
     [userApi.reducerPath]: userApi.reducer,
     [doctorApi.reducerPath]: doctorApi.reducer,
     [queueApi.reducerPath]: queueApi.reducer,
+    [notificationApi.reducerPath]: notificationApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(userApi.middleware, doctorApi.middleware, queueApi.middleware),
+    getDefaultMiddleware().concat(
+      userApi.middleware,
+      doctorApi.middleware,
+      queueApi.middleware,
+      notificationApi.middleware,
+    ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
@@ -35,4 +42,5 @@ export function resetApiState(): void {
   store.dispatch(userApi.util.resetApiState());
   store.dispatch(doctorApi.util.resetApiState());
   store.dispatch(queueApi.util.resetApiState());
+  store.dispatch(notificationApi.util.resetApiState());
 }

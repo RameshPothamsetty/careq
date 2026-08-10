@@ -18,6 +18,16 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  # Day 13: RabbitMQ — queue-service PUBLISHES post-decision notification
+  # events to the careq.events topic exchange (consumed by notification-service).
+  # Publishing failures are caught and logged, never propagated: a patient
+  # joining/called/completed must never fail because a notification couldn't
+  # be published. Docker sets RABBITMQ_HOST=rabbitmq.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 eureka:
   client:

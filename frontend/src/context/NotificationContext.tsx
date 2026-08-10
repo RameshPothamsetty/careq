@@ -11,34 +11,30 @@ import { useQueueNotifications, type QueueNotificationEvent } from '../hooks/use
 import { useAuth } from './AuthContext';
 
 /**
- * Session-only notification store (Day 7b).
+ * Immediate-feedback toast layer (Day 7b), kept after the Day 13 upgrade.
  *
- * Events are DERIVED client-side from the my-status polling by
- * useQueueNotifications — there is no backend notification table, no push,
- * no persistence. History lives in React state for this session only and is
- * cleared on logout and page refresh. This is a deliberate, documented scope
- * boundary; persisted/cross-device notifications are Phase 2.
+ * The BELL now shows real persisted notifications from notification-service;
+ * this context's only remaining job is the real-time, auto-dismissing TOAST
+ * that fires the instant a queue status transition is observed by the
+ * my-status polling (called → "It's your turn!", moved up, completed, etc.).
+ * Toasts are session-only by design — the durable record lives in
+ * notification-service.
  */
-export interface NotificationItem extends QueueNotificationEvent {
+export interface ToastItem {
   id: string;
-  createdAt: number;
-  read: boolean;
+  title: string;
+  message: string;
+  kind: 'success' | 'info' | 'warning';
 }
 
 interface NotificationContextType {
-  events: NotificationItem[];
-  unreadCount: number;
   /** Toasts currently visible (auto-dismissing). */
-  toasts: NotificationItem[];
-  markAllRead: () => void;
-  markRead: (id: string) => void;
-  clearAll: () => void;
+  toasts: ToastItem[];
   dismissToast: (id: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
 
-const MAX_EVENTS = 50;
 const TOAST_DURATION_MS = 6_000;
 
 let idCounter = 0;
@@ -46,16 +42,13 @@ const nextId = () => `${Date.now()}-${idCounter++}`;
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [events, setEvents] = useState<NotificationItem[]>([]);
-  const [toasts, setToasts] = useState<NotificationItem[]>([]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  // Session key — events reset whenever the signed-in user changes.
+  // Session key — toasts reset whenever the signed-in user changes.
   const sessionKeyRef = useRef<string>(`${user?.id ?? 'anon'}`);
 
   const addEvent = useCallback((event: QueueNotificationEvent) => {
-    const item: NotificationItem = { ...event, id: nextId(), createdAt: Date.now(), read: false };
-    setEvents((prev) => [item, ...prev].slice(0, MAX_EVENTS));
-    // Fire a non-blocking, auto-dismissing toast.
+    const item: ToastItem = { ...event, id: nextId() };
     setToasts((prev) => [...prev, item]);
     const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== item.id));
@@ -66,21 +59,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   useQueueNotifications(addEvent);
 
-  const markAllRead = useCallback(() => {
-    setEvents((prev) => prev.map((e) => ({ ...e, read: true })));
-  }, []);
-
-  const markRead = useCallback((id: string) => {
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, read: true } : e)));
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setEvents([]);
-    toastTimers.current.forEach((t) => clearTimeout(t));
-    toastTimers.current.clear();
-    setToasts([]);
-  }, []);
-
   const dismissToast = useCallback((id: string) => {
     const timer = toastTimers.current.get(id);
     if (timer) {
@@ -90,24 +68,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Reset the session history when the signed-in user changes (or logs out),
-  // so one session's notifications never leak into the next.
+  // Reset the toast queue when the signed-in user changes (or logs out), so
+  // one session's toasts never leak into the next.
   const sessionKey = `${user?.id ?? 'anon'}`;
   if (sessionKey !== sessionKeyRef.current) {
     sessionKeyRef.current = sessionKey;
-    if (events.length > 0 || toasts.length > 0) {
+    if (toasts.length > 0) {
       toastTimers.current.forEach((t) => clearTimeout(t));
       toastTimers.current.clear();
-      setEvents([]);
       setToasts([]);
     }
   }
 
-  const unreadCount = useMemo(() => events.filter((e) => !e.read).length, [events]);
-
   const value = useMemo<NotificationContextType>(
-    () => ({ events, unreadCount, toasts, markAllRead, markRead, clearAll, dismissToast }),
-    [events, unreadCount, toasts, markAllRead, markRead, clearAll, dismissToast],
+    () => ({ toasts, dismissToast }),
+    [toasts, dismissToast],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

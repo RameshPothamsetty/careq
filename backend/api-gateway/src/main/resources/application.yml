@@ -27,6 +27,11 @@ spring:
           predicates:
             - Path=/api/queue/**
 
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+
         # ── Day 9: OpenAPI aggregation routes ───────────────────────
         # Each downstream service's /v3/api-docs is exposed through the
         # gateway as /v3/api-docs/{service}, so one Swagger UI at
@@ -59,6 +64,13 @@ spring:
           filters:
             - RewritePath=/v3/api-docs/queue-service, /v3/api-docs
 
+        - id: notification-service-docs
+          uri: lb://notification-service
+          predicates:
+            - Path=/v3/api-docs/notification-service
+          filters:
+            - RewritePath=/v3/api-docs/notification-service, /v3/api-docs
+
 eureka:
   client:
     service-url:
@@ -80,6 +92,8 @@ springdoc:
         url: /v3/api-docs/doctor-service
       - name: Queue Service
         url: /v3/api-docs/queue-service
+      - name: Notification Service
+        url: /v3/api-docs/notification-service
 
 app:
   jwt:

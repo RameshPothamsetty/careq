@@ -53,7 +53,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         // contract documents all four /health endpoints as unauthenticated.
         if (path.equals("/api/users/health")
                 || path.equals("/api/doctors/health")
-                || path.equals("/api/queue/health")) {
+                || path.equals("/api/queue/health")
+                || path.equals("/api/notifications/health")) {
             return chain.filter(exchange);
         }
 

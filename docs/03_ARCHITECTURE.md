@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.7 (Day 7b)  
-**Status:** Updated — Analytics aggregation approach + client-side notification design decision
+**Version:** 1.8 (Day 13)  
+**Status:** Updated — Redis catalog caching (doctor-service), RabbitMQ event bus + persisted notification-service, notification bell upgrade, `/api/doctors/me` resolution
 
 ---
 
@@ -30,24 +30,26 @@
    │                  │  │                  │  │                  │
    │  /api/auth/**    │  │  /api/users/**   │  │  /api/doctors/** │
    │                  │  │                  │  │  /api/departments│
-   └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘
-            │                     │                     │
-            └──────────────┬──────┴─────────────────────┘
+   └────────┬─────────┘  └────────┬─────────┘  └───────┬─────────┘
+            │                     │                    │   Redis (:6379)
+            │                     │                    │   careq:doctorCatalog
+            │                     │                    │   careq:departments
+            │                     │                    │   (60s TTL cache)
+            └──────────────┬──────┴────────────────────┘
                            │
-                  ┌──────────────────┐
-                  │  Queue Service   │
-                  │   (port 8084)    │
-                  │                  │
-                  │  /api/queue/**   │
-                  │  + AI triage    │
-                  │  (Groq LLM)     │
-                  └───────┬───┬─────┘
-                          │   │  Feign (Eureka lb://doctor-service)
-                          │   └──────────▶  doctor-service
-                          │                 GET /api/doctors/{id}
-                          │                 (avgConsultationTimeMinutes, isAvailable)
-                          │
-                  ┌──────────────────┐
+                  ┌──────────────────┐      RabbitMQ (:5672, mgmt :15672)
+                  │  Queue Service   │      careq.events topic exchange
+                  │   (port 8084)    │      queue.joined / queue.triaged
+                  │                  │────▶  queue.called  / queue.completed
+                  │  /api/queue/**   │      ───────────▶┐
+                  │  + AI triage    │                   ▼
+                  │  (Groq LLM)     │       ┌──────────────────────────┐
+                  └───────┬───┬─────┘       │   Notification Service   │
+                          │   │  Feign      │        (port 8085)       │
+                          │   └──────────▶  │  consumes careq.notifications,
+                          │   doctor-service│  persists notification_entries,
+                          │                 │  serves /api/notifications/**
+                  ┌──────────────────┐      └──────────────────────────┘
                   │  Eureka Server   │
                   │   (port 8761)    │
                   │ Service Registry │
@@ -72,6 +74,7 @@
 | **user-service** | Profile CRUD for all roles; lazy profile creation on first access; Admin-only user profile lookup | `user_profiles` | Yes |
 | **doctor-service** | Department CRUD, Doctor catalog management, public browsing with filters, availability toggle | `departments`, `doctor_catalog_entries` | Yes |
 | **queue-service** | Queue operations, AI wait-time prediction, AI symptom triage | `queue_entries` | Yes |
+| **notification-service** | Consumes RabbitMQ queue events, persists in-app notifications, serves them to the caller's bell | `notification_entries` | Yes |
 
 ---
 
@@ -160,6 +163,7 @@
 | `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
 | `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
 | `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Day 5 — Queue + AI triage |
+| `/api/notifications/**` | notification-service | Yes | PATIENT, DOCTOR, ADMIN | Day 13 — persisted in-app notifications |
 | `/api/eureka/**` | eureka-server | No | — (internal) | |
 
 ---
@@ -244,8 +248,9 @@ POST /api/queue/join (patient)
 | `src/services/rtk/userApi.ts` | user-service profile endpoints (`GET`/`PUT /api/users/me`, multipart picture upload) |
 | `src/services/rtk/doctorApi.ts` | doctor-service endpoints: department CRUD, doctor catalog browse/CRUD, availability toggle |
 | `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview, analytics summary |
+| `src/services/rtk/notificationApi.ts` | notification-service endpoints: paginated `GET /api/notifications/me` (polled by the bell) + `PUT /api/notifications/{id}/read` (Day 13) |
 | `src/hooks/useQueueNotifications.ts` | Isolated hook watching the my-status polling; emits derived notification events on tracked transitions |
-| `src/context/NotificationContext.tsx` | Session-only event store + toast queue fed by the hook; powers the bell and toast UI |
+| `src/context/NotificationContext.tsx` | Day 13: slimmed to the real-time TOAST layer only (the bell now reads persisted notifications from notification-service) |
 
 **Key decisions:**
 - **Two kinds of state:** session state (user / role / token) stays in `AuthContext` + localStorage; server data lives in the RTK Query cache. `AuthContext.logout()` calls `resetApiState()` so one session's cached data never leaks into the next.
@@ -294,4 +299,46 @@ Events land in `NotificationContext` (a session-only React store) which powers: 
 
 **Known, deliberate limitation (not a bug):** the history is **client-side and session-only** — it resets on page refresh and is cleared when the signed-in user changes. There is no backend notification store and no cross-device delivery.
 
-> **Phase 2 roadmap (explicitly not built in Day 7b):** persisted notification storage (a notifications service + table), backend-triggered notifications (queue-service pushing on status change), and push/SMS/email delivery. That is a genuinely larger feature deserving its own dedicated day — Day 7b intentionally scoped to the in-app derived version so it is finishable in one session.
+> **Day 13 — this limitation is now removed.** The Phase 2 roadmap item was deliberately scoped out on Day 7b and built properly later: see § 12 (RabbitMQ event-driven notification-service) below. The Day 7b toast layer remains as the immediate-feedback layer; the bell's history is now real persisted data.
+
+---
+
+## 12. Event-Driven Notifications — RabbitMQ + notification-service (Day 13)
+
+**Decision:** Day 7b's "client-side, session-only" notification limitation is replaced by a proper persisted system, while the real-time toast behavior is kept as an immediate-feedback layer on top.
+
+### Topology
+
+```
+queue-service (publisher)                 notification-service (consumer)
+────────────────────────────              ────────────────────────────────
+careq.events (durable topic exchange)  ─▶ careq.notifications (durable queue)
+  routing keys:                           binding: queue.* (covers all four)
+  queue.joined     (join / auto-assign)
+  queue.triaged    (doctor triage override)
+  queue.called     (call next)
+  queue.completed  (complete consultation)
+```
+
+- **One topic exchange `careq.events`**, declared (idempotently) by both services so either may start first. **Single publisher** (queue-service) and **single consumer** (notification-service) — no competing consumers, no event storms.
+- **Event payload** (`QueueEventDto`, duplicated in both services — this codebase has no shared module; the contract is the JSON field names): `eventType`, `recipientUserId` (the patient), `queueEntryId`, `patientName`, `doctorName`, `departmentName`, `position`, `triageLevel`, `timestamp`. JSON serialization via `Jackson2JsonMessageConverter` on both sides.
+- **Non-blocking contract (hard rule):** publishing happens AFTER the decision is persisted and every publish is wrapped in try/catch inside `QueueEventPublisher` — a RabbitMQ outage only logs a warning; a patient joining, being called, or completing must NEVER fail because a notification couldn't be published. Unit-tested (`QueueEventPublisherTest`).
+- **AI triage stays synchronous** — RabbitMQ carries post-decision notification events only, never the Auto-Assignment decision path.
+
+### notification-service
+
+- Consumes the four routing keys, composes a human-readable `message` per event type, and persists a `NotificationEntry` (`recipientUserId`, `type`, `message`, `read`, `createdAt`) in the shared `careq_db`.
+- Exposes `GET /api/notifications/me` (paginated, caller's own rows only, plus a total `unreadCount` for the badge) and `PUT /api/notifications/{id}/read` (ownership-checked: recipient or ADMIN). Same gateway header-trust identity pattern as every other service; registered with Eureka; routed at `/api/notifications/**`.
+- **Frontend:** the bell polls `GET /api/notifications/me` every 15s (persisted history survives refresh); the Day 7b toast-on-status-change stays as the instant-feedback layer. Mark-all-read issues one PUT per unread row on the loaded page (bounded by page size — deliberately no bulk endpoint).
+
+---
+
+## 13. Redis Catalog Caching (Day 13)
+
+**Decision:** `doctor-service` caches the two read-heavy, rarely-changing catalog endpoints in Redis with a **60s TTL**: `GET /api/doctors` (`@Cacheable(cacheNames="doctorCatalog")`, keyed by every filter/pagination param) and `GET /api/departments`. Every Admin create/update/delete mutation — plus the doctor's own availability toggle and department renames (department names appear inside the cached doctor list) — `@CacheEvict`s the affected cache(s) so stale data never lingers.
+
+**Scope boundary (hard rule):** live queue data is NEVER cached. Position, predicted wait, and — critically — `isAvailable` are always re-read fresh: `getDoctorById` (the endpoint queue-service Feign-calls to validate joins) is deliberately NOT cached, so a doctor going offline blocks new joins immediately. Within the cached *list* page, availability may be up to 60s stale — an acceptable, documented tradeoff (a toggled doctor's own entry evicts the cache immediately; the join path never trusts the cached availability).
+
+**Resilience:** a custom `CacheErrorHandler` logs and swallows every Redis failure — if Redis is briefly unreachable, reads fall through to the database and evictions are skipped; the catalog never 500s because the cache layer is down. Keys are namespaced `careq:doctorCatalog::…` / `careq:departments::…` for direct inspection with `redis-cli KEYS careq:*`.
+
+**Also Day 13:** `GET /api/doctors/me` resolves the calling doctor's own catalog entry by header identity. The doctor dashboard and queue page now use it instead of scanning the whole paginated catalog (which silently broke once the catalog outgrew one page, and was the root cause of the misleading "no catalog entry — ask an admin" dead-end); the Admin doctor form gained a DOCTOR-account picker so user IDs are selected, never hand-typed.

@@ -5,6 +5,8 @@ import com.careq.doctor.dto.DepartmentResponseDto;
 import com.careq.doctor.entity.Department;
 import com.careq.doctor.exception.DepartmentNotFoundException;
 import com.careq.doctor.repository.DepartmentRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,9 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional(readOnly = true)
+    // Day 13: cached in Redis (60s TTL) — department names also appear inside
+    // the cached doctor list, so department mutations evict BOTH caches.
+    @Cacheable(cacheNames = "departments")
     public List<DepartmentResponseDto> getAllDepartments() {
         return departmentRepository.findAll().stream()
                 .map(DepartmentResponseDto::fromEntity)
@@ -39,6 +44,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"departments", "doctorCatalog"}, allEntries = true)
     public DepartmentResponseDto createDepartment(DepartmentRequestDto request) {
         if (departmentRepository.existsByName(request.getName().trim())) {
             throw new IllegalArgumentException(
@@ -52,6 +58,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"departments", "doctorCatalog"}, allEntries = true)
     public DepartmentResponseDto updateDepartment(Long id, DepartmentRequestDto request) {
         Department department = departmentRepository.findById(id)
                 .orElseThrow(() -> new DepartmentNotFoundException(
@@ -72,6 +79,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {"departments", "doctorCatalog"}, allEntries = true)
     public void deleteDepartment(Long id) {
         if (!departmentRepository.existsById(id)) {
             throw new DepartmentNotFoundException(

@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Building2,
   Timer,
+  Stethoscope,
 } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import {
@@ -24,7 +25,11 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { useGetDoctorsQuery, useToggleAvailabilityMutation } from '../services/rtk/doctorApi';
+import {
+  useGetDoctorsQuery,
+  useGetMyDoctorQuery,
+  useToggleAvailabilityMutation,
+} from '../services/rtk/doctorApi';
 import {
   useGetDoctorQueueQuery,
   useCallNextMutation,
@@ -34,11 +39,15 @@ import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { QueueEntryResponse, TriageLevel } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatusTag, Button, StatCard, LiveBadge, AvatarInitials } from '../components/ui';
-import { LoadingState } from '../components/ui/States';
+import { LoadingState, EmptyState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 const WAITING_PREVIEW_LIMIT = 5;
 const TRIAGE_LEVELS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
+// Day 13: the doctor's own entry comes from /api/doctors/me (header-based
+// identity), polled so the dashboard self-heals once an admin links the
+// account. The big doctors list is still fetched for the department context.
+const MY_ENTRY_POLL_MS = 15_000;
 
 function displayName(entry: QueueEntryResponse) {
   return entry.patientName || `#${entry.patientId.slice(0, 4).toUpperCase()}`;
@@ -65,10 +74,18 @@ export default function DoctorDashboard() {
   const [success, setSuccess] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const doctorEntry = useMemo(
-    () => doctors?.content.find((doc) => doc.userId === user?.id) ?? null,
-    [doctors, user?.id],
-  );
+  // Day 13: authoritative resolution of the doctor's own catalog entry.
+  // isError (404) means the account isn't linked to a catalog entry yet.
+  const {
+    data: doctorEntry,
+    isLoading: myEntryLoading,
+    isError: myEntryError,
+    error: myEntryQueryError,
+    refetch: refetchMyEntry,
+  } = useGetMyDoctorQuery(undefined, {
+    skip: user?.role !== 'DOCTOR',
+    pollingInterval: MY_ENTRY_POLL_MS,
+  });
 
   // Live queue snapshot — same endpoint the queue page polls; the dashboard
   // just subscribes to its own copy (RTK dedupes cache keys, so this is one
@@ -94,6 +111,11 @@ export default function DoctorDashboard() {
 
   const error = queryError ? getErrorMessage(queryError) : actionError;
   const queueErrorMessage = queueError ? getErrorMessage(queueError) : '';
+  // ONLY a 404 means "not linked yet" — a doctor-service outage (5xx/network)
+  // must surface as a real error, never as a misleading "ask an admin" card.
+  const myEntryIs404 =
+    myEntryError && (myEntryQueryError as { status?: unknown } | undefined)?.status === 404;
+  const noCatalogEntry = myEntryIs404 && !myEntryLoading && !doctorEntry;
 
   const entries = queue ?? [];
   const waitingEntries = entries.filter((e) => e.status === 'WAITING');
@@ -177,7 +199,7 @@ export default function DoctorDashboard() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || (myEntryLoading && !doctorEntry && !myEntryError)) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-5xl">
@@ -207,6 +229,21 @@ export default function DoctorDashboard() {
           <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
             ✓ {success}
           </div>
+        )}
+
+        {/* Day 13: account not linked to a doctor catalog entry yet — a clear,
+            actionable setup state (auto-refreshes) instead of a blank page. */}
+        {noCatalogEntry && (
+          <EmptyState
+            icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
+            title="No doctor profile linked yet"
+            message="Your account isn't linked to a doctor catalog entry yet, so your queue and analytics aren't available. Ask an admin to create one in Admin → Manage Doctors (they'll need this account's user ID, visible in the Admin user directory). This dashboard checks automatically every 15 seconds."
+            action={
+              <Button variant="secondary" onClick={refetchMyEntry}>
+                Re-check now
+              </Button>
+            }
+          />
         )}
 
         {/* Availability toggle card */}
@@ -542,7 +579,9 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {/* Queue management card */}
+        {/* Queue management card — hidden while the account isn't linked, so it
+            never looks like the queue exists when it can't. */}
+        {showQueue && (
         <Link
           to="/doctor/queue"
           className="card group flex items-center gap-4 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
@@ -558,6 +597,7 @@ export default function DoctorDashboard() {
           </div>
           <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
         </Link>
+        )}
 
         {/* Account info */}
         <div className="card p-6">

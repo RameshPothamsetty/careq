@@ -1,0 +1,24 @@
+# Day 13: test profile for @SpringBootTest integration tests.
+# H2 in MySQL mode (no MySQL server needed). The RabbitMQ listener container
+# is switched OFF so the suite never attempts a real broker connection — the
+# consumer logic itself is covered by direct unit tests.
+spring:
+  datasource:
+    url: jdbc:h2:mem:notifdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+eureka:
+  client:
+    enabled: false

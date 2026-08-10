@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, PhoneCall, Search, Users, UserCheck, Activity } from 'lucide-react';
+import { Clock, PhoneCall, Search, Users, UserCheck, Activity, Stethoscope } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useAuth } from '../context/AuthContext';
-import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
+import { useGetMyDoctorQuery } from '../services/rtk/doctorApi';
 import {
   useGetDoctorQueueQuery,
   useCallNextMutation,
@@ -17,9 +17,11 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 const OVERRIDE_OPTIONS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
-// The doctor's own catalog entry is resolved from the shared doctors cache — a
-// big page guarantees their entry is present no matter how large the catalog is.
-const ALL_DOCTORS_PAGE_SIZE = 1000;
+// Day 13: the doctor's own catalog entry comes from GET /api/doctors/me
+// (header-based identity) instead of scanning the whole paginated catalog —
+// which silently broke once the catalog outgrew one page. It is polled so the
+// page self-heals the moment an admin links the account.
+const MY_ENTRY_POLL_MS = 15_000;
 // The queue query is server-side filtered by patient name; the search box
 // debounces so typing fires at most one request per pause.
 const SEARCH_DEBOUNCE_MS = 300;
@@ -49,18 +51,19 @@ function displayName(entry: QueueEntryResponse) {
 
 export default function DoctorQueuePage() {
   const { user } = useAuth();
+  // Day 13: resolve the doctor's own catalog entry via /api/doctors/me.
+  // isError (404) means the account isn't linked to a catalog entry yet —
+  // shown as a friendly setup state below, not a dead-end error.
   const {
-    data: doctors,
-    isLoading: doctorsLoading,
-    error: doctorsError,
-    refetch: refetchDoctors,
-  } = useGetDoctorsQuery({ size: ALL_DOCTORS_PAGE_SIZE });
-
-  // Resolve the doctor's own catalog entry from the shared doctors cache.
-  const myEntry = useMemo(
-    () => doctors?.content.find((d) => d.userId === user?.id) ?? null,
-    [doctors, user?.id],
-  );
+    data: myEntry,
+    isLoading: myEntryLoading,
+    isError: myEntryError,
+    error: myEntryQueryError,
+    refetch: refetchMyEntry,
+  } = useGetMyDoctorQuery(undefined, {
+    skip: user?.role !== 'DOCTOR',
+    pollingInterval: MY_ENTRY_POLL_MS,
+  });
 
   // Patient-name search box (debounced).
   const [searchInput, setSearchInput] = useState('');
@@ -100,23 +103,24 @@ export default function DoctorQueuePage() {
     toastTimer.current = setTimeout(() => setToast(null), 4000);
   };
 
+  // ONLY a 404 means "not linked yet" — a doctor-service outage (5xx/network)
+  // must surface as a real error, never as a misleading "ask an admin" card.
+  const myEntryIs404 =
+    myEntryError && (myEntryQueryError as { status?: unknown } | undefined)?.status === 404;
+  const noCatalogEntry = myEntryIs404 && !myEntryLoading && !myEntry;
   const errorMessage = useMemo(() => {
-    if (doctorsError) return getErrorMessage(doctorsError);
-    if (!doctorsLoading && !myEntry) {
-      return 'No doctor catalog entry found for your account. Ask an admin to create one.';
-    }
     if (error) return getErrorMessage(error);
     return '';
-  }, [doctorsError, doctorsLoading, myEntry, error]);
+  }, [error]);
 
-  // The queue query may be skipped (no catalog entry yet) or the doctors
-  // query may have failed — retry both so the button always does something.
+  // The queue query may be skipped (no catalog entry yet) — retry both the
+  // entry resolution and the queue so the button always does something.
   const handleRetry = () => {
-    refetchDoctors();
+    refetchMyEntry();
     refetch();
   };
 
-  const isLoading = doctorsLoading || (queueLoading && !!myEntry);
+  const isLoading = myEntryLoading || (queueLoading && !!myEntry);
 
   const entries = queue ?? [];
   const firstWaiting = entries.find((e) => e.status === 'WAITING');
@@ -213,7 +217,23 @@ export default function DoctorQueuePage() {
 
         <Toast message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} />
 
-        {errorMessage && !isLoading && (
+        {/* Day 13: no catalog entry for this account — a friendly setup state
+            (polled every 15s, so it disappears by itself once an admin links
+            the account), not the old dead-end error. */}
+        {noCatalogEntry && !isLoading && (
+          <EmptyState
+            icon={<Stethoscope className="h-8 w-8 text-brand-400" />}
+            title="No doctor profile linked yet"
+            message="Your account isn't linked to a doctor catalog entry yet. Ask an admin to create one in Admin → Manage Doctors (they'll need this account's user ID, visible in the Admin user directory). This page checks automatically every 15 seconds."
+            action={
+              <Button variant="secondary" onClick={handleRetry}>
+                Re-check now
+              </Button>
+            }
+          />
+        )}
+
+        {errorMessage && !isLoading && !noCatalogEntry && (
           <ErrorState message={errorMessage} onRetry={handleRetry} />
         )}
 

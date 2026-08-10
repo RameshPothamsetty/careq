@@ -40,7 +40,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 - **Analytics dashboard** — 7-day charts (Recharts): patients handled per day, average wait-time trend, and queue distribution by department, with summary stat cards and graceful empty states
 
 ### 🔔 Everyone
-- **In-app notifications** — bell with unread badge + dropdown in the shared header, and auto-dismissing toasts when the queue status changes (you're called, you move up, consultation complete). Session-only by design — see the Phase 2 note below.
+- **In-app notifications (Day 13)** — the bell's history is now **real persisted data**: queue-service publishes every state change (joined / triaged / called / completed) onto a RabbitMQ event bus, a dedicated notification-service persists it, and the bell (polled every 15s) survives refreshes. The Day 7b real-time toast-on-status-change layer still fires instantly on top.
 
 ---
 
@@ -54,6 +54,8 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 | API Gateway | Spring Cloud Gateway (JWT validation + identity headers) |
 | Inter-service calls | OpenFeign + LoadBalancer |
 | Database | MySQL 8 |
+| Cache | Redis 7 — doctor/department catalog with 60s TTL (Day 13) |
+| Event Bus | RabbitMQ — `careq.events` topic exchange, `queue.*` routing keys (Day 13) |
 | Auth | Spring Security + JWT (HMAC-SHA256) |
 | AI | Groq (`llama-3.1-8b-instant`) — symptom triage with guaranteed fallback |
 | Testing | JUnit 5 + Mockito (backend), Playwright (E2E) |
@@ -62,7 +64,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 
 ## Architecture
 
-Six services collaborate through Eureka service discovery; all client traffic enters through the API Gateway, which validates the JWT and forwards `X-User-Id` / `X-User-Role` / `X-User-Name` / `X-User-Email` identity headers to downstream services.
+Seven services collaborate through Eureka service discovery; all client traffic enters through the API Gateway, which validates the JWT and forwards `X-User-Id` / `X-User-Role` / `X-User-Name` / `X-User-Email` identity headers to downstream services. Day 13 added Redis (doctor/department catalog cache) and RabbitMQ (queue → notification events).
 
 ```
 Browser (React SPA :3030)
@@ -70,16 +72,18 @@ Browser (React SPA :3030)
         ▼
 API Gateway (:8080)  ── validates JWT, forwards identity headers
         │
-   ┌────┼─────────────┬──────────────┬──────────────┐
-   ▼    ▼             ▼              ▼              ▼
- auth  user         doctor         queue        eureka-server
-(:8081)(:8082)      (:8083)        (:8084)          (:8761)
-         │                            │
+   ┌────┼─────────────┬──────────────┬──────────────┬──────────────┐
+   ▼    ▼             ▼              ▼              ▼              ▼
+ auth  user         doctor         queue    notification      eureka-server
+(:8081)(:8082)      (:8083)        (:8084)      (:8085)           (:8761)
+                       │   Redis     │   RabbitMQ careq.events ──▶  notification
+                       │   (:6379)    │   queue.joined|triaged|      (consumes,
+                       │   catalog    │   called|completed            persists)
          └── Feign call (avg consult time, availability) ──┘
                           └── Groq LLM (symptom triage)
 ```
 
-The queue-service never duplicates doctor consultation data — it fetches `avgConsultationTimeMinutes` and `isAvailable` live from doctor-service via Feign (single source of truth). Position and predicted wait are derived on every read, never cached.
+The queue-service never duplicates doctor consultation data — it fetches `avgConsultationTimeMinutes` and `isAvailable` live from doctor-service via Feign (single source of truth). Position and predicted wait are derived on every read, never cached. Live queue data is never cached in Redis — only the rarely-changing catalog, with a short 60s TTL, and RabbitMQ carries post-decision notification events only (AI triage stays synchronous).
 
 **See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) for the full architecture, auth flow, and frontend state management design.**
 
@@ -204,7 +208,8 @@ node scripts/day11-smoke-test.mjs   # end-to-end validation of the Dockerized st
 | **Day 9** | **API Documentation Pass** — complete Swagger/OpenAPI annotations on all 4 business services, centralized Swagger UI aggregated at the gateway, standardized shared error response shape, API contract audit, complete Postman collection with auto-auth script | ✅ Complete |
 | **Day 10** | **Testing Pass** — 104 backend tests (auth 14, user 13, doctor 38, queue 39) + 23 frontend tests, 2 integration flows, Newman API run (31/31), manual checklist (38/38), BUG-1 & BUG-2 fixed | ✅ Complete |
 | **Day 11** | **Docker Containerization** — multi-stage Dockerfiles (non-root, healthchecks), Nginx frontend + `/api` proxy, `docker-compose.yml` full stack, `.env.example`, end-to-end smoke test 14/14 inside the containers | ✅ Complete |
-| Days 12–15 | CI/CD, cloud deployment, hardening, Phase 2 roadmap | 📅 Planned |
+| **Day 13** | **Redis Caching + RabbitMQ Notification Service** — Redis catalog cache (60s TTL, evict-on-mutation, fail-open), RabbitMQ `careq.events` topic exchange, new `notification-service` (persisted notifications, `GET/PUT /api/notifications/**`), notification bell backed by real data, `/api/doctors/me` + admin doctor-account picker fixing the doctor queue dead-end | ✅ Complete |
+| Days 14–15 | CI/CD, cloud deployment, hardening | 📅 Planned |
 
 ---
 
@@ -245,7 +250,7 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service. Persisted, cross-device, or backend-triggered notifications — a notifications service/table, push, SMS, and email — are Phase 2 roadmap items for a dedicated future day, not shortcuts hidden today. Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11 for the full design decision.
+Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Still on the Phase 2 roadmap: **actual email/SMS/push delivery** (notifications remain in-app only today), CI/CD, and cloud deployment. Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–13 for the design decisions.
 
 ## Git Branching Strategy
 

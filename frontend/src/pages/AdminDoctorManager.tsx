@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search, Stethoscope, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,6 +8,7 @@ import {
   useUpdateDoctorMutation,
   useDeleteDoctorMutation,
 } from '../services/rtk/doctorApi';
+import { useGetUsersQuery } from '../services/rtk/userApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { DoctorCatalogResponse } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
@@ -53,6 +54,15 @@ export default function AdminDoctorManager() {
     search: searchQuery || undefined,
   });
   const { data: departments } = useGetDepartmentsQuery();
+  // Day 13: doctor accounts available to link (admin user directory). Lets the
+  // admin pick a real DOCTOR account instead of hand-typing a UUID — a typo
+  // here was the #1 cause of the "no catalog entry for your account" dead-end
+  // doctors hit on their dashboard/queue pages.
+  const { data: usersData } = useGetUsersQuery({ size: 1000 });
+  const doctorAccounts = useMemo(
+    () => (usersData?.content ?? []).filter((u) => u.role === 'DOCTOR'),
+    [usersData],
+  );
   const [createDoctor, { isLoading: isCreating }] = useCreateDoctorMutation();
   const [updateDoctor, { isLoading: isUpdating }] = useUpdateDoctorMutation();
   const [deleteDoctor] = useDeleteDoctorMutation();
@@ -254,17 +264,47 @@ export default function AdminDoctorManager() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">User ID *</label>
-                  <input
-                    type="text"
-                    value={userId}
-                    onChange={(e) => setUserId(e.target.value)}
-                    placeholder="UUID from auth-service"
-                    required
-                    disabled={!!editingId}
-                    className="input-field disabled:bg-gray-50"
-                  />
+                  {/* Day 13: pick the account from the real DOCTOR user list —
+                      fills the User ID below and prevents UUID typos (the #1
+                      cause of the doctor dashboard/queue "no catalog entry"
+                      dead-end). Hidden while editing (User ID is immutable). */}
+                  {!editingId && doctorAccounts.length > 0 && (
+                    <div>
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                        Link doctor account{' '}
+                        <span className="font-normal text-slate-400">(recommended)</span>
+                      </label>
+                      <select
+                        value={userId}
+                        onChange={(e) => setUserId(e.target.value)}
+                        className="select-field"
+                      >
+                        <option value="">— Pick a DOCTOR account —</option>
+                        {doctorAccounts.map((u) => (
+                          <option key={u.userId} value={u.userId}>
+                            {u.fullName || 'Doctor'} · {u.email}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        Selecting an account fills the User ID automatically — no copy-pasting UUIDs.
+                      </p>
+                    </div>
+                  )}
                 </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">User ID *</label>
+                <input
+                  type="text"
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="UUID from auth-service (filled by the picker above)"
+                  required
+                  disabled={!!editingId}
+                  className="input-field disabled:bg-gray-50"
+                />
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">

@@ -421,3 +421,63 @@ Generate in this order: one Dockerfile + `.dockerignore` per backend service →
 4. Output the exact `git` command sequence used
 5. Output a ready-to-paste PR description
 ```
+
+---
+
+# CareQ — Day 13 Prompt (Redis Caching + RabbitMQ Event-Driven Notification Service)
+
+## ROLE
+
+You are acting as a **Senior Backend Engineer** adding two infrastructure capabilities that complete work deliberately scoped out earlier: Redis caching for read-heavy catalog data, and a real event-driven notification system via RabbitMQ — replacing Day 7b's explicitly-documented "client-side, session-only" limitation with a proper persisted solution.
+
+## PROJECT CONTEXT (recap)
+
+- **Services so far:** `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`
+- **From Day 7b:** notifications were scoped as client-side derived only, with an explicit note that persisted/push notifications were a Phase 2 roadmap item — this day builds that properly
+- **From Day 12:** AI Auto-Assignment triage is synchronous and must stay that way — the triage call itself is NOT made async
+
+## IMPORTANT EXCEPTION TO PRIOR DAYS' RULE
+
+Every previous day avoided touching already-finished services. This day intentionally reopens two of them: `doctor-service` (Redis caching) and `queue-service` (RabbitMQ event publishing). This is deliberate, not scope drift — stated explicitly in the PR description so the history reads as an intentional architectural addition.
+
+## DESIGN DECISIONS (implemented)
+
+1. **Redis scope: doctor/department catalog only.** `GET /api/doctors` and `GET /api/departments` cached with a **60s TTL** via `@Cacheable`; `@CacheEvict` on every Admin create/update/delete mutation (plus the doctor's own availability toggle, and department renames which change the doctor list's department names). Live queue data (position, wait time, availability) is NOT cached; `getDoctorById` (the join-validation read) stays uncached so going offline blocks joins immediately. Keys namespaced `careq:doctorCatalog::` / `careq:departments::`. A custom `CacheErrorHandler` logs and swallows Redis failures — the catalog never 500s when the cache is down.
+2. **RabbitMQ topology:** one durable topic exchange `careq.events` with routing keys `queue.joined`, `queue.triaged`, `queue.called`, `queue.completed`. queue-service publishes (JSON `QueueEventDto` via `Jackson2JsonMessageConverter`, wrapped in try/catch — a publish failure is logged, never propagated); a new notification-service binds durable queue `careq.notifications` with `queue.*` and consumes all four.
+3. **New microservice: `notification-service` (port 8085).** Consumes RabbitMQ events, persists a `NotificationEntry` (`recipientUserId`, `type`, `message`, `read`, `createdAt`) to the shared `careq_db`, exposes `GET /api/notifications/me` (paginated + total `unreadCount`) and `PUT /api/notifications/{id}/read` (ownership-checked). Registers with Eureka, routed via the Gateway at `/api/notifications/**`, uses the same header-based identity trust pattern as every other service.
+4. **Frontend notification bell upgraded, not replaced.** The Day 7b real-time toast-on-status-change behavior is kept as the immediate-feedback layer, but the bell's dropdown history is now backed by real persisted data from notification-service (polled every 15s).
+5. **AI triage stays synchronous** — RabbitMQ carries post-decision notification events only.
+
+## ALSO FIXED (doctor dashboard dead-end)
+
+- **`GET /api/doctors/me`** — resolves the calling doctor's own catalog entry by header identity; the doctor dashboard and queue page now use it instead of scanning the whole paginated catalog (which broke once the catalog outgrew one page, and produced the misleading "No doctor catalog entry found — ask an admin" dead-end while the dashboard appeared to show a queue).
+- **Friendly setup states** on both doctor pages when the account isn't linked yet (auto-rechecks every 15s).
+- **Admin doctor form: DOCTOR-account picker** — user IDs are selected from the real user directory, never hand-typed (the #1 cause of the dead-end).
+
+## DELIVERABLES (all complete)
+
+1. Redis caching in doctor-service (deps, config, annotations, tests unaffected — plain unit tests)
+2. RabbitMQ publishing in queue-service (exchange, `QueueEventPublisher`, wired into join/triage/call/complete; unit + integration tests incl. the non-blocking contract)
+3. notification-service (full layered scaffold + Dockerfile + tests)
+4. Gateway route `/api/notifications/**`, Swagger aggregation entry, health whitelist
+5. Frontend `notificationApi` slice, store wiring, bell on persisted data, toasts kept
+6. Doctor dashboard/queue fix + admin picker
+7. docker-compose: `redis`, `rabbitmq:3-management`, `notification-service`; depends_on healthchains; `.env.example` RabbitMQ creds
+8. Docs: 03_ARCHITECTURE (§12 event bus, §13 Redis + /me), 04_DATABASE (notification_entries), 05_API_CONTRACT (notification endpoints + /me), README, this prompt archive
+
+## VALIDATION PERFORMED
+
+- Backend compile across all 7 modules; test suites: doctor 38 ✓, queue 61 ✓ (incl. `QueueEventPublisherTest`), notification-service 16 ✓ (controller integration, service, consumer)
+- Frontend `tsc` + Vitest
+- Dockerized stack: Redis keys inspected (`redis-cli KEYS careq:*`) + cache-hit/evict behaviour, RabbitMQ management API queue depth drained per event type, notification rows persisted and served via the gateway, smoke flow join → called → complete
+
+## HARD CONSTRAINTS (honoured)
+
+- AI triage never made async / never routed through RabbitMQ
+- No email/SMS delivery — notifications remain in-app
+- A RabbitMQ publish failure never fails a join/call-next/complete
+- Redis failures never 500 the catalog (fail-open cache)
+
+## GIT WORKFLOW
+
+Branch `feature/redis-rabbitmq-notifications` off `develop`; small incremental commits (see the repo history); PR titled `Feature: Redis Caching + RabbitMQ Notification Service` closing the Day 13 issue, explicitly noting the intentional reopening of doctor-service and queue-service.
