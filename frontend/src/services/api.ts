@@ -249,6 +249,28 @@ interface DoctorAnalyticsSummary {
   avgWaitTimeTrend: DailyAvgWait[];
 }
 
+// ---- Notification types (Day 13 — persisted notifications) ----
+
+/** A persisted in-app notification (notification-service). */
+interface NotificationItem {
+  id: number;
+  /** queue.joined | queue.triaged | queue.called | queue.completed */
+  type: string;
+  message: string;
+  read: boolean;
+  /** ISO local date-time, e.g. 2026-08-10T09:00:00 */
+  createdAt: string;
+}
+
+/**
+ * GET /api/notifications/me response — mirrors the Spring Page JSON shape
+ * (so it fits PaginatedResponse<T>) plus a total unreadCount for the badge
+ * (the badge must reflect ALL unread rows, not just the loaded page).
+ */
+interface NotificationPage extends PaginatedResponse<NotificationItem> {
+  unreadCount: number;
+}
+
 /** Server-side page wrapper (Spring Data Page JSON). */
 interface PaginatedResponse<T> {
   content: T[];
@@ -341,5 +363,7 @@ export type {
   DepartmentDistribution,
   AnalyticsSummary,
   DoctorAnalyticsSummary,
+  NotificationItem,
+  NotificationPage,
   PaginatedResponse,
 };

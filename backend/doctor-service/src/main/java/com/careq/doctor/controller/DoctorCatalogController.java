@@ -150,8 +150,7 @@ public class DoctorCatalogController {
      * Doctor: Toggle own availability status.
      * Looks up the doctor by their userId from the header, not by catalog id.
      */
-    @Operation(summary = "Toggle my availability (Doctor only)",
-            description = "Sets the calling doctor's availability. The catalog entry is looked up from the caller's " +
+    @Operation(summary = "Toggle my availability (Doctor only)",            description = "Sets the calling doctor's availability. The catalog entry is looked up from the caller's " +
                     "userId, so a doctor can only toggle their own record. Requires the DOCTOR role.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Updated availability",
@@ -172,5 +171,32 @@ public class DoctorCatalogController {
         RoleGuard.requireRole(role, "DOCTOR");
 
         return ResponseEntity.ok(doctorCatalogService.toggleAvailability(userId, request));
+    }
+
+    /**
+     * Day 13: Doctor: resolve my own catalog entry by the caller's userId.
+     * Removes the frontend's need to scan the whole paginated catalog to find
+     * "which entry is mine" — a 404 here means the account isn't linked to a
+     * catalog entry yet, which the UI turns into a friendly setup state.
+     */
+    @Operation(summary = "Get my catalog entry (Doctor only)",
+            description = "Resolves the calling doctor's own catalog entry from their userId " +
+                    "(header-based identity). 404 when the account is not linked to a catalog entry yet.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The caller's catalog entry",
+                    content = @Content(schema = @Schema(implementation = DoctorCatalogResponseDto.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not a DOCTOR",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "404", description = "No catalog entry found for the caller",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
+    })
+    @GetMapping("/me")
+    public ResponseEntity<DoctorCatalogResponseDto> getMyDoctor(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
+            @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
+
+        RoleGuard.requireRole(role, "DOCTOR");
+
+        return ResponseEntity.ok(doctorCatalogService.getMyDoctor(userId));
     }
 }
