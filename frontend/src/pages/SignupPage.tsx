@@ -51,19 +51,19 @@ export default function SignupPage() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lift">
             <Activity className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-slate-800">{t('auth.createAccount')}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t('auth.joinCareQ')}</p>
+          <h1 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">{t('auth.createAccount')}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('auth.joinCareQ')}</p>
         </div>
 
         {error && (
-          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.fullName')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.fullName')}</label>
             <input
               type="text"
               value={fullName}
@@ -75,7 +75,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.email')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.email')}</label>
             <input
               type="email"
               value={email}
@@ -88,7 +88,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.password')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.password')}</label>
             <input
               type="password"
               value={password}
@@ -102,7 +102,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.iamA')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.iamA')}</label>
             <div className="grid grid-cols-3 gap-2">
               {ROLES.map((r) => (
                 <button
@@ -111,18 +111,18 @@ export default function SignupPage() {
                   onClick={() => setRole(r.value)}
                   className={`flex flex-col items-center gap-1 rounded-xl border-2 px-2 py-3 text-center transition-all duration-200 ${
                     role === r.value
-                      ? 'border-brand-500 bg-brand-50'
-                      : 'border-slate-200 bg-white hover:border-brand-300'
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/15'
+                      : 'border-slate-200 bg-white hover:border-brand-300 dark:border-slate-600 dark:bg-night-800 dark:hover:border-brand-400'
                   }`}
                 >
                   <span className="text-xl">{r.icon}</span>
-                  <span className={`text-xs font-semibold ${role === r.value ? 'text-brand-700' : 'text-slate-600'}`}>
+                  <span className={`text-xs font-semibold ${role === r.value ? 'text-brand-700 dark:text-brand-300' : 'text-slate-600 dark:text-slate-300'}`}>
                     {t(r.labelKey)}
                   </span>
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">
+            <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
               {selectedRole ? t(selectedRole.descKey) : ''}
             </p>
           </div>
@@ -133,9 +133,9 @@ export default function SignupPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('auth.alreadyHaveAccount')}{' '}
-          <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline">
+          <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300">
             {t('auth.signIn')}
           </Link>
         </p>

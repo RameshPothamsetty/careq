@@ -1,6 +1,6 @@
 import { CheckCircle2, Info, X, AlertTriangle } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const KIND_ICON = {
   success: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
@@ -21,15 +21,14 @@ const KIND_BORDER = {
 export default function ToastHost() {
   const { toasts, dismissToast } = useNotifications();
   // ToastHost renders OUTSIDE the page root (sibling of <Routes> in App.tsx),
-  // so the per-page `dark` class doesn't cover it. Re-apply it here so toast
-  // dark: variants trigger on staff (doctor/admin) pages.
-  const { user } = useAuth();
-  const isStaff = user?.role === 'DOCTOR' || user?.role === 'ADMIN';
+  // so the per-page `dark` class doesn't cover it. Re-apply it here from the
+  // shared theme context so toast dark: variants always match the app theme.
+  const { isDark } = useTheme();
 
   if (toasts.length === 0) return null;
 
   return (
-    <div className={`pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2 ${isStaff ? 'dark' : ''}`}>
+    <div className={`pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2 ${isDark ? 'dark' : ''}`}>
       {toasts.map((toast) => (
         <div
           key={toast.id}

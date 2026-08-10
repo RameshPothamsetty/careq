@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { HeartPulse, RefreshCw, Sparkles, Wallet, Award, Clock, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import {
   useGetMyQueueStatusQuery,
@@ -46,7 +47,7 @@ function LiveStatusView({
     <div className="mx-auto max-w-2xl space-y-5">
       {/* Live indicator */}
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
           <LiveBadge lastUpdatedSeconds={secondsAgo} />
           <span>{t('queue.pollingEvery10s')}</span>
         </div>
@@ -59,8 +60,8 @@ function LiveStatusView({
       </div>
 
       {isStale && (
-        <div className="card flex items-center justify-between gap-3 border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm font-medium text-amber-700">
+        <div className="card flex items-center justify-between gap-3 border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
             {t('queue.staleWarning')}
           </p>
         </div>
@@ -142,30 +143,30 @@ function LiveStatusView({
       <div className="card space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <StatusTag status={entry.status} />
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             {t('queue.joinedAt', {
               time: new Date(entry.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             })}
           </p>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('queue.symptomsReported')}</p>
-          <p className="mt-1.5 rounded-xl bg-gray-50 p-3.5 text-sm leading-relaxed text-slate-800">{entry.symptomText}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('queue.symptomsReported')}</p>
+          <p className="mt-1.5 rounded-xl bg-gray-50 p-3.5 text-sm leading-relaxed text-slate-800 dark:bg-night-700/50 dark:text-slate-100">{entry.symptomText}</p>
         </div>
         <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <div className="rounded-xl bg-gray-50 p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('queue.aiTriage')}</p>
-            <p className="mt-1 font-semibold text-slate-800">{entry.aiSuggestedTriage}</p>
+          <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-night-700/50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('queue.aiTriage')}</p>
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{entry.aiSuggestedTriage}</p>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-night-700/50">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {t('queue.doctorsFinalDecision')}
             </p>
-            <p className="mt-1 font-semibold text-slate-800">{entry.doctorOverrideTriage ?? t('queue.noOverride')}</p>
+            <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{entry.doctorOverrideTriage ?? t('queue.noOverride')}</p>
           </div>
         </div>
         {cancelError && (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {cancelError}
           </p>
         )}
@@ -275,24 +276,24 @@ function JoinFlow({
     <div className="mx-auto max-w-2xl space-y-5">
       <div className="card p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-100">
-            <HeartPulse className="h-5 w-5 text-brand-700" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-100 dark:bg-brand-500/15">
+            <HeartPulse className="h-5 w-5 text-brand-700 dark:text-brand-300" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800">{t('queue.joinAQueue')}</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{t('queue.joinAQueue')}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               {t('queue.joinHint')}
             </p>
           </div>
         </div>
 
         {success && (
-          <div className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             ✓ {success}
           </div>
         )}
         {(loadError || error) && (
-          <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {loadError || error}
           </div>
         )}
@@ -300,7 +301,7 @@ function JoinFlow({
         <div className="mt-6 space-y-5">
           {/* Symptoms first — the AI matches the right doctor (Phase 1) */}
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('queue.symptoms')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('queue.symptoms')}</label>
             <textarea
               value={symptomText}
               onChange={(e) => {
@@ -312,7 +313,7 @@ function JoinFlow({
               placeholder={t('queue.symptomsPlaceholder')}
               className="input-field resize-none"
             />
-            <p className="mt-1 text-right text-xs text-slate-400">{symptomText.length}/2000</p>
+            <p className="mt-1 text-right text-xs text-slate-400 dark:text-slate-500">{symptomText.length}/2000</p>
           </div>
 
           {/* The primary action: describe and done. The AI joins the single
@@ -328,7 +329,7 @@ function JoinFlow({
             <button
               type="button"
               onClick={() => setShowManualPicker(true)}
-              className="block w-full text-center text-xs font-semibold text-brand-600 hover:text-brand-700"
+              className="block w-full text-center text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
             >
               {t('queue.pickManually')}
             </button>
@@ -339,19 +340,19 @@ function JoinFlow({
           {suggestionResponse && (
             <div className="space-y-3">
               {suggestionResponse.reason === 'AMBIGUOUS_SYMPTOMS' && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                   ⚠ {suggestionResponse.message ?? t('queue.ambiguousDefault')}
                 </div>
               )}
               {suggestionResponse.reason === 'NO_AVAILABLE_DOCTORS' && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                   ⚠ {suggestionResponse.message ?? t('queue.noDoctorsDefault')}
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-50 px-4 py-3">
-                <Sparkles className="h-4 w-4 text-brand-700" />
-                <span className="text-sm font-semibold text-brand-800">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-50 px-4 py-3 dark:bg-brand-500/15">
+                <Sparkles className="h-4 w-4 text-brand-700 dark:text-brand-300" />
+                <span className="text-sm font-semibold text-brand-800 dark:text-brand-200">
                   {suggestionResponse.suggestedDepartment
                     ? t('queue.aiSuggests', { dept: suggestionResponse.suggestedDepartment })
                     : t('queue.aiAnalysis')}
@@ -360,14 +361,14 @@ function JoinFlow({
               </div>
 
               {suggestionResponse.emergency && suggestionResponse.urgencyNote && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
                   ⚠ {suggestionResponse.urgencyNote}
                 </div>
               )}
 
               {suggestionResponse.suggestions.length === 0 ? (
                 suggestionResponse.reason !== 'NO_AVAILABLE_DOCTORS' && (
-                  <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500">
+                  <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-slate-500 dark:bg-night-700/50 dark:text-slate-400">
                     {t('queue.noDoctorsAccepting')}
                   </p>
                 )
@@ -379,25 +380,25 @@ function JoinFlow({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-bold text-slate-800">{s.name}</h3>
-                        <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{s.name}</h3>
+                        <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                           {s.specialization}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         {s.departmentName} · {s.matchReason}
                       </p>
-                      <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                         <span className="inline-flex items-center gap-1">
-                          <Award className="h-3.5 w-3.5 text-slate-400" />
+                          <Award className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                           {t('browse.yearsExp', { y: s.experienceYears })}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Wallet className="h-3.5 w-3.5 text-slate-400" />
+                          <Wallet className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                           ₹{s.consultationFee}
                         </span>
                         <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          <Clock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                           {t('queue.minWait', { m: s.predictedWaitMinutes, p: s.position })}
                         </span>
                       </div>
@@ -420,9 +421,9 @@ function JoinFlow({
           {showManualPicker && (
             <>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('queue.doctor')}</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('queue.doctor')}</label>
                 {isLoadingDoctors ? (
-                  <div className="h-11 animate-pulse rounded-xl bg-gray-100" />
+                  <div className="h-11 animate-pulse rounded-xl bg-gray-100 dark:bg-night-700/60" />
                 ) : (
                   <select
                     value={selectedDoctor}
@@ -438,7 +439,7 @@ function JoinFlow({
                   </select>
                 )}
                 {!isLoadingDoctors && doctors.length === 0 && (
-                  <p className="mt-2 text-xs text-slate-400">
+                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
                     {t('queue.noDoctorsAccepting')}
                   </p>
                 )}
@@ -450,7 +451,7 @@ function JoinFlow({
             </>
           )}
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-slate-400 dark:text-slate-500">
             {t('queue.footerHint', { name: user?.fullName ?? '' })}
           </p>
         </div>
@@ -463,6 +464,10 @@ function JoinFlow({
 
 export default function PatientQueuePage() {
   const { t } = useI18n();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const [searchParams] = useSearchParams();
   const initialDoctorId = searchParams.get('doctor') ? Number(searchParams.get('doctor')) : null;
 
@@ -515,7 +520,7 @@ export default function PatientQueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon={<UserRound className="h-6 w-6 text-white" />}
@@ -542,7 +547,7 @@ export default function PatientQueuePage() {
           <JoinFlow initialDoctorId={initialDoctorId} onJoined={handleJoined} />
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           {t('queue.footer')}
         </footer>
       </div>

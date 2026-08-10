@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import {
   Clock,
@@ -77,6 +78,10 @@ const shortDay = (iso: string) => {
 
 export default function DoctorDashboard() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   // A single large page guarantees the doctor's own catalog entry is in the
   // cache even for a big catalog (listing is server-side paginated since Day 7a).
   const { data: doctors, isLoading, error: queryError } = useGetDoctorsQuery({ size: 1000 });
@@ -212,7 +217,7 @@ export default function DoctorDashboard() {
   };
 
   const loadingRoot = (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl">
         <LoadingState label="Loading your profile…" />
       </div>
@@ -224,7 +229,7 @@ export default function DoctorDashboard() {
   }
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🩺"
@@ -235,12 +240,12 @@ export default function DoctorDashboard() {
         />
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {error}
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             ✓ {success}
           </div>
         )}
@@ -266,13 +271,13 @@ export default function DoctorDashboard() {
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h2 className="font-display text-lg font-bold text-slate-100">{doctorEntry.name || doctorEntry.specialization}</h2>
+                  <h2 className="font-display text-lg font-bold text-slate-800 dark:text-slate-100">{doctorEntry.name || doctorEntry.specialization}</h2>
                   <StatusTag status={doctorEntry.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                 </div>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {doctorEntry.specialization} · {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
                 </p>
-                <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-400">
+                <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-500 dark:text-slate-400">
                   <span>💰 Fee: ₹{doctorEntry.consultationFee}</span>
                   <span>⏱ Avg: {doctorEntry.avgConsultationTimeMinutes} min/patient</span>
                 </div>
@@ -282,7 +287,7 @@ export default function DoctorDashboard() {
                 loading={isToggling}
                 className={`shrink-0 ${
                   doctorEntry.isAvailable
-                    ? '!border-red-500/30 !bg-red-500/10 !text-red-300 hover:!bg-red-500/20'
+                    ? '!border-red-200 !bg-red-50 !text-red-600 hover:!bg-red-100 dark:!border-red-500/30 dark:!bg-red-500/10 dark:!text-red-300 dark:hover:!bg-red-500/20'
                     : '!border-transparent !bg-emerald-600 !text-white hover:!bg-emerald-500'
                 }`}
               >
@@ -341,7 +346,7 @@ export default function DoctorDashboard() {
                       triageMix[level] > 0 ? (
                         <span key={level} className="inline-flex items-center gap-1.5">
                           <StatusTag status={level} />
-                          <span className="text-sm font-bold text-slate-200 tabular-nums">{triageMix[level]}</span>
+                          <span className="text-sm font-bold text-slate-700 tabular-nums dark:text-slate-200">{triageMix[level]}</span>
                         </span>
                       ) : null,
                     )}
@@ -349,21 +354,21 @@ export default function DoctorDashboard() {
                 )}
 
                 {firstWaiting ? (
-                  <div className="card relative flex flex-col items-center justify-between gap-4 overflow-hidden border-brand-500/30 bg-gradient-to-r from-brand-500/15 via-night-800/60 to-night-800/40 p-5 sm:flex-row">
+                  <div className="card relative flex flex-col items-center justify-between gap-4 overflow-hidden border-brand-200 bg-gradient-to-r from-brand-50 via-white to-white p-5 dark:border-brand-500/30 dark:from-brand-500/15 dark:via-night-800/60 dark:to-night-800/40 sm:flex-row">
                     <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-500/15 blur-2xl" />
                     <div className="relative flex items-center gap-3.5">
                       <AvatarInitials name={displayName(firstWaiting)} size="lg" />
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-base font-bold text-slate-100">{displayName(firstWaiting)}</p>
+                          <p className="text-base font-bold text-slate-800 dark:text-slate-100">{displayName(firstWaiting)}</p>
                           <StatusTag status={firstWaiting.effectiveTriage} />
                         </div>
-                        <p className="mt-1 text-sm text-brand-300">Next patient ready</p>
-                        <p className="mt-0.5 max-w-md truncate text-xs text-slate-500">{firstWaiting.symptomText}</p>
+                        <p className="mt-1 text-sm text-brand-700 dark:text-brand-300">Next patient ready</p>
+                        <p className="mt-0.5 max-w-md truncate text-xs text-slate-500 dark:text-slate-400">{firstWaiting.symptomText}</p>
                       </div>
                     </div>
                     <div className="relative flex items-center gap-3">
-                      <span className="text-xs text-slate-400 tabular-nums">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                         Wait ≈ <CountUp value={firstWaiting.predictedWaitMinutes ?? 0} /> min
                       </span>
                       <Button
@@ -378,12 +383,12 @@ export default function DoctorDashboard() {
                   </div>
                 ) : (
                   <div className="card flex items-center gap-4 p-5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10">
-                      <Activity className="h-5 w-5 text-emerald-400" />
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+                      <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-100">Queue is clear</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Queue is clear</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         No patients waiting right now — new joins appear here automatically.
                       </p>
                     </div>
@@ -404,21 +409,21 @@ export default function DoctorDashboard() {
                         View all {waitingCount} →
                       </Link>
                     </div>
-                    <div className="mt-3 divide-y divide-slate-700/50">
+                    <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-700/50">
                       {waitingEntries.slice(0, WAITING_PREVIEW_LIMIT).map((entry) => (
                         <div key={entry.id} className="flex items-center gap-3 py-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 text-sm font-extrabold text-brand-300 tabular-nums">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-sm font-extrabold text-brand-700 tabular-nums dark:bg-brand-500/15 dark:text-brand-300">
                             {entry.position ?? '—'}
                           </div>
                           <AvatarInitials name={displayName(entry)} size="sm" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-slate-100">
+                            <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                               {displayName(entry)}
                             </p>
-                            <p className="truncate text-xs text-slate-500">{entry.symptomText}</p>
+                            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{entry.symptomText}</p>
                           </div>
                           <StatusTag status={entry.effectiveTriage} />
-                          <span className="w-20 text-right text-xs font-semibold text-slate-400 tabular-nums">
+                          <span className="w-20 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                             ≈{entry.predictedWaitMinutes ?? 0} min
                           </span>
                         </div>
@@ -556,10 +561,10 @@ export default function DoctorDashboard() {
                   </div>
                 ) : (
                   <div className="card flex items-center gap-4 p-5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-700/50">
-                      <Activity className="h-5 w-5 text-slate-400" />
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700/50">
+                      <Activity className="h-5 w-5 text-slate-400 dark:text-slate-500" />
                     </div>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       No completed consultations in the last 7 days yet — your daily trend will appear here
                       as patients are seen.
                     </p>
@@ -573,19 +578,19 @@ export default function DoctorDashboard() {
         {/* Department context */}
         {showQueue && doctorEntry && (
           <div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10">
-              <Building2 className="h-5 w-5 text-sky-400" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50 dark:bg-sky-500/10">
+              <Building2 className="h-5 w-5 text-sky-600 dark:text-sky-400" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold text-slate-100">
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   {doctorEntry.departmentName} department
                 </p>
-                <p className="text-xs font-semibold text-slate-400 tabular-nums">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                   {onlineInDept} of {deptDoctors.length} colleagues online
                 </p>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700/60">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700/60">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500"
                   style={{
@@ -608,35 +613,35 @@ export default function DoctorDashboard() {
               <Radio className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1">
-              <h2 className="font-display text-lg font-bold text-slate-100">Live Patient Queue</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
+              <h2 className="font-display text-lg font-bold text-slate-800 dark:text-slate-100">Live Patient Queue</h2>
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                 Color-coded AI triage, override controls, call-next & complete
               </p>
             </div>
-            <ArrowRight className="h-5 w-5 text-slate-600 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-400" />
+            <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600 dark:text-slate-600 dark:group-hover:text-brand-400" />
           </Link>
         )}
 
         {/* Account info */}
         <div className="card p-6">
-          <h2 className="mb-4 font-display text-base font-bold text-slate-100">Account Info</h2>
+          <h2 className="mb-4 font-display text-base font-bold text-slate-800 dark:text-slate-100">Account Info</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Name</p>
-              <p className="mt-1 font-semibold text-slate-100">Dr. {user?.fullName}</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Name</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">Dr. {user?.fullName}</p>
             </div>
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email</p>
-              <p className="mt-1 break-all font-semibold text-slate-100">{user?.email}</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-800 dark:text-slate-100">{user?.email}</p>
             </div>
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
-              <p className="mt-1 font-semibold text-slate-100">Doctor</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Role</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">Doctor</p>
             </div>
           </div>
         </div>
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>

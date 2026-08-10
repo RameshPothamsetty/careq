@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import {
   Search,
@@ -188,20 +189,20 @@ function RecentVisitsCard({ history }: { history: QueueEntryResponse[] }) {
         <History className="h-4 w-4 text-slate-400" />
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">{t('patient.recentVisits')}</h2>
       </div>
-      <div className="mt-2 divide-y divide-slate-100">
+      <div className="mt-2 divide-y divide-slate-100 dark:divide-slate-700/40">
         {history.map((entry) => (
           <div key={entry.id} className="flex flex-wrap items-center gap-3 py-3">
             <AvatarInitials name={entry.doctorName || 'Dr'} size="sm" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-800">
+              <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                 {entry.doctorName ?? 'Visit'}
               </p>
-              <p className="truncate text-xs text-slate-400">
+              <p className="truncate text-xs text-slate-400 dark:text-slate-500">
                 {entry.specialization} · {entry.departmentName}
               </p>
             </div>
             <StatusTag status={entry.status} />
-            <span className="w-36 text-right text-xs text-slate-500">{visitLabel(entry.joinedAt, t)}</span>
+            <span className="w-36 text-right text-xs text-slate-500 dark:text-slate-400">{visitLabel(entry.joinedAt, t)}</span>
           </div>
         ))}
       </div>
@@ -218,25 +219,25 @@ function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
       <div className="flex items-center gap-3">
         <AvatarInitials name={doctor.name || doctor.specialization} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-slate-800">
+          <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">
             {doctor.name || doctor.specialization}
           </p>
-          <p className="mt-0.5 truncate text-xs text-slate-500">
-            <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
+          <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+            <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
               {doctor.specialization}
             </span>{' '}
             {doctor.departmentName}
           </p>
-          <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
+          <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-flex items-center gap-1">
-              <Award className="h-3.5 w-3.5 text-slate-400" />
+              <Award className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
               {t('patient.expYears', { y: doctor.experienceYears })}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Wallet className="h-3.5 w-3.5 text-slate-400" />
+              <Wallet className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
               ₹{doctor.consultationFee}
             </span>
-            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
               {t('patient.available')}
             </span>
           </div>
@@ -251,7 +252,11 @@ function RecommendedDoctorCard({ doctor }: { doctor: DoctorCatalogResponse }) {
 
 export default function PatientDashboard() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const { t } = useI18n();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const [cancelQueueEntry, { isLoading: isCancelling }] = useCancelQueueEntryMutation();
   const [cancelError, setCancelError] = useState('');
   const {
@@ -324,7 +329,7 @@ export default function PatientDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="👤"
@@ -336,10 +341,10 @@ export default function PatientDashboard() {
 
         {/* Live visit widget — replaces the static welcome blurb when active */}
         {isLoading && !status ? (
-          <div className="h-44 animate-pulse rounded-3xl bg-gray-100" />
+          <div className="h-44 animate-pulse rounded-3xl bg-gray-100 dark:bg-night-700/60" />
         ) : isError && !status ? (
-          <div className="card flex flex-col items-center justify-between gap-3 border-amber-200 bg-amber-50 p-5 sm:flex-row">
-            <p className="text-sm font-medium text-amber-700">
+          <div className="card flex flex-col items-center justify-between gap-3 border-amber-200 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/10 sm:flex-row">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
               {t('patient.queueError')}
             </p>
             <Button variant="secondary" onClick={refetch} className="shrink-0 !py-1.5 text-xs">
@@ -358,12 +363,12 @@ export default function PatientDashboard() {
         ) : (
           <div className="card flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-100">
-                <HeartPulse className="h-6 w-6 text-brand-700" />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-100 dark:bg-brand-500/15">
+                <HeartPulse className="h-6 w-6 text-brand-700 dark:text-brand-300" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-800">{t('patient.noActiveVisit')}</h2>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <h2 className="text-base font-bold text-slate-800 dark:text-slate-100">{t('patient.noActiveVisit')}</h2>
+                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                   {t('patient.noActiveVisitHint')}
                 </p>
               </div>
@@ -377,15 +382,15 @@ export default function PatientDashboard() {
         {/* Recent visits — today's history + past visits */}
         <div className="space-y-3">
           {historyLoading && !history.length ? (
-            <div className="h-32 animate-pulse rounded-2xl bg-gray-100" />
+            <div className="h-32 animate-pulse rounded-2xl bg-gray-100 dark:bg-night-700/60" />
           ) : history.length > 0 ? (
             <RecentVisitsCard history={history} />
           ) : (
             <div className="card flex items-center gap-4 p-5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100">
-                <History className="h-5 w-5 text-slate-400" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 dark:bg-night-700/50">
+                <History className="h-5 w-5 text-slate-400 dark:text-slate-500" />
               </div>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 {t('patient.noVisitsYet')}
               </p>
             </div>
@@ -404,7 +409,7 @@ export default function PatientDashboard() {
               </h2>
               <Link
                 to="/patient/doctors"
-                className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700"
+                className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
               >
                 {t('patient.browseAll')}
               </Link>
@@ -428,33 +433,33 @@ export default function PatientDashboard() {
                 <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tint} shadow-lift`}>
                   {card.icon}
                 </div>
-                <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
+                <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600 dark:text-slate-600 dark:group-hover:text-brand-400" />
               </div>
-              <h2 className="mt-4 font-display text-lg font-bold text-slate-800">{t(card.titleKey)}</h2>
-              <p className="mt-1 text-sm text-slate-500">{t(card.descKey)}</p>
+              <h2 className="mt-4 font-display text-lg font-bold text-slate-800 dark:text-slate-100">{t(card.titleKey)}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t(card.descKey)}</p>
             </Link>
           ))}
         </div>
 
         <div className="card p-6">
-          <h2 className="mb-4 text-base font-bold text-slate-800">{t('patient.accountInfo')}</h2>
+          <h2 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-100">{t('patient.accountInfo')}</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('patient.name')}</p>
-              <p className="mt-1 font-semibold text-slate-800">{user?.fullName}</p>
+            <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('patient.name')}</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{user?.fullName}</p>
             </div>
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('auth.email')}</p>
-              <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
+            <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('auth.email')}</p>
+              <p className="mt-1 break-all font-semibold text-slate-800 dark:text-slate-100">{user?.email}</p>
             </div>
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('patient.role')}</p>
-              <p className="mt-1 font-semibold text-slate-800">{t('patient.roleValue')}</p>
+            <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">{t('patient.role')}</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{t('patient.roleValue')}</p>
             </div>
           </div>
         </div>
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           {t('patient.footer')}
         </footer>
       </div>

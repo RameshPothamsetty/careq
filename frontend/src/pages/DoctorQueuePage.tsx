@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Clock, PhoneCall, Search, Users, UserCheck, CheckCircle2, Activity, Stethoscope } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGetMyDoctorQuery } from '../services/rtk/doctorApi';
 import {
   useGetDoctorQueueQuery,
@@ -34,8 +35,8 @@ function Toast({ message, tone }: { message: string; tone: 'success' | 'error' }
     <div
       className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${
         tone === 'success'
-          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-          : 'border-red-500/30 bg-red-500/10 text-red-300'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+          : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'
       }`}
     >
       {tone === 'success' ? '✓' : '⚠'} {message}
@@ -76,13 +77,13 @@ function Column({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-[420px] flex-col rounded-2xl border border-slate-700/50 bg-night-900/60">
-      <div className={`flex items-center justify-between rounded-t-2xl border-b border-slate-700/50 px-4 py-3 ${accent}`}>
+    <div className="flex min-h-[420px] flex-col rounded-2xl border border-slate-200 bg-slate-50/60 dark:border-slate-700/50 dark:bg-night-900/60">
+      <div className={`flex items-center justify-between rounded-t-2xl border-b border-slate-200 px-4 py-3 dark:border-slate-700/50 ${accent}`}>
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${dot}`} />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">{title}</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">{title}</h3>
         </div>
-        <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-xs font-bold text-slate-200 tabular-nums">
+        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700 tabular-nums dark:bg-slate-700/60 dark:text-slate-200">
           {count}
         </span>
       </div>
@@ -99,6 +100,10 @@ function Column({
 
 export default function DoctorQueuePage() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   // Day 13: resolve the doctor's own catalog entry via /api/doctors/me.
   // isError (404) means the account isn't linked to a catalog entry yet —
   // shown as a friendly setup state below, not a dead-end error.
@@ -230,7 +235,7 @@ export default function DoctorQueuePage() {
     runAction(() => overrideTriage({ id: entry.id, triageLevel: level }).unwrap(), `Triage updated to ${level}`, entry.id);
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-7xl space-y-6">
         <QueuePageHeader
           icon="🩺"
@@ -323,13 +328,13 @@ export default function DoctorQueuePage() {
         {/* Call next action — hidden while a patient-name search is active, so
             the hero never targets a search match instead of the actual next patient. */}
         {!isLoading && !errorMessage && !searchQuery && firstWaiting && (
-          <div className="card relative flex flex-col items-center justify-between gap-3 overflow-hidden border-brand-500/30 bg-gradient-to-r from-brand-500/15 via-night-800/60 to-night-800/40 p-5 sm:flex-row">
+          <div className="card relative flex flex-col items-center justify-between gap-3 overflow-hidden border-brand-200 bg-gradient-to-r from-brand-50 via-white to-white p-5 dark:border-brand-500/30 dark:from-brand-500/15 dark:via-night-800/60 dark:to-night-800/40 sm:flex-row">
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-500/15 blur-2xl" />
             <div className="relative flex items-center gap-3">
               <AvatarInitials name={displayName(firstWaiting)} />
               <div>
-                <p className="text-sm font-semibold text-brand-300">Next patient ready</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">Next patient ready</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {displayName(firstWaiting)} · {firstWaiting.symptomText.slice(0, 60)}
                   {firstWaiting.symptomText.length > 60 ? '…' : ''}
                 </p>
@@ -372,7 +377,7 @@ export default function DoctorQueuePage() {
                 {waitingEntries.map((entry, idx) => (
                   <div
                     key={entry.id}
-                    className="animate-fade-in-up rounded-xl border border-slate-700/50 bg-night-800/60 p-4 transition-all duration-200 hover:border-slate-600 hover:bg-night-700/60"
+                    className="animate-fade-in-up rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700/50 dark:bg-night-800/60 dark:hover:border-slate-600 dark:hover:bg-night-700/60"
                     style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     <div className="flex items-start gap-3">
@@ -380,17 +385,17 @@ export default function DoctorQueuePage() {
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-extrabold tabular-nums ${
                           entry.position === 1
                             ? 'bg-brand-500 text-white'
-                            : 'bg-brand-500/15 text-brand-300'
+                            : 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300'
                         }`}
                       >
                         {entry.position ?? '—'}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-bold text-slate-100">{displayName(entry)}</p>
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{displayName(entry)}</p>
                           <StatusTag status={entry.effectiveTriage} />
                         </div>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                           Wait ≈ {entry.predictedWaitMinutes ?? 0} min · AI: {entry.aiSuggestedTriage}
                           {entry.doctorOverrideTriage ? ` → overridden to ${entry.doctorOverrideTriage}` : ''}
                         </p>
@@ -434,16 +439,16 @@ export default function DoctorQueuePage() {
                 {inProgress.map((entry) => (
                   <div
                     key={entry.id}
-                    className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 transition-all duration-200 hover:bg-violet-500/15"
+                    className="rounded-xl border border-violet-200 bg-violet-50 p-4 transition-all duration-200 hover:bg-violet-100 dark:border-violet-500/30 dark:bg-violet-500/10 dark:hover:bg-violet-500/15"
                   >
                     <div className="flex items-start gap-3">
                       <AvatarInitials name={displayName(entry)} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-bold text-slate-100">{displayName(entry)}</p>
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{displayName(entry)}</p>
                           <StatusTag status={entry.effectiveTriage} />
                         </div>
-                        <p className="mt-1.5 line-clamp-2 text-xs text-slate-400">{entry.symptomText}</p>
+                        <p className="mt-1.5 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{entry.symptomText}</p>
                       </div>
                     </div>
                     <Button
@@ -468,25 +473,25 @@ export default function DoctorQueuePage() {
                 {completedLocal.map(({ entry, doneAt }) => (
                   <div
                     key={entry.id}
-                    className="animate-scale-in rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4"
+                    className="animate-scale-in rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/25 dark:bg-emerald-500/5"
                   >
                     <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-500/15">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm font-bold text-slate-100">{displayName(entry)}</p>
+                          <p className="truncate text-sm font-bold text-slate-800 dark:text-slate-100">{displayName(entry)}</p>
                           <StatusTag status="COMPLETED" />
                         </div>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                           Done {timeAgo(doneAt)} · {entry.specialization || entry.departmentName}
                         </p>
                       </div>
                     </div>
                   </div>
                 ))}
-                <p className="px-1 pt-1 text-[10px] text-slate-600">
+                <p className="px-1 pt-1 text-[10px] text-slate-400 dark:text-slate-600">
                   This session only — your full history lives in Analytics.
                 </p>
               </Column>
@@ -494,7 +499,7 @@ export default function DoctorQueuePage() {
           )
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Doctor live queue · color-coded AI triage
         </footer>
       </div>

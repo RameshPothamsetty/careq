@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGetUsersQuery } from '../services/rtk/userApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
@@ -17,6 +18,10 @@ const ROLE_TINTS: Record<string, string> = {
 
 export default function AdminUserManager() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
 
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -45,7 +50,7 @@ export default function AdminUserManager() {
   const totalElements = pageData?.totalElements ?? 0;
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-6xl space-y-6">
         <QueuePageHeader
           icon="👥"
@@ -85,17 +90,17 @@ export default function AdminUserManager() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-700/50 bg-night-700/40 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Role</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Gender</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/60 text-left dark:border-slate-700/50 dark:bg-night-700/40">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">User</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Email</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Role</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Phone</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Gender</th>
                   </tr>
                 </thead>
                 <tbody>
                   {profiles.map((p) => (
-                    <tr key={p.id} className="border-b border-slate-700/40 transition-colors last:border-0 hover:bg-brand-500/5">
+                    <tr key={p.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-brand-50/40 dark:border-slate-700/40 dark:hover:bg-brand-500/5">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <AvatarInitials
@@ -104,12 +109,12 @@ export default function AdminUserManager() {
                             imgUrl={p.profilePictureUrl}
                           />
                           <div>
-                            <p className="font-semibold text-slate-100">{p.fullName || '—'}</p>
-                            <p className="font-mono text-[11px] text-slate-500">{p.userId.slice(0, 8)}…</p>
+                            <p className="font-semibold text-slate-800 dark:text-slate-100">{p.fullName || '—'}</p>
+                            <p className="font-mono text-[11px] text-slate-400 dark:text-slate-500">{p.userId.slice(0, 8)}…</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-400">{p.email || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">{p.email || '—'}</td>
                       <td className="px-5 py-3.5">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -119,8 +124,8 @@ export default function AdminUserManager() {
                           {p.role}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-400">{p.phone || '—'}</td>
-                      <td className="px-5 py-3.5 text-slate-400">{p.gender || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">{p.phone || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400">{p.gender || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -128,8 +133,8 @@ export default function AdminUserManager() {
             </div>
 
             {/* Pagination footer */}
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-700/50 px-5 py-3.5 sm:flex-row">
-              <p className="text-xs text-slate-500 tabular-nums">
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 dark:border-slate-700/50 sm:flex-row">
+              <p className="text-xs text-slate-400 tabular-nums dark:text-slate-500">
                 {totalElements} user{totalElements === 1 ? '' : 's'} · Page {pageData ? pageData.number + 1 : 1} of {Math.max(totalPages, 1)}
               </p>
               <div className="flex items-center gap-2">
@@ -156,7 +161,7 @@ export default function AdminUserManager() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Admin user directory · {user?.fullName}
         </footer>
       </div>

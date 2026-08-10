@@ -7,6 +7,7 @@ import AvatarInitials from './ui/AvatarInitials';
 import Button from './ui/Button';
 import NotificationBell from './NotificationBell';
 import LanguageSwitcher from './LanguageSwitcher';
+import ThemeToggle from './ThemeToggle';
 
 export default function QueuePageHeader({
   icon,
@@ -45,6 +46,7 @@ export default function QueuePageHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <NotificationBell />
+        <ThemeToggle />
         <LanguageSwitcher />
         {backTo ? (
           <Link to={backTo} className="btn-secondary">

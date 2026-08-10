@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
 import {
   Building2,
@@ -63,6 +64,10 @@ const NAV_CARDS = [
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   // Live hospital snapshot right on the landing page — the admin's most
   // asked question ("what's happening right now?") answered before they
   // navigate anywhere.
@@ -71,7 +76,7 @@ export default function AdminDashboard() {
   });
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="⚙️"
@@ -155,41 +160,41 @@ export default function AdminDashboard() {
                 <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${card.tint} shadow-lift transition-transform duration-200 group-hover:scale-105`}>
                   {card.icon}
                 </div>
-                <ArrowRight className="h-5 w-5 text-slate-600 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-400" />
+                <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600 dark:text-slate-600 dark:group-hover:text-brand-400" />
               </div>
-              <h2 className="mt-4 font-display text-lg font-bold text-slate-100">{card.title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{card.desc}</p>
+              <h2 className="mt-4 font-display text-lg font-bold text-slate-800 dark:text-slate-100">{card.title}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{card.desc}</p>
             </Link>
           ))}
         </div>
 
         <div className="card p-6">
-          <h2 className="font-display text-base font-bold text-slate-100">Welcome, {user?.fullName}!</h2>
-          <p className="mt-1 text-sm leading-relaxed text-slate-400">
-            You are logged in as an <strong className="text-brand-300">Admin</strong>. Manage departments,
+          <h2 className="font-display text-base font-bold text-slate-800 dark:text-slate-100">Welcome, {user?.fullName}!</h2>
+          <p className="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+            You are logged in as an <strong className="text-brand-700 dark:text-brand-300">Admin</strong>. Manage departments,
             doctors, and monitor queue operations across the hospital.
           </p>
         </div>
 
         <div className="card p-6">
-          <h2 className="mb-4 font-display text-base font-bold text-slate-100">Account Info</h2>
+          <h2 className="mb-4 font-display text-base font-bold text-slate-800 dark:text-slate-100">Account Info</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Name</p>
-              <p className="mt-1 font-semibold text-slate-100">{user?.fullName}</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Name</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">{user?.fullName}</p>
             </div>
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email</p>
-              <p className="mt-1 break-all font-semibold text-slate-100">{user?.email}</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-800 dark:text-slate-100">{user?.email}</p>
             </div>
-            <div className="rounded-xl bg-night-700/50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
-              <p className="mt-1 font-semibold text-slate-100">Admin</p>
+            <div className="rounded-xl bg-slate-100 p-3.5 dark:bg-night-700/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Role</p>
+              <p className="mt-1 font-semibold text-slate-800 dark:text-slate-100">Admin</p>
             </div>
           </div>
         </div>
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>

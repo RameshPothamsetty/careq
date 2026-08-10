@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Activity, BrainCircuit, Languages, Timer } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { useTheme } from '../context/ThemeContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
 /**
@@ -14,6 +15,12 @@ import LanguageSwitcher from './LanguageSwitcher';
  */
 export default function AuthShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
+  // Follow the saved theme preference — a user who chose dark (or a staff
+  // user mid-session) shouldn't snap back to a light login after logout.
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark relative flex min-h-screen items-center justify-center overflow-hidden bg-mesh-dark px-4 py-12'
+    : 'relative flex min-h-screen items-center justify-center overflow-hidden bg-mesh-light px-4 py-12';
 
   const features = [
     {
@@ -34,7 +41,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-mesh-light px-4 py-12">
+    <div className={pageClass}>
       {/* Ambient aurora blobs */}
       <div className="aurora-blob -left-28 top-8 h-80 w-80 bg-brand-300/40" />
       <div className="aurora-blob -right-24 bottom-6 h-96 w-96 bg-sky-300/35" style={{ animationDelay: '-6s' }} />
@@ -52,57 +59,57 @@ export default function AuthShell({ children }: { children: ReactNode }) {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lift">
               <Activity className="h-6 w-6 text-white" />
             </div>
-            <span className="font-display text-2xl font-extrabold tracking-tight text-slate-800">
+            <span className="font-display text-2xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
               CareQ
-              <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-brand-700">
+              <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                 SmartOPD AI
               </span>
             </span>
           </div>
 
-          <p className="mt-5 max-w-md font-display text-3xl font-bold leading-snug tracking-tight text-slate-800">
+          <p className="mt-5 max-w-md font-display text-3xl font-bold leading-snug tracking-tight text-slate-800 dark:text-slate-100">
             {t('auth.brandTagline')}
           </p>
 
           <ul className="mt-8 space-y-4">
             {features.map((f) => (
               <li key={f.title} className="flex items-start gap-3.5">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white shadow-card">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white shadow-card dark:border-slate-700 dark:bg-night-800/70">
                   {f.icon}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800">{f.title}</p>
-                  <p className="mt-0.5 text-sm text-slate-500">{f.desc}</p>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{f.title}</p>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{f.desc}</p>
                 </div>
               </li>
             ))}
           </ul>
 
           {/* Decorative live-queue mockup */}
-          <div className="relative mt-10 max-w-sm overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-5 shadow-lift backdrop-blur-sm">
+          <div className="relative mt-10 max-w-sm overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-5 shadow-lift backdrop-blur-sm dark:border-slate-700 dark:bg-night-800/80">
             <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-brand-200/40 blur-2xl" />
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cardiology · Live</p>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Cardiology · Live</p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                 LIVE
               </span>
             </div>
             <div className="mt-4 flex items-end justify-between">
               <div>
-                <div className="text-4xl font-extrabold leading-none tracking-tight text-slate-800 tabular-nums">#24</div>
-                <p className="mt-1.5 text-[11px] font-semibold text-slate-500">{t('queue.positionInQueue')}</p>
+                <div className="text-4xl font-extrabold leading-none tracking-tight text-slate-800 tabular-nums dark:text-slate-100">#24</div>
+                <p className="mt-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('queue.positionInQueue')}</p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-extrabold leading-none tracking-tight text-brand-600 tabular-nums">≈8 min</div>
-                <p className="mt-1.5 text-[11px] font-semibold text-slate-500">{t('queue.estimatedWait')}</p>
+                <div className="text-2xl font-extrabold leading-none tracking-tight text-brand-600 tabular-nums dark:text-brand-400">≈8 min</div>
+                <p className="mt-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('queue.estimatedWait')}</p>
               </div>
             </div>
             <div className="mt-4 flex items-center gap-1.5">
               {[t('queue.joined'), t('queue.called'), t('queue.completed')].map((label, i) => (
                 <div key={label} className="flex-1">
-                  <div className={`h-1 rounded-full ${i === 0 ? 'bg-brand-500' : 'bg-slate-200'}`} />
-                  <p className={`mt-1 text-[9px] font-semibold uppercase tracking-wide ${i === 0 ? 'text-brand-600' : 'text-slate-400'}`}>
+                  <div className={`h-1 rounded-full ${i === 0 ? 'bg-brand-500' : 'bg-slate-200 dark:bg-slate-600'}`} />
+                  <p className={`mt-1 text-[9px] font-semibold uppercase tracking-wide ${i === 0 ? 'text-brand-600 dark:text-brand-400' : 'text-slate-400 dark:text-slate-500'}`}>
                     {label}
                   </p>
                 </div>

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ToastHost from './components/ToastHost';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -22,6 +23,7 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <ThemeProvider>
         <div className="app">
           <Routes>
           {/* Public routes */}
@@ -134,6 +136,7 @@ function App() {
           </Routes>
         </div>
         <ToastHost />
+        </ThemeProvider>
       </NotificationProvider>
     </AuthProvider>
   );

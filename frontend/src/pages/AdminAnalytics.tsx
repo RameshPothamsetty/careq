@@ -14,6 +14,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { useTheme } from '../context/ThemeContext';
 import { useGetAnalyticsSummaryQuery } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
@@ -44,12 +45,16 @@ const shortDay = (iso: string) => {
 };
 
 export default function AdminAnalytics() {
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const { data, isLoading, isError, error, refetch } = useGetAnalyticsSummaryQuery();
 
   // Loading / error states first — same discipline as every other screen.
   if (isLoading && !data) {
     return (
-      <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+      <div className={pageClass}>
         <div className="mx-auto max-w-6xl space-y-6">
           <QueuePageHeader
             icon="📊"
@@ -65,7 +70,7 @@ export default function AdminAnalytics() {
 
   if (isError && !data) {
     return (
-      <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+      <div className={pageClass}>
         <div className="mx-auto max-w-6xl space-y-6">
           <QueuePageHeader
             icon="📊"
@@ -108,7 +113,7 @@ export default function AdminAnalytics() {
   }));
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-6xl space-y-6">
         <QueuePageHeader
           icon="📊"
@@ -118,7 +123,7 @@ export default function AdminAnalytics() {
         />
 
         {isError && data && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300">
+          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
             ⚠ Showing the last known summary — a refresh just failed.
           </div>
         )}
@@ -232,8 +237,8 @@ export default function AdminAnalytics() {
               </h2>
               {data?.departmentDistribution.length === 0 ? (
                 <div className="flex h-56 flex-col items-center justify-center text-center">
-                  <TrendingUp className="h-8 w-8 text-slate-600" />
-                  <p className="mt-3 text-sm text-slate-500">
+                  <TrendingUp className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                  <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                     No completed consultations to break down by department yet.
                   </p>
                 </div>
@@ -274,7 +279,7 @@ export default function AdminAnalytics() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Analytics over the last 7 days · patients handled = completed consultations
         </footer>
       </div>

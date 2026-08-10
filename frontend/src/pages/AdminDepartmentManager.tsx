@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Building2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   useGetDepartmentsQuery,
   useCreateDepartmentMutation,
@@ -15,6 +16,10 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 export default function AdminDepartmentManager() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const { data: departments, isLoading, error: queryError, refetch } = useGetDepartmentsQuery();
   const [createDepartment, { isLoading: isCreating }] = useCreateDepartmentMutation();
   const [updateDepartment, { isLoading: isUpdating }] = useUpdateDepartmentMutation();
@@ -94,7 +99,7 @@ export default function AdminDepartmentManager() {
   };
 
   return (
-    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🏥"
@@ -104,12 +109,12 @@ export default function AdminDepartmentManager() {
         />
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {error}
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
             ✓ {success}
           </div>
         )}
@@ -125,12 +130,12 @@ export default function AdminDepartmentManager() {
 
         {showForm && (
           <div className="card animate-fade-in-up p-6">
-            <h2 className="mb-5 font-display text-lg font-bold text-slate-100">
+            <h2 className="mb-5 font-display text-lg font-bold text-slate-800 dark:text-slate-100">
               {editingId ? 'Edit Department' : 'New Department'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-300">Name *</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">Name *</label>
                 <input
                   type="text"
                   value={name}
@@ -141,7 +146,7 @@ export default function AdminDepartmentManager() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-300">Description</label>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -177,20 +182,20 @@ export default function AdminDepartmentManager() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-700/50 bg-night-700/40 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">ID</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Name</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Description</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                  <tr className="border-b border-slate-100 bg-slate-50/60 text-left dark:border-slate-700/50 dark:bg-night-700/40">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">ID</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Name</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Description</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {departments.map((dept) => (
-                    <tr key={dept.id} className="border-b border-slate-700/40 transition-colors hover:bg-brand-500/5">
-                      <td className="px-5 py-3.5 text-slate-500 tabular-nums">{dept.id}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-100">{dept.name}</td>
-                      <td className="px-5 py-3.5 text-slate-400">{dept.description || '—'}</td>
+                    <tr key={dept.id} className="border-b border-slate-100 transition-colors hover:bg-brand-50/40 dark:border-slate-700/40 dark:hover:bg-brand-500/5">
+                      <td className="px-5 py-3.5 text-slate-400 tabular-nums dark:text-slate-500">{dept.id}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-800 dark:text-slate-100">{dept.name}</td>
+                      <td className="px-5 py-3.5 text-slate-500 dark:text-slate-400">{dept.description || '—'}</td>
                       <td className="px-5 py-3.5">
                         <StatusTag status={dept.isActive ? 'ACTIVE' : 'INACTIVE'} />
                       </td>
@@ -212,7 +217,7 @@ export default function AdminDepartmentManager() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-600">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>

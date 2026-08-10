@@ -101,7 +101,7 @@ export default function NotificationBell() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+        className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:border-slate-600 dark:bg-night-800/70 dark:text-slate-300 dark:hover:bg-slate-700/60 dark:hover:text-slate-100"
         aria-label={`${t('header.notifications')}${unreadCount ? ` (${unreadCount} ${t('header.unread')})` : ''}`}
       >
         <Bell className="h-5 w-5" />
@@ -113,16 +113,16 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lift">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lift dark:border-slate-700 dark:bg-night-800">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
             <div>
-              <p className="text-sm font-bold text-slate-800">{t('header.notifications')}</p>
-              <p className="text-[11px] text-slate-400">{t('header.persisted')}</p>
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('header.notifications')}</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">{t('header.persisted')}</p>
             </div>
             <button
               onClick={handleMarkAllRead}
               disabled={unreadItems.length === 0 || busy}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-500 dark:hover:bg-slate-700/60 dark:hover:text-slate-300"
               title={
                 unreadItems.length
                   ? t('header.markNRead', { n: unreadItems.length })
@@ -137,32 +137,32 @@ export default function NotificationBell() {
             {isLoading && items.length === 0 ? (
               <div className="space-y-2 px-4 py-4">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                  <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700/50" />
                 ))}
               </div>
             ) : items.length === 0 ? (
               <div className="px-4 py-10 text-center">
-                <Bell className="mx-auto h-7 w-7 text-slate-300" />
-                <p className="mt-3 text-sm font-medium text-slate-500">{t('header.noNotifications')}</p>
-                <p className="mt-1 text-xs text-slate-400">
+                <Bell className="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600" />
+                <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">{t('header.noNotifications')}</p>
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                   {t('header.noNotificationsHint')}
                 </p>
               </div>
             ) : (
-              <ul className="divide-y divide-slate-50">
+              <ul className="divide-y divide-slate-50 dark:divide-slate-700/40">
                 {items.map((item) => {
                   const meta = TYPE_META[item.type] ?? { titleKey: 'header.update' as TranslationKey, kind: 'info' as const };
                   return (
-                    <li key={item.id} className="flex gap-3 px-4 py-3 transition-colors hover:bg-slate-50">
+                    <li key={item.id} className="flex gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/40">
                       <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${KIND_DOT[meta.kind] ?? 'bg-slate-400'}`} />
                       <div className="min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className="truncate text-sm font-semibold text-slate-800">{t(meta.titleKey)}</p>
-                          <span className="shrink-0 text-[10px] text-slate-400">{timeAgo(item.createdAt)}</span>
+                          <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{t(meta.titleKey)}</p>
+                          <span className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500">{timeAgo(item.createdAt)}</span>
                         </div>
-                        <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{item.message}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.message}</p>
                         {!item.read && (
-                          <span className="mt-1.5 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                          <span className="mt-1.5 inline-block rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                             {t('header.new')}
                           </span>
                         )}

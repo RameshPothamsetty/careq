@@ -44,19 +44,19 @@ export default function LoginPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lift">
             <Activity className="h-8 w-8 text-white" />
           </div>
-          <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight text-slate-800">CareQ</h1>
-          <p className="mt-1.5 text-sm text-slate-500">{t('auth.signInToContinue')}</p>
+          <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">CareQ</h1>
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">{t('auth.signInToContinue')}</p>
         </div>
 
         {error && (
-          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.email')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.email')}</label>
             <input
               type="email"
               value={email}
@@ -69,7 +69,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('auth.password')}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.password')}</label>
             <input
               type="password"
               value={password}
@@ -87,9 +87,9 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-7 text-center text-sm text-slate-500">
+        <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('auth.noAccount')}{' '}
-          <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline">
+          <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300">
             {t('auth.createOne')}
           </Link>
         </p>

@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   useGetProfileQuery,
   useUpdateProfileMutation,
@@ -15,10 +16,13 @@ import { LoadingState, ErrorState } from '../components/ui/States';
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const { t } = useI18n();
-  // Dark for staff, light for patients — profile is shared by all roles.
-  const isStaff = user?.role === 'DOCTOR' || user?.role === 'ADMIN';
-  const rootClass = `${isStaff ? 'dark' : ''} min-h-screen bg-mesh-light px-4 py-6 sm:px-6`;
+  // The theme context decides (auto = dark for staff / light for patients,
+  // with a manual override) — profile is shared by all roles.
+  const rootClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
 
   const {
     data: profile,

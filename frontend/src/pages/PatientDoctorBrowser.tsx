@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, FilterX, Stethoscope, Wallet, Clock, Award, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGetDepartmentsQuery, useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useI18n } from '../i18n';
@@ -12,7 +13,11 @@ import { LoadingState, EmptyState } from '../components/ui/States';
 export default function PatientDoctorBrowser() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const { t } = useI18n();
+  const pageClass = isDark
+    ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
+    : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [searchInput, setSearchInput] = useState('');
   const [searchSpecialization, setSearchSpecialization] = useState('');
@@ -59,7 +64,7 @@ export default function PatientDoctorBrowser() {
   const hasFilters = selectedDeptId || searchSpecialization;
 
   return (
-    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
+    <div className={pageClass}>
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🔍"
@@ -91,7 +96,7 @@ export default function PatientDoctorBrowser() {
         <div className="card p-5">
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {t('browse.department')}
               </label>
               <select
@@ -106,7 +111,7 @@ export default function PatientDoctorBrowser() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {t('browse.specialization')}
               </label>
               <input
@@ -125,7 +130,7 @@ export default function PatientDoctorBrowser() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
             ⚠ {getErrorMessage(error)}
           </div>
         )}
@@ -156,27 +161,27 @@ export default function PatientDoctorBrowser() {
                   <AvatarInitials name={doc.name || doc.specialization} size="lg" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold text-slate-800">{doc.name || doc.specialization}</h3>
+                      <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">{doc.name || doc.specialization}</h3>
                       <StatusTag status={doc.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700">
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      <span className="inline-flex items-center rounded-md bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                         {doc.specialization}
                       </span>{' '}
                       <span className="ml-1">{doc.departmentName}</span>{' '}
                       {doc.qualification}
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400">
                       <span className="inline-flex items-center gap-1">
-                        <Award className="h-3.5 w-3.5 text-slate-400" />
+                        <Award className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                         {t('browse.yearsExp', { y: doc.experienceYears })}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Wallet className="h-3.5 w-3.5 text-slate-400" />
+                        <Wallet className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                         ₹{doc.consultationFee}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <Clock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                         {t('browse.min', { m: doc.avgConsultationTimeMinutes })}
                       </span>
                     </div>
@@ -198,7 +203,7 @@ export default function PatientDoctorBrowser() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-400 dark:text-slate-600">
           CareQ — SmartOPD AI | {t('browse.subtitle')} · {user?.fullName}
         </footer>
       </div>
