@@ -42,13 +42,13 @@ export default function AvatarInitials({
       <img
         src={imgUrl}
         alt={name}
-        className={`${SIZES[size]} shrink-0 rounded-full object-cover ring-2 ring-white shadow-card`}
+        className={`${SIZES[size]} shrink-0 rounded-full object-cover ring-2 ring-white shadow-card dark:ring-night-900`}
       />
     );
   }
   return (
     <div
-      className={`${SIZES[size]} ${colorForName(name)} flex shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-white shadow-card`}
+      className={`${SIZES[size]} ${colorForName(name)} flex shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-white shadow-card dark:ring-night-900`}
     >
       {initialsFor(name)}
     </div>

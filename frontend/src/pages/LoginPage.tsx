@@ -3,8 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Activity, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -38,22 +38,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
-      {/* Soft decorative blobs */}
-      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-sky-200/30 blur-3xl" />
-
-      {/* Language switcher — always reachable, even before sign-in */}
-      <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
-        <LanguageSwitcher />
-      </div>
-
-      <div className="card w-full max-w-md animate-fade-in-up p-8 sm:p-10">
+    <AuthShell>
+      <div className="glass w-full rounded-3xl p-8 shadow-lift sm:p-10">
         <div className="text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lift">
             <Activity className="h-8 w-8 text-white" />
           </div>
-          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-800">CareQ</h1>
+          <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight text-slate-800">CareQ</h1>
           <p className="mt-1.5 text-sm text-slate-500">{t('auth.signInToContinue')}</p>
         </div>
 
@@ -103,6 +94,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

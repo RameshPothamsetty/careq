@@ -188,7 +188,7 @@ export default function AdminDoctorManager() {
     <button
       type="button"
       onClick={() => toggleSort(column.sortBy)}
-      className={`inline-flex items-center gap-1 transition-colors hover:text-brand-600 ${column.className ?? ''}`}
+      className={`inline-flex items-center gap-1 transition-colors hover:text-brand-400 ${column.className ?? ''}`}
       title={`Sort by ${column.label.toLowerCase()}`}
     >
       {column.label}
@@ -205,7 +205,7 @@ export default function AdminDoctorManager() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <QueuePageHeader
           icon="🩺"
@@ -215,12 +215,12 @@ export default function AdminDoctorManager() {
         />
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
             ⚠ {error}
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
             ✓ {success}
           </div>
         )}
@@ -233,7 +233,7 @@ export default function AdminDoctorManager() {
               Add Doctor Entry
             </Button>
             <div className="relative sm:w-72">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
                 value={searchInput}
@@ -247,13 +247,13 @@ export default function AdminDoctorManager() {
 
         {showForm && (
           <div className="card animate-fade-in-up p-6">
-            <h2 className="mb-5 text-lg font-bold text-slate-800">
+            <h2 className="mb-5 font-display text-lg font-bold text-slate-100">
               {editingId ? 'Edit Doctor Entry' : 'New Doctor Catalog Entry'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Name *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Name *</label>
                   <input
                     type="text"
                     value={name}
@@ -270,9 +270,9 @@ export default function AdminDoctorManager() {
                       dead-end). Hidden while editing (User ID is immutable). */}
                   {!editingId && doctorAccounts.length > 0 && (
                     <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      <label className="mb-1.5 block text-sm font-semibold text-slate-300">
                         Link doctor account{' '}
-                        <span className="font-normal text-slate-400">(recommended)</span>
+                        <span className="font-normal text-slate-500">(recommended)</span>
                       </label>
                       <select
                         value={userId}
@@ -286,16 +286,14 @@ export default function AdminDoctorManager() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-[11px] text-slate-400">
+                      <p className="mt-1 text-[11px] text-slate-500">
                         Selecting an account fills the User ID automatically — no copy-pasting UUIDs.
                       </p>
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">User ID *</label>
+              </div>                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">User ID *</label>
                 <input
                   type="text"
                   value={userId}
@@ -303,13 +301,13 @@ export default function AdminDoctorManager() {
                   placeholder="UUID from auth-service (filled by the picker above)"
                   required
                   disabled={!!editingId}
-                  className="input-field disabled:bg-gray-50"
+                  className="input-field disabled:opacity-60"
                 />
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Department *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Department *</label>
                   <select
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
@@ -323,7 +321,7 @@ export default function AdminDoctorManager() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Specialization *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Specialization *</label>
                   <input
                     type="text"
                     value={specialization}
@@ -337,7 +335,7 @@ export default function AdminDoctorManager() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Qualification *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Qualification *</label>
                   <input
                     type="text"
                     value={qualification}
@@ -348,7 +346,7 @@ export default function AdminDoctorManager() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Experience (Years) *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Experience (Years) *</label>
                   <input
                     type="number"
                     value={experienceYears}
@@ -362,7 +360,7 @@ export default function AdminDoctorManager() {
 
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Consultation Fee *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Consultation Fee *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -374,7 +372,7 @@ export default function AdminDoctorManager() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">Avg Consult Time (min) *</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-300">Avg Consult Time (min) *</label>
                   <input
                     type="number"
                     value={avgConsultationTimeMinutes}
@@ -417,38 +415,38 @@ export default function AdminDoctorManager() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">ID</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <tr className="border-b border-slate-700/50 bg-night-700/40 text-left">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">ID</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <SortHeader column={SORTABLE_COLUMNS[0]} />
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">User ID</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Department</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Specialization</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">User ID</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Department</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Specialization</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <SortHeader column={SORTABLE_COLUMNS[2]} />
                     </th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                       <SortHeader column={SORTABLE_COLUMNS[1]} />
                     </th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Avg Time</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Avg Time</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {doctors.map((doc) => (
-                    <tr key={doc.id} className="border-b border-slate-50 transition-colors hover:bg-brand-50/40">
-                      <td className="px-5 py-3.5 text-slate-400">{doc.id}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-800">{doc.name}</td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-400">
+                    <tr key={doc.id} className="border-b border-slate-700/40 transition-colors hover:bg-brand-500/5">
+                      <td className="px-5 py-3.5 text-slate-500 tabular-nums">{doc.id}</td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-100">{doc.name}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">
                         {doc.userId.substring(0, 8)}…
                       </td>
-                      <td className="px-5 py-3.5 text-slate-800">{doc.departmentName}</td>
-                      <td className="px-5 py-3.5 text-slate-800">{doc.specialization}</td>
-                      <td className="px-5 py-3.5 text-slate-800">{doc.experienceYears} yrs</td>
-                      <td className="px-5 py-3.5 text-right text-slate-800">₹{doc.consultationFee}</td>
-                      <td className="px-5 py-3.5 text-slate-800">{doc.avgConsultationTimeMinutes} min</td>
+                      <td className="px-5 py-3.5 text-slate-100">{doc.departmentName}</td>
+                      <td className="px-5 py-3.5 text-slate-100">{doc.specialization}</td>
+                      <td className="px-5 py-3.5 text-slate-100 tabular-nums">{doc.experienceYears} yrs</td>
+                      <td className="px-5 py-3.5 text-right text-slate-100 tabular-nums">₹{doc.consultationFee}</td>
+                      <td className="px-5 py-3.5 text-slate-100 tabular-nums">{doc.avgConsultationTimeMinutes} min</td>
                       <td className="px-5 py-3.5">
                         <StatusTag status={doc.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                       </td>
@@ -478,8 +476,8 @@ export default function AdminDoctorManager() {
             </div>
 
             {/* Pagination footer */}
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 sm:flex-row">
-              <p className="text-xs text-slate-400">
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-700/50 px-5 py-3.5 sm:flex-row">
+              <p className="text-xs text-slate-500 tabular-nums">
                 {totalElements} doctor{totalElements === 1 ? '' : 's'} · Page {pageData ? pageData.number + 1 : 1} of {Math.max(totalPages, 1)}
               </p>
               <div className="flex items-center gap-2">
@@ -506,7 +504,7 @@ export default function AdminDoctorManager() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-600">
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>

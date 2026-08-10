@@ -13,7 +13,7 @@ import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { QueueEntryResponse, AutoAssignResponse } from '../services/api';
 import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
-import { LiveBadge, StatusTag, Button } from '../components/ui';
+import { LiveBadge, StatusTag, Button, CountUp } from '../components/ui';
 import { LoadingState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -94,8 +94,8 @@ function LiveStatusView({
         <div className="relative mt-6 flex items-end gap-8">
           {!isCompleted && (
             <div>
-              <div className="text-6xl font-extrabold leading-none tracking-tight">
-                {isInProgress ? '→' : entry.position ?? '—'}
+              <div className="text-6xl font-extrabold leading-none tracking-tight tabular-nums">
+                {isInProgress ? '→' : entry.position != null ? <CountUp value={entry.position} /> : '—'}
               </div>
               <p className="mt-2 text-sm font-medium text-brand-100">
                 {isInProgress ? t('queue.calledHeadToDoctor') : t('queue.positionInQueue')}
@@ -103,8 +103,12 @@ function LiveStatusView({
             </div>
           )}
           <div>
-            <div className="text-5xl font-extrabold leading-none tracking-tight">
-              {isCompleted ? '✓' : isInProgress ? t('queue.now') : `${entry.predictedWaitMinutes ?? 0} min`}
+            <div className="text-5xl font-extrabold leading-none tracking-tight tabular-nums">
+              {isCompleted ? '✓' : isInProgress ? t('queue.now') : (
+                <span>
+                  <CountUp value={entry.predictedWaitMinutes ?? 0} /> <span className="text-3xl">min</span>
+                </span>
+              )}
             </div>
             <p className="mt-2 text-sm font-medium text-brand-100">
               {isCompleted ? t('queue.allDone') : isInProgress ? t('queue.beingAttended') : t('queue.estimatedWait')}
@@ -511,7 +515,7 @@ export default function PatientQueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon={<UserRound className="h-6 w-6 text-white" />}

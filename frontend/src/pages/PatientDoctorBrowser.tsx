@@ -6,7 +6,7 @@ import { useGetDepartmentsQuery, useGetDoctorsQuery } from '../services/rtk/doct
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
-import { StatCard, StatusTag, AvatarInitials, Button } from '../components/ui';
+import { StatCard, StatusTag, AvatarInitials, Button, CountUp } from '../components/ui';
 import { LoadingState, EmptyState } from '../components/ui/States';
 
 export default function PatientDoctorBrowser() {
@@ -59,7 +59,7 @@ export default function PatientDoctorBrowser() {
   const hasFilters = selectedDeptId || searchSpecialization;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🔍"
@@ -71,16 +71,16 @@ export default function PatientDoctorBrowser() {
         {/* Stats */}
         {!isLoading && total > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-            <StatCard label={t('browse.totalDoctors')} value={stats.total} icon={<Stethoscope className="h-5 w-5" />} />
+            <StatCard label={t('browse.totalDoctors')} value={<CountUp value={stats.total} />} icon={<Stethoscope className="h-5 w-5" />} />
             <StatCard
               label={t('browse.availableNow')}
-              value={stats.available}
+              value={<CountUp value={stats.available} />}
               icon={<Activity className="h-5 w-5" />}
               accent="bg-emerald-50 text-emerald-700"
             />
             <StatCard
               label={t('browse.departments')}
-              value={stats.departments}
+              value={<CountUp value={stats.departments} />}
               icon={<MapPin className="h-5 w-5" />}
               accent="bg-amber-50 text-amber-700"
             />
@@ -149,7 +149,7 @@ export default function PatientDoctorBrowser() {
             {doctorList.map((doc) => (
               <div
                 key={doc.id}
-                className="card flex flex-col gap-4 p-5 transition-all duration-200 hover:shadow-lift sm:flex-row sm:items-center"
+                className="card flex flex-col gap-4 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift sm:flex-row sm:items-center"
               >
                 {/* Identity */}
                 <div className="flex min-w-0 flex-1 items-center gap-4">

@@ -10,9 +10,9 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 const PAGE_SIZE = 20;
 
 const ROLE_TINTS: Record<string, string> = {
-  ADMIN: 'bg-violet-100 text-violet-700',
-  DOCTOR: 'bg-sky-100 text-sky-700',
-  PATIENT: 'bg-emerald-100 text-emerald-700',
+  ADMIN: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+  DOCTOR: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+  PATIENT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
 };
 
 export default function AdminUserManager() {
@@ -45,7 +45,7 @@ export default function AdminUserManager() {
   const totalElements = pageData?.totalElements ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <QueuePageHeader
           icon="👥"
@@ -56,7 +56,7 @@ export default function AdminUserManager() {
 
         {/* Search */}
         <div className="relative sm:max-w-md">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             value={searchInput}
@@ -85,17 +85,17 @@ export default function AdminUserManager() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">User</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Email</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Role</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Phone</th>
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Gender</th>
+                  <tr className="border-b border-slate-700/50 bg-night-700/40 text-left">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Role</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Phone</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Gender</th>
                   </tr>
                 </thead>
                 <tbody>
                   {profiles.map((p) => (
-                    <tr key={p.id} className="border-b border-slate-50 transition-colors last:border-0 hover:bg-brand-50/40">
+                    <tr key={p.id} className="border-b border-slate-700/40 transition-colors last:border-0 hover:bg-brand-500/5">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <AvatarInitials
@@ -104,23 +104,23 @@ export default function AdminUserManager() {
                             imgUrl={p.profilePictureUrl}
                           />
                           <div>
-                            <p className="font-semibold text-slate-800">{p.fullName || '—'}</p>
-                            <p className="font-mono text-[11px] text-slate-400">{p.userId.slice(0, 8)}…</p>
+                            <p className="font-semibold text-slate-100">{p.fullName || '—'}</p>
+                            <p className="font-mono text-[11px] text-slate-500">{p.userId.slice(0, 8)}…</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.email || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-400">{p.email || '—'}</td>
                       <td className="px-5 py-3.5">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                            ROLE_TINTS[p.role] ?? 'bg-gray-100 text-gray-600'
+                            ROLE_TINTS[p.role] ?? 'bg-gray-100 text-gray-600 dark:bg-slate-700/60 dark:text-slate-300'
                           }`}
                         >
                           {p.role}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.phone || '—'}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{p.gender || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-400">{p.phone || '—'}</td>
+                      <td className="px-5 py-3.5 text-slate-400">{p.gender || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -128,8 +128,8 @@ export default function AdminUserManager() {
             </div>
 
             {/* Pagination footer */}
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5 sm:flex-row">
-              <p className="text-xs text-slate-400">
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-700/50 px-5 py-3.5 sm:flex-row">
+              <p className="text-xs text-slate-500 tabular-nums">
                 {totalElements} user{totalElements === 1 ? '' : 's'} · Page {pageData ? pageData.number + 1 : 1} of {Math.max(totalPages, 1)}
               </p>
               <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export default function AdminUserManager() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-600">
           CareQ — SmartOPD AI | Admin user directory · {user?.fullName}
         </footer>
       </div>

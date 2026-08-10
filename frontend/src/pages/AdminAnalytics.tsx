@@ -17,10 +17,20 @@ import {
 import { useGetAnalyticsSummaryQuery } from '../services/rtk/queueApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import QueuePageHeader from '../components/QueuePageHeader';
-import { StatCard } from '../components/ui';
+import { StatCard, CountUp } from '../components/ui';
 import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
-const CHART_COLORS = ['#0e7490', '#0284c7', '#7c3aed', '#059669', '#d97706', '#e11d48', '#64748b'];
+const CHART_COLORS = ['#3eb8b8', '#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#fb7185', '#64748b'];
+// Dark chart palette (night surfaces) — the analytics screen is dark-first.
+const CHART_GRID = '#1e2c35';
+const CHART_TICK = '#7d9ba1';
+const CHART_TOOLTIP = {
+  borderRadius: 12,
+  border: '1px solid #1e2c35',
+  backgroundColor: '#101a20',
+  color: '#e2e8f0',
+  fontSize: 13,
+};
 
 const formatDay = (iso: string) => {
   const d = new Date(`${iso}T00:00:00`);
@@ -39,7 +49,7 @@ export default function AdminAnalytics() {
   // Loading / error states first — same discipline as every other screen.
   if (isLoading && !data) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-6xl space-y-6">
           <QueuePageHeader
             icon="📊"
@@ -55,7 +65,7 @@ export default function AdminAnalytics() {
 
   if (isError && !data) {
     return (
-      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+      <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-6xl space-y-6">
           <QueuePageHeader
             icon="📊"
@@ -98,7 +108,7 @@ export default function AdminAnalytics() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <QueuePageHeader
           icon="📊"
@@ -108,7 +118,7 @@ export default function AdminAnalytics() {
         />
 
         {isError && data && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300">
             ⚠ Showing the last known summary — a refresh just failed.
           </div>
         )}
@@ -117,21 +127,21 @@ export default function AdminAnalytics() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           <StatCard
             label="Patients handled (7d)"
-            value={totalPatients}
+            value={<CountUp value={totalPatients} />}
             icon={<CalendarDays className="h-5 w-5" />}
-            accent="bg-cyan-50 text-cyan-700"
+            accent="bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300"
           />
           <StatCard
             label="Avg wait time (7d)"
             value={avgWait === null ? '—' : `${avgWait} min`}
             icon={<Clock className="h-5 w-5" />}
-            accent="bg-amber-50 text-amber-700"
+            accent="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
           />
           <StatCard
             label="Busiest department"
             value={busiest?.name ?? '—'}
             icon={<Building2 className="h-5 w-5" />}
-            accent="bg-violet-50 text-violet-700"
+            accent="bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
           />
         </div>
 
@@ -151,25 +161,25 @@ export default function AdminAnalytics() {
               <div className="mt-4 h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={patientData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                     <XAxis
                       dataKey="day"
-                      tick={{ fontSize: 12, fill: '#94a3b8' }}
-                      axisLine={{ stroke: '#e2e8f0' }}
+                      tick={{ fontSize: 12, fill: CHART_TICK }}
+                      axisLine={{ stroke: CHART_GRID }}
                       tickLine={false}
                     />
                     <YAxis
                       allowDecimals={false}
-                      tick={{ fontSize: 12, fill: '#94a3b8' }}
+                      tick={{ fontSize: 12, fill: CHART_TICK }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <Tooltip
-                      cursor={{ fill: '#f1f5f9' }}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                      cursor={{ fill: '#16222a' }}
+                      contentStyle={CHART_TOOLTIP}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
                     />
-                    <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]} fill="#0e7490" />
+                    <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]} fill="#3eb8b8" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -183,21 +193,21 @@ export default function AdminAnalytics() {
               <div className="mt-4 h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={waitData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                     <XAxis
                       dataKey="day"
-                      tick={{ fontSize: 12, fill: '#94a3b8' }}
-                      axisLine={{ stroke: '#e2e8f0' }}
+                      tick={{ fontSize: 12, fill: CHART_TICK }}
+                      axisLine={{ stroke: CHART_GRID }}
                       tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 12, fill: '#94a3b8' }}
+                      tick={{ fontSize: 12, fill: CHART_TICK }}
                       axisLine={false}
                       tickLine={false}
                       unit="m"
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                      contentStyle={CHART_TOOLTIP}
                       formatter={(value) => [`${value} min`, 'Avg wait']}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
                     />
@@ -205,9 +215,9 @@ export default function AdminAnalytics() {
                       type="monotone"
                       dataKey="avgWaitMinutes"
                       name="Avg wait"
-                      stroke="#7c3aed"
+                      stroke="#a78bfa"
                       strokeWidth={2.5}
-                      dot={{ r: 3.5, fill: '#7c3aed', strokeWidth: 0 }}
+                      dot={{ r: 3.5, fill: '#a78bfa', strokeWidth: 0 }}
                       activeDot={{ r: 5 }}
                     />
                   </LineChart>
@@ -222,8 +232,8 @@ export default function AdminAnalytics() {
               </h2>
               {data?.departmentDistribution.length === 0 ? (
                 <div className="flex h-56 flex-col items-center justify-center text-center">
-                  <TrendingUp className="h-8 w-8 text-slate-300" />
-                  <p className="mt-3 text-sm text-slate-400">
+                  <TrendingUp className="h-8 w-8 text-slate-600" />
+                  <p className="mt-3 text-sm text-slate-500">
                     No completed consultations to break down by department yet.
                   </p>
                 </div>
@@ -239,20 +249,20 @@ export default function AdminAnalytics() {
                           innerRadius={55}
                           outerRadius={95}
                           paddingAngle={3}
-                          stroke="#ffffff"
+                          stroke="#0a1216"
                         >
                           {data?.departmentDistribution.map((_, i) => (
                             <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                          contentStyle={CHART_TOOLTIP}
                           formatter={(value, name) => [value, name]}
                         />
                         <Legend
                           iconType="circle"
                           formatter={(value: string) => (
-                            <span className="text-xs font-medium text-slate-600">{value}</span>
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{value}</span>
                           )}
                         />
                       </PieChart>
@@ -264,7 +274,7 @@ export default function AdminAnalytics() {
           </div>
         )}
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-600">
           CareQ — SmartOPD AI | Analytics over the last 7 days · patients handled = completed consultations
         </footer>
       </div>

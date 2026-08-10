@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,31 +12,126 @@
   body {
     @apply bg-surface text-ink;
   }
+  /* Slim, theme-aware scrollbars (staff dark pages especially) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgba(100, 116, 139, 0.35);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl border border-slate-100 shadow-card;
+    @apply rounded-2xl border border-slate-100 bg-white shadow-card;
   }
+  .dark .card {
+    @apply border-slate-700/60 bg-night-800/70;
+  }
+
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white
-      transition-all duration-200 hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-600;
+      transition-all duration-200 hover:bg-brand-700 hover:shadow-glow-soft active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-brand-600 disabled:hover:shadow-none;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-ink-soft
       transition-all duration-200 hover:border-brand-300 hover:text-brand-700 hover:bg-brand-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  .dark .btn-secondary {
+    @apply border-slate-600 bg-night-800/70 text-slate-300 hover:border-brand-400/50 hover:bg-brand-500/10 hover:text-brand-300;
+  }
   .btn-danger {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600
       transition-all duration-200 hover:bg-red-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  .dark .btn-danger {
+    @apply border-red-500/30 bg-night-800/70 text-red-300 hover:bg-red-500/10;
+  }
   .input-field {
     @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-ink-muted
       transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-400/60 focus:border-brand-400;
+  }
+  .dark .input-field {
+    @apply border-slate-600 bg-night-800/80 text-slate-100 placeholder:text-slate-500 focus:border-brand-400 focus:ring-brand-400/40;
   }
   .select-field {
     @apply input-field appearance-none bg-no-repeat pr-10 cursor-pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%237d9ba1' d='M7 9.5 2.5 5h9z'/%3E%3C/svg%3E");
     background-position: right 0.9rem center;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Ambient gradient meshes — the "2026 background". Fixed-position
+   layered radial gradients; the app pages sit on top of these.
+   ───────────────────────────────────────────────────────────────── */
+.bg-mesh-light {
+  background-color: #f4f9f9;
+  background-image:
+    radial-gradient(60rem 60rem at 110% -10%, rgba(62, 184, 184, 0.13), transparent 60%),
+    radial-gradient(50rem 50rem at -15% 20%, rgba(56, 189, 248, 0.1), transparent 55%),
+    radial-gradient(42rem 42rem at 55% 115%, rgba(52, 211, 153, 0.1), transparent 60%);
+}
+
+.bg-mesh-dark {
+  background-color: #0a1216;
+  background-image:
+    radial-gradient(60rem 60rem at 110% -10%, rgba(33, 154, 157, 0.16), transparent 60%),
+    radial-gradient(50rem 50rem at -15% 20%, rgba(14, 116, 144, 0.13), transparent 55%),
+    radial-gradient(42rem 42rem at 55% 115%, rgba(17, 67, 74, 0.22), transparent 60%);
+}
+
+/* Slowly-drifting aurora blob (used on login brand panel / heroes) */
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  animation: blob-drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* Skeleton shimmer — richer than the default pulse */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(100, 116, 139, 0.14);
+}
+.dark .skeleton {
+  background: rgba(148, 163, 184, 0.1);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+/* Frosted glass panel — login forms & floating toolbars */
+.glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+.dark .glass {
+  background: rgba(13, 22, 27, 0.72);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+/* Animated gradient banner (hero cards) */
+.banner-gradient {
+  background-size: 200% 200%;
+  animation: gradient-x 8s ease infinite;
 }

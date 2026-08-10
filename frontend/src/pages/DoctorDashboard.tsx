@@ -12,6 +12,7 @@ import {
   Building2,
   Timer,
   Stethoscope,
+  Radio,
 } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import {
@@ -38,7 +39,7 @@ import {
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import type { QueueEntryResponse, TriageLevel } from '../services/api';
 import QueuePageHeader from '../components/QueuePageHeader';
-import { StatusTag, Button, StatCard, LiveBadge, AvatarInitials } from '../components/ui';
+import { StatusTag, Button, StatCard, LiveBadge, AvatarInitials, CountUp } from '../components/ui';
 import { LoadingState, EmptyState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -48,6 +49,17 @@ const TRIAGE_LEVELS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'
 // identity), polled so the dashboard self-heals once an admin links the
 // account. The big doctors list is still fetched for the department context.
 const MY_ENTRY_POLL_MS = 15_000;
+
+// Dark chart palette (night surfaces) — the dashboard is dark-first.
+const CHART_GRID = '#1e2c35';
+const CHART_TICK = '#7d9ba1';
+const CHART_TOOLTIP = {
+  borderRadius: 12,
+  border: '1px solid #1e2c35',
+  backgroundColor: '#101a20',
+  color: '#e2e8f0',
+  fontSize: 13,
+};
 
 function displayName(entry: QueueEntryResponse) {
   return entry.patientName || `#${entry.patientId.slice(0, 4).toUpperCase()}`;
@@ -199,18 +211,20 @@ export default function DoctorDashboard() {
     }
   };
 
-  if (isLoading || (myEntryLoading && !doctorEntry && !myEntryError)) {
-    return (
-      <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <LoadingState label="Loading your profile…" />
-        </div>
+  const loadingRoot = (
+    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <LoadingState label="Loading your profile…" />
       </div>
-    );
+    </div>
+  );
+
+  if (isLoading || (myEntryLoading && !doctorEntry && !myEntryError)) {
+    return loadingRoot;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="🩺"
@@ -221,12 +235,12 @@ export default function DoctorDashboard() {
         />
 
         {error && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
             ⚠ {error}
           </div>
         )}
         {success && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300">
             ✓ {success}
           </div>
         )}
@@ -252,13 +266,13 @@ export default function DoctorDashboard() {
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h2 className="text-lg font-bold text-slate-800">{doctorEntry.name || doctorEntry.specialization}</h2>
+                  <h2 className="font-display text-lg font-bold text-slate-100">{doctorEntry.name || doctorEntry.specialization}</h2>
                   <StatusTag status={doctorEntry.isAvailable ? 'ONLINE' : 'OFFLINE'} />
                 </div>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-400">
                   {doctorEntry.specialization} · {doctorEntry.departmentName} · {doctorEntry.qualification} · {doctorEntry.experienceYears} years exp
                 </p>
-                <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-500">
+                <div className="mt-3 flex flex-wrap gap-5 text-sm text-slate-400">
                   <span>💰 Fee: ₹{doctorEntry.consultationFee}</span>
                   <span>⏱ Avg: {doctorEntry.avgConsultationTimeMinutes} min/patient</span>
                 </div>
@@ -266,7 +280,11 @@ export default function DoctorDashboard() {
               <Button
                 onClick={handleToggleAvailability}
                 loading={isToggling}
-                className={`shrink-0 ${doctorEntry.isAvailable ? '!bg-red-50 !text-red-700 hover:!bg-red-100' : '!bg-emerald-600 !text-white hover:!bg-emerald-700'}`}
+                className={`shrink-0 ${
+                  doctorEntry.isAvailable
+                    ? '!border-red-500/30 !bg-red-500/10 !text-red-300 hover:!bg-red-500/20'
+                    : '!border-transparent !bg-emerald-600 !text-white hover:!bg-emerald-500'
+                }`}
               >
                 {doctorEntry.isAvailable ? 'Go Offline' : 'Go Online'}
               </Button>
@@ -284,11 +302,11 @@ export default function DoctorDashboard() {
             {queueLoading && !queue ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+                  <div key={i} className="skeleton h-24 rounded-xl" />
                 ))}
               </div>
             ) : queueErrorMessage ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300">
                 ⚠ Couldn't load live queue: {queueErrorMessage}
               </div>
             ) : (
@@ -296,21 +314,20 @@ export default function DoctorDashboard() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                   <StatCard
                     label="Waiting"
-                    value={waitingCount}
+                    value={<CountUp value={waitingCount} />}
                     icon={<Users className="h-5 w-5" />}
-                    accent="bg-brand-50 text-brand-700"
                   />
                   <StatCard
                     label="In consultation"
-                    value={inProgressCount}
+                    value={<CountUp value={inProgressCount} />}
                     icon={<UserCheck className="h-5 w-5" />}
-                    accent="bg-violet-50 text-violet-700"
+                    accent="bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
                   />
                   <StatCard
                     label="Longest wait"
-                    value={`${longestWait} min`}
+                    value={<CountUp value={longestWait} />}
                     icon={<Clock className="h-5 w-5" />}
-                    accent="bg-amber-50 text-amber-700"
+                    accent="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                   />
                 </div>
 
@@ -324,7 +341,7 @@ export default function DoctorDashboard() {
                       triageMix[level] > 0 ? (
                         <span key={level} className="inline-flex items-center gap-1.5">
                           <StatusTag status={level} />
-                          <span className="text-sm font-bold text-slate-700">{triageMix[level]}</span>
+                          <span className="text-sm font-bold text-slate-200 tabular-nums">{triageMix[level]}</span>
                         </span>
                       ) : null,
                     )}
@@ -332,26 +349,27 @@ export default function DoctorDashboard() {
                 )}
 
                 {firstWaiting ? (
-                  <div className="card flex flex-col items-center justify-between gap-4 border-brand-100 bg-gradient-to-r from-brand-50 to-white p-5 sm:flex-row">
-                    <div className="flex items-center gap-3.5">
+                  <div className="card relative flex flex-col items-center justify-between gap-4 overflow-hidden border-brand-500/30 bg-gradient-to-r from-brand-500/15 via-night-800/60 to-night-800/40 p-5 sm:flex-row">
+                    <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-500/15 blur-2xl" />
+                    <div className="relative flex items-center gap-3.5">
                       <AvatarInitials name={displayName(firstWaiting)} size="lg" />
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-base font-bold text-slate-800">{displayName(firstWaiting)}</p>
+                          <p className="text-base font-bold text-slate-100">{displayName(firstWaiting)}</p>
                           <StatusTag status={firstWaiting.effectiveTriage} />
                         </div>
-                        <p className="mt-1 text-sm text-slate-500">Next patient ready</p>
-                        <p className="mt-0.5 max-w-md truncate text-xs text-slate-400">{firstWaiting.symptomText}</p>
+                        <p className="mt-1 text-sm text-brand-300">Next patient ready</p>
+                        <p className="mt-0.5 max-w-md truncate text-xs text-slate-500">{firstWaiting.symptomText}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-slate-400">
-                        Wait ≈ {firstWaiting.predictedWaitMinutes ?? 0} min
+                    <div className="relative flex items-center gap-3">
+                      <span className="text-xs text-slate-400 tabular-nums">
+                        Wait ≈ <CountUp value={firstWaiting.predictedWaitMinutes ?? 0} /> min
                       </span>
                       <Button
                         onClick={handleCallNext}
                         loading={busyId === firstWaiting.id}
-                        className="shrink-0 px-6"
+                        className="shrink-0 px-6 animate-glow-pulse"
                       >
                         {!busyId && <PhoneCall className="h-4 w-4" />}
                         Call Next
@@ -360,11 +378,11 @@ export default function DoctorDashboard() {
                   </div>
                 ) : (
                   <div className="card flex items-center gap-4 p-5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
-                      <Activity className="h-5 w-5 text-emerald-600" />
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10">
+                      <Activity className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-800">Queue is clear</p>
+                      <p className="text-sm font-bold text-slate-100">Queue is clear</p>
                       <p className="text-xs text-slate-500">
                         No patients waiting right now — new joins appear here automatically.
                       </p>
@@ -381,26 +399,26 @@ export default function DoctorDashboard() {
                       </h2>
                       <Link
                         to="/doctor/queue"
-                        className="text-xs font-semibold text-brand-600 transition-colors hover:text-brand-700"
+                        className="text-xs font-semibold text-brand-400 transition-colors hover:text-brand-300"
                       >
                         View all {waitingCount} →
                       </Link>
                     </div>
-                    <div className="mt-3 divide-y divide-slate-100">
+                    <div className="mt-3 divide-y divide-slate-700/50">
                       {waitingEntries.slice(0, WAITING_PREVIEW_LIMIT).map((entry) => (
                         <div key={entry.id} className="flex items-center gap-3 py-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-sm font-extrabold text-brand-700">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/15 text-sm font-extrabold text-brand-300 tabular-nums">
                             {entry.position ?? '—'}
                           </div>
                           <AvatarInitials name={displayName(entry)} size="sm" />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold text-slate-800">
+                            <p className="truncate text-sm font-semibold text-slate-100">
                               {displayName(entry)}
                             </p>
-                            <p className="truncate text-xs text-slate-400">{entry.symptomText}</p>
+                            <p className="truncate text-xs text-slate-500">{entry.symptomText}</p>
                           </div>
                           <StatusTag status={entry.effectiveTriage} />
-                          <span className="w-20 text-right text-xs font-semibold text-slate-500">
+                          <span className="w-20 text-right text-xs font-semibold text-slate-400 tabular-nums">
                             ≈{entry.predictedWaitMinutes ?? 0} min
                           </span>
                         </div>
@@ -420,17 +438,17 @@ export default function DoctorDashboard() {
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
                 Your performance
               </h2>
-              <span className="text-xs text-slate-400">Last 7 days</span>
+              <span className="text-xs text-slate-500">Last 7 days</span>
             </div>
 
             {analyticsLoading && !analytics ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
+                  <div key={i} className="skeleton h-24 rounded-xl" />
                 ))}
               </div>
             ) : analyticsError ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-300">
                 ⚠ Couldn't load your analytics: {getErrorMessage(analyticsError)}
               </div>
             ) : analytics ? (
@@ -438,29 +456,29 @@ export default function DoctorDashboard() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                   <StatCard
                     label="Completed today"
-                    value={analytics.patientsCompletedToday}
+                    value={<CountUp value={analytics.patientsCompletedToday} />}
                     icon={<CalendarDays className="h-5 w-5" />}
-                    accent="bg-cyan-50 text-cyan-700"
+                    accent="bg-cyan-50 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300"
                   />
                   <StatCard
                     label="Avg wait today"
                     value={
                       analytics.avgWaitTodayMinutes === null
                         ? '—'
-                        : `${Math.round(analytics.avgWaitTodayMinutes)} min`
+                        : <CountUp value={Math.round(analytics.avgWaitTodayMinutes)} />
                     }
                     icon={<Timer className="h-5 w-5" />}
-                    accent="bg-amber-50 text-amber-700"
+                    accent="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                   />
                   <StatCard
                     label="Avg consult today"
                     value={
                       analytics.avgConsultTimeTodayMinutes === null
                         ? '—'
-                        : `${Math.round(analytics.avgConsultTimeTodayMinutes)} min`
+                        : <CountUp value={Math.round(analytics.avgConsultTimeTodayMinutes)} />
                     }
                     icon={<Clock className="h-5 w-5" />}
-                    accent="bg-violet-50 text-violet-700"
+                    accent="bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
                   />
                 </div>
 
@@ -473,25 +491,25 @@ export default function DoctorDashboard() {
                       <div className="mt-3 h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={patientData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                             <XAxis
                               dataKey="day"
-                              tick={{ fontSize: 12, fill: '#94a3b8' }}
-                              axisLine={{ stroke: '#e2e8f0' }}
+                              tick={{ fontSize: 12, fill: CHART_TICK }}
+                              axisLine={{ stroke: CHART_GRID }}
                               tickLine={false}
                             />
                             <YAxis
                               allowDecimals={false}
-                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              tick={{ fontSize: 12, fill: CHART_TICK }}
                               axisLine={false}
                               tickLine={false}
                             />
                             <Tooltip
-                              cursor={{ fill: '#f1f5f9' }}
-                              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                              cursor={{ fill: '#16222a' }}
+                              contentStyle={CHART_TOOLTIP}
                               labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
                             />
-                            <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]} fill="#0e7490" />
+                            <Bar dataKey="count" name="Patients" radius={[6, 6, 0, 0]} fill="#3eb8b8" />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -504,21 +522,21 @@ export default function DoctorDashboard() {
                       <div className="mt-3 h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={waitData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
                             <XAxis
                               dataKey="day"
-                              tick={{ fontSize: 12, fill: '#94a3b8' }}
-                              axisLine={{ stroke: '#e2e8f0' }}
+                              tick={{ fontSize: 12, fill: CHART_TICK }}
+                              axisLine={{ stroke: CHART_GRID }}
                               tickLine={false}
                             />
                             <YAxis
-                              tick={{ fontSize: 12, fill: '#94a3b8' }}
+                              tick={{ fontSize: 12, fill: CHART_TICK }}
                               axisLine={false}
                               tickLine={false}
                               unit="m"
                             />
                             <Tooltip
-                              contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 13 }}
+                              contentStyle={CHART_TOOLTIP}
                               formatter={(value) => [`${value} min`, 'Avg wait']}
                               labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
                             />
@@ -526,9 +544,9 @@ export default function DoctorDashboard() {
                               type="monotone"
                               dataKey="avgWaitMinutes"
                               name="Avg wait"
-                              stroke="#7c3aed"
+                              stroke="#a78bfa"
                               strokeWidth={2.5}
-                              dot={{ r: 3.5, fill: '#7c3aed', strokeWidth: 0 }}
+                              dot={{ r: 3.5, fill: '#a78bfa', strokeWidth: 0 }}
                               activeDot={{ r: 5 }}
                             />
                           </LineChart>
@@ -538,7 +556,7 @@ export default function DoctorDashboard() {
                   </div>
                 ) : (
                   <div className="card flex items-center gap-4 p-5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-700/50">
                       <Activity className="h-5 w-5 text-slate-400" />
                     </div>
                     <p className="text-sm text-slate-500">
@@ -555,19 +573,19 @@ export default function DoctorDashboard() {
         {/* Department context */}
         {showQueue && doctorEntry && (
           <div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50">
-              <Building2 className="h-5 w-5 text-sky-600" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10">
+              <Building2 className="h-5 w-5 text-sky-400" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-bold text-slate-800">
+                <p className="text-sm font-bold text-slate-100">
                   {doctorEntry.departmentName} department
                 </p>
-                <p className="text-xs font-semibold text-slate-500">
+                <p className="text-xs font-semibold text-slate-400 tabular-nums">
                   {onlineInDept} of {deptDoctors.length} colleagues online
                 </p>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700/60">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500"
                   style={{
@@ -582,43 +600,43 @@ export default function DoctorDashboard() {
         {/* Queue management card — hidden while the account isn't linked, so it
             never looks like the queue exists when it can't. */}
         {showQueue && (
-        <Link
-          to="/doctor/queue"
-          className="card group flex items-center gap-4 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
-        >
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
-            <Clock className="h-6 w-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-lg font-bold text-slate-800">Live Patient Queue</h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Color-coded AI triage, override controls, call-next & complete
-            </p>
-          </div>
-          <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
-        </Link>
+          <Link
+            to="/doctor/queue"
+            className="card group flex items-center gap-4 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift"
+          >
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+              <Radio className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display text-lg font-bold text-slate-100">Live Patient Queue</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Color-coded AI triage, override controls, call-next & complete
+              </p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-slate-600 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-400" />
+          </Link>
         )}
 
         {/* Account info */}
         <div className="card p-6">
-          <h2 className="mb-4 text-base font-bold text-slate-800">Account Info</h2>
+          <h2 className="mb-4 font-display text-base font-bold text-slate-100">Account Info</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Name</p>
-              <p className="mt-1 font-semibold text-slate-800">Dr. {user?.fullName}</p>
+            <div className="rounded-xl bg-night-700/50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Name</p>
+              <p className="mt-1 font-semibold text-slate-100">Dr. {user?.fullName}</p>
             </div>
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Email</p>
-              <p className="mt-1 break-all font-semibold text-slate-800">{user?.email}</p>
+            <div className="rounded-xl bg-night-700/50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Email</p>
+              <p className="mt-1 break-all font-semibold text-slate-100">{user?.email}</p>
             </div>
-            <div className="rounded-xl bg-gray-50 p-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Role</p>
-              <p className="mt-1 font-semibold text-slate-800">Doctor</p>
+            <div className="rounded-xl bg-night-700/50 p-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
+              <p className="mt-1 font-semibold text-slate-100">Doctor</p>
             </div>
           </div>
         </div>
 
-        <footer className="pt-4 text-center text-xs text-slate-400">
+        <footer className="pt-4 text-center text-xs text-slate-600">
           CareQ — SmartOPD AI | Intelligent Patient Flow Platform
         </footer>
       </div>

@@ -39,8 +39,8 @@ export default function QueuePageHeader({
           {typeof icon === 'string' ? <span className="leading-none">{icon}</span> : icon}
         </div>
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-slate-800 sm:text-xl">{title}</h1>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <h1 className="font-display text-lg font-bold tracking-tight text-slate-800 dark:text-slate-100 sm:text-xl">{title}</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -60,9 +60,9 @@ export default function QueuePageHeader({
           <User className="h-4 w-4" />
           {t('common.profile')}
         </Link>
-        <div className="ml-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-3">
+        <div className="ml-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-1 pl-1 pr-3 dark:border-slate-600 dark:bg-night-800/70">
           <AvatarInitials name={user?.fullName || 'U'} size="sm" />
-          <span className="hidden text-sm font-semibold text-slate-700 sm:inline">
+          <span className="hidden text-sm font-semibold text-slate-700 dark:text-slate-200 sm:inline">
             {user?.fullName}
           </span>
         </div>

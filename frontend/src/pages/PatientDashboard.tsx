@@ -22,7 +22,7 @@ import {
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useGetDoctorsQuery } from '../services/rtk/doctorApi';
 import { useI18n, type I18nT } from '../i18n';
-import { LiveBadge, StatusTag, Button, AvatarInitials } from '../components/ui';
+import { LiveBadge, StatusTag, Button, AvatarInitials, CountUp } from '../components/ui';
 import type { DoctorCatalogResponse, QueueEntryResponse } from '../services/api';
 
 const POLL_INTERVAL_MS = 10_000;
@@ -103,16 +103,20 @@ function MyVisitCard({
 
       <div className="relative mt-5 flex items-end gap-10">
         <div>
-          <div className="text-5xl font-extrabold leading-none tracking-tight">
-            {isInProgress ? '→' : entry.position ?? '—'}
+          <div className="text-5xl font-extrabold leading-none tracking-tight tabular-nums">
+            {isInProgress ? '→' : entry.position != null ? <CountUp value={entry.position} /> : '—'}
           </div>
           <p className="mt-2 text-sm font-medium text-brand-100">
             {isInProgress ? t('visit.calledHeadToDoctor') : t('visit.positionInQueue')}
           </p>
         </div>
         <div>
-          <div className="text-5xl font-extrabold leading-none tracking-tight">
-            {isInProgress ? t('visit.now') : `${entry.predictedWaitMinutes ?? 0} min`}
+          <div className="text-5xl font-extrabold leading-none tracking-tight tabular-nums">
+            {isInProgress ? t('visit.now') : (
+              <span>
+                <CountUp value={entry.predictedWaitMinutes ?? 0} /> <span className="text-3xl">min</span>
+              </span>
+            )}
           </div>
           <p className="mt-2 text-sm font-medium text-brand-100">{t('visit.estimatedWait')}</p>
         </div>
@@ -320,7 +324,7 @@ export default function PatientDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6">
+    <div className="min-h-screen bg-mesh-light px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <QueuePageHeader
           icon="👤"
@@ -426,7 +430,7 @@ export default function PatientDashboard() {
                 </div>
                 <ArrowRight className="h-5 w-5 text-slate-300 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-brand-600" />
               </div>
-              <h2 className="mt-4 text-lg font-bold text-slate-800">{t(card.titleKey)}</h2>
+              <h2 className="mt-4 font-display text-lg font-bold text-slate-800">{t(card.titleKey)}</h2>
               <p className="mt-1 text-sm text-slate-500">{t(card.descKey)}</p>
             </Link>
           ))}

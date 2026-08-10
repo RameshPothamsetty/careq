@@ -3,8 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Activity, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const ROLES = [
   { value: 'PATIENT', icon: '👤', labelKey: 'auth.rolePatient', descKey: 'auth.rolePatientDesc' },
@@ -45,22 +45,13 @@ export default function SignupPage() {
   const selectedRole = ROLES.find((r) => r.value === role);
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gray-50 px-4 py-10">
-      {/* Soft decorative blobs */}
-      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-sky-200/30 blur-3xl" />
-
-      {/* Language switcher — always reachable, even before sign-in */}
-      <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
-        <LanguageSwitcher />
-      </div>
-
-      <div className="card w-full max-w-md animate-fade-in-up p-8 sm:p-10">
+    <AuthShell>
+      <div className="glass w-full rounded-3xl p-8 shadow-lift sm:p-10">
         <div className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lift">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 shadow-lift">
             <Activity className="h-7 w-7 text-white" />
           </div>
-          <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-800">{t('auth.createAccount')}</h1>
+          <h1 className="mt-4 font-display text-2xl font-extrabold tracking-tight text-slate-800">{t('auth.createAccount')}</h1>
           <p className="mt-1 text-sm text-slate-500">{t('auth.joinCareQ')}</p>
         </div>
 
@@ -149,6 +140,6 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }
