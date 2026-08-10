@@ -1,0 +1,199 @@
+# CareQ — CD: develop images (Day 14)
+#
+# Runs on every push to `develop` (i.e. after a PR merge):
+#   1. Same test gate as CI — never push an image that hasn't passed tests
+#   2. Build + push every image to ghcr.io/<owner>/careq-<service>
+#      tagged with the commit SHA and `develop-latest`
+#   3. Full-stack smoke against the PUSHED images (pulled from GHCR via a
+#      compose override — no rebuild in the smoke runner)
+#
+# Images are only pushed here — actual deployment is Day 15's scope.
+name: CD · develop images
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cd-develop
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend · ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - eureka-server
+          - api-gateway
+          - auth-service
+          - user-service
+          - doctor-service
+          - queue-service
+          - notification-service
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run tests
+        run: mvn -B --no-transfer-progress -f backend/pom.xml -pl ${{ matrix.service }} -am test
+
+  frontend-tests:
+    name: Frontend · typecheck + tests + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck + unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+
+  # ── Build + push every image to GHCR ───────────────────────────────
+  # Only registry-qualified ghcr tags are pushed (a bare tag would try to
+  # go to Docker Hub). The smoke job pulls these exact images back.
+  build-and-push:
+    name: Build & push · ${{ matrix.name }}
+    needs: [backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: eureka-server
+            context: backend
+            file: backend/eureka-server/Dockerfile
+          - name: api-gateway
+            context: backend
+            file: backend/api-gateway/Dockerfile
+          - name: auth-service
+            context: backend
+            file: backend/auth-service/Dockerfile
+          - name: user-service
+            context: backend
+            file: backend/user-service/Dockerfile
+          - name: doctor-service
+            context: backend
+            file: backend/doctor-service/Dockerfile
+          - name: queue-service
+            context: backend
+            file: backend/queue-service/Dockerfile
+          - name: notification-service
+            context: backend
+            file: backend/notification-service/Dockerfile
+          - name: frontend
+            context: frontend
+            file: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR package names must be lowercase.
+      - name: Lowercase the owner for GHCR
+        run: echo "GHCR_OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: |
+            ghcr.io/${{ env.GHCR_OWNER }}/careq-${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/${{ env.GHCR_OWNER }}/careq-${{ matrix.name }}:develop-latest
+          cache-from: type=gha
+          cache-to: type=gha, mode=max
+
+  # ── Smoke the exact pushed images inside the runner ────────────────
+  docker-smoke:
+    name: Docker · full-stack health check (pushed images)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase the owner for GHCR
+        run: echo "GHCR_OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the full stack from pushed images
+        run: |
+          GHCR_OWNER="${{ env.GHCR_OWNER }}" CAREQ_IMAGE_TAG="${{ github.sha }}" \
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+      - name: Wait for every container to be healthy
+        run: |
+          set -e
+          containers="careq-eureka careq-gateway careq-auth careq-user careq-doctor careq-queue careq-notification careq-frontend"
+          for i in $(seq 1 120); do
+            all_ok=1
+            for c in $containers; do
+              h=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
+              if [ "$h" != "healthy" ]; then all_ok=0; break; fi
+            done
+            if [ "$all_ok" = "1" ]; then echo "All containers healthy after ~$((i * 5))s"; break; fi
+            sleep 5
+          done
+          fail=0
+          for c in $containers; do
+            h=$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)
+            echo "$c: $h"
+            if [ "$h" != "healthy" ]; then docker logs "$c" --tail 30 || true; fail=1; fi
+          done
+          [ "$fail" -eq 0 ]
+
+      - name: Smoke test
+        run: |
+          set -e
+          curl -fsS http://localhost:8080/actuator/health > /dev/null && echo "gateway OK"
+          curl -fsS http://localhost:8080/api/auth/health > /dev/null && echo "auth OK"
+          curl -fsS http://localhost:8080/api/users/health > /dev/null && echo "user OK"
+          curl -fsS http://localhost:8080/api/doctors/health > /dev/null && echo "doctor OK"
+          curl -fsS http://localhost:8080/api/queue/health > /dev/null && echo "queue OK"
+          curl -fsS http://localhost:8080/api/notifications/health > /dev/null && echo "notification OK"
+          curl -fsS http://localhost:3030 | grep -q 'id="root"' && echo "SPA OK"
+          EMAIL="cd-${{ github.sha }}@careq.test"
+          curl -fsS -X POST http://localhost:8080/api/auth/signup \
+            -H 'Content-Type: application/json' \
+            -d "{\"fullName\":\"CD Tester\",\"email\":\"$EMAIL\",\"password\":\"CIPass123\",\"role\":\"PATIENT\"}" \
+            | grep -q '"token"' && echo "signup OK"
+          curl -fsS -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"CIPass123\"}" \
+            | grep -q '"token"' && echo "login OK"
+          echo "── Smoke test passed ──"

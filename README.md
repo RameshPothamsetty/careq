@@ -1,5 +1,7 @@
 # CareQ — Intelligent Patient Flow Platform
 
+[![CI](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml/badge.svg)](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml)
+
 **AI-powered OPD operations: predict wait times, triage patients by urgency, and run a live, role-specific view of hospital queues.**
 
 CareQ (brand: **SmartOPD AI**) is a microservices-based hospital queue-management platform that uses an LLM to triage patients from free-text symptoms and predicts each patient's wait time live, so Patients, Doctors, and Admins always know what's happening next.
@@ -56,6 +58,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 | Database | MySQL 8 |
 | Cache | Redis 7 — doctor/department catalog with 60s TTL (Day 13) |
 | Event Bus | RabbitMQ — `careq.events` topic exchange, `queue.*` routing keys (Day 13) |
+| CI/CD | GitHub Actions — PR CI (matrix build/test + compose health check), GHCR image pipeline (Day 14) |
 | Auth | Spring Security + JWT (HMAC-SHA256) |
 | AI | Groq (`llama-3.1-8b-instant`) — symptom triage with guaranteed fallback |
 | Testing | JUnit 5 + Mockito (backend), Playwright (E2E) |
@@ -184,6 +187,14 @@ node scripts/day11-smoke-test.mjs   # end-to-end validation of the Dockerized st
 
 ---
 
+## CI/CD Pipeline (Day 14)
+
+Every Pull Request runs the full test gate — a **matrix job per backend service** (`mvn test`, Java 17) plus the frontend (`tsc`, Vitest, production build) — then boots the **entire stack inside the runner** from freshly built images (`docker compose`), waits for every health check, and smokes the gateway, all five service health endpoints, the SPA, and a real signup→login flow. A broken test or a broken image = a red PR.
+
+Merging to `develop` re-runs the gate and pushes every image to **GHCR** (`ghcr.io/rameshpothamsetty/careq-<service>`) tagged with the commit SHA and `develop-latest`. Pushes to `main` / `v*` tags produce release images (`latest` + version tag). **No deployment happens yet** — that's Day 15, which plugs a `deploy` job into the release workflow. Details: [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 3.
+
+---
+
 ## Demo
 
 > 🎥 **Demo video — coming soon.** A 2–3 minute walkthrough covering all three roles will be embedded here after recording.
@@ -209,7 +220,8 @@ node scripts/day11-smoke-test.mjs   # end-to-end validation of the Dockerized st
 | **Day 10** | **Testing Pass** — 104 backend tests (auth 14, user 13, doctor 38, queue 39) + 23 frontend tests, 2 integration flows, Newman API run (31/31), manual checklist (38/38), BUG-1 & BUG-2 fixed | ✅ Complete |
 | **Day 11** | **Docker Containerization** — multi-stage Dockerfiles (non-root, healthchecks), Nginx frontend + `/api` proxy, `docker-compose.yml` full stack, `.env.example`, end-to-end smoke test 14/14 inside the containers | ✅ Complete |
 | **Day 13** | **Redis Caching + RabbitMQ Notification Service** — Redis catalog cache (60s TTL, evict-on-mutation, fail-open), RabbitMQ `careq.events` topic exchange, new `notification-service` (persisted notifications, `GET/PUT /api/notifications/**`), notification bell backed by real data, `/api/doctors/me` + admin doctor-account picker fixing the doctor queue dead-end | ✅ Complete |
-| Days 14–15 | CI/CD, cloud deployment, hardening | 📅 Planned |
+| **Day 14** | **CI/CD Pipeline** — GitHub Actions: PR CI (per-service matrix tests, frontend typecheck/tests/build, in-pipeline docker-compose health check + auth smoke), CD on `develop` merge pushing all images to GHCR (`develop-latest` + SHA tags), release workflow for `main`/tags (`latest` + version), README badge | 🔄 In Progress (PR) |
+| Days 15 | Cloud deployment + hardening | 📅 Planned |
 
 ---
 

@@ -126,3 +126,55 @@ One issue found and fixed during validation: the frontend healthcheck used `loca
 | `admin@careq.com` login fails in the smoke test | Run `bash scripts/seed-data.sh` against the Docker gateway first. |
 | Queue joins always `NORMAL` triage | `GROQ_API_KEY` is empty/unset — that is the designed fallback. Set it in `.env` and restart queue-service. |
 | Uploads 413 from Nginx | `client_max_body_size 10m` is set in `frontend/nginx.conf`; requests above 10 MB are rejected by design (user-service allows 10 MB max request). |
+
+---
+
+## 3. CI/CD Pipeline (Day 14)
+
+**Version:** 1.1 (Day 14 — GitHub Actions)
+
+Three GitHub Actions workflows automate build, test, containerization and registry push. Nothing deploys to a live environment yet — Day 15 adds the actual deployment step.
+
+### 3.1 Workflows
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `.github/workflows/ci.yml` | Every PR to `develop`/`main` | Backend matrix tests (one job per service, Java 17 + Maven cache), frontend `npm ci` → Vitest → `tsc`+Vite build, then an **in-pipeline health check**: builds all 8 images (loaded locally), boots the full `docker-compose` stack inside the runner, waits for every container to be `healthy`, and smokes the gateway health endpoint, all five service health endpoints (`/api/{auth,users,doctors,queue,notifications}/health`), the SPA root, and a real signup→login flow through the gateway. |
+| `.github/workflows/cd-develop.yml` | Push to `develop` (post-PR-merge) | Re-runs the test gate, then builds and pushes every image to `ghcr.io/<owner>/careq-<service>` with tags `<commit SHA>` and `develop-latest`, followed by the same full-stack smoke. |
+| `.github/workflows/cd-release.yml` | Push to `main` + tags `v*` | Same gate + build, pushed with the release version (tag name, or `main`) and `latest`. **This is where Day 15's `deploy` job plugs in** (see 3.4). |
+
+### 3.2 Image naming & tags
+
+```
+ghcr.io/rameshpothamsetty/careq-<service>
+  ├── :<commit-sha>        # immutable per commit (develop + release)
+  ├── :develop-latest      # latest on develop
+  ├── :<version|main>      # e.g. v0.2, or main for untagged main pushes
+  └── :latest              # latest release
+```
+
+`<service>` is one of `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`, `notification-service`, `frontend`. Image names must be lowercase — the workflow lowercases `github.repository_owner` before building GHCR tags.
+
+### 3.3 Secrets
+
+Only the built-in `GITHUB_TOKEN` is required (the workflows request `packages: write` to push to GHCR). No other secrets are needed for the current smoke test, which exercises health endpoints and the auth flow without AI triage. To exercise the real AI triage path in the pipeline later, add `GROQ_API_KEY` as a repository secret and reference `${{ secrets.GROQ_API_KEY }}` in the smoke job's environment — never hardcode it.
+
+### 3.4 Day 15 plug-in point
+
+Deployment is deliberately out of scope for Day 14. To actually deploy, add a `deploy` job to `cd-release.yml` that runs **after** `build-and-push`:
+
+```yaml
+  deploy:
+    name: Deploy to <platform>
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      # pull ghcr.io/<owner>/careq-<service>:${{ env.IMAGE_TAG }}
+      # and roll out on the chosen platform (Render / Fly.io / Railway / VM / K8s…)
+```
+
+### 3.5 Verifying a run
+
+- PRs: open the **Actions** tab — `CI` must be green (all matrix jobs + `docker-smoke`).
+- After merging to `develop`: `CD · develop images` runs and the **Packages** page of the repo (`https://github.com/RameshPothamsetty/careq/pkgs`) shows `careq-<service>` images with `develop-latest`.
+- Releases: tag `v0.2` → `CD · release` pushes `latest` + `v0.2`.
