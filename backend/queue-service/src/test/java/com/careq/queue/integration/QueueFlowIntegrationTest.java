@@ -3,6 +3,7 @@ package com.careq.queue.integration;
 import com.careq.queue.client.DoctorServiceClient;
 import com.careq.queue.client.TriageAiClient;
 import com.careq.queue.dto.AiAssessment;
+import com.careq.queue.service.QueueEventPublisher;
 import com.careq.queue.dto.DoctorCatalogPageDto;
 import com.careq.queue.dto.DoctorCatalogResponseDto;
 import com.careq.queue.entity.TriageLevel;
@@ -74,6 +75,12 @@ class QueueFlowIntegrationTest {
 
     @MockBean
     private TriageAiClient triageAiClient;
+
+    // Day 13: the event publisher is mocked so the integration suite never
+    // attempts a real RabbitMQ connection — the non-blocking publish path is
+    // covered by the QueueServiceImpl unit tests.
+    @MockBean
+    private QueueEventPublisher eventPublisher;
 
     @BeforeEach
     void setUp() throws Exception {

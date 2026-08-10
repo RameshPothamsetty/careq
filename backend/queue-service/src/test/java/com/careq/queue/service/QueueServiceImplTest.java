@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -61,6 +62,8 @@ class QueueServiceImplTest {
     private DoctorServiceClient doctorServiceClient;
     @Mock
     private AiTriageService aiTriageService;
+    @Mock
+    private QueueEventPublisher eventPublisher;
 
     private final QueueOrderingService orderingService = new QueueOrderingService();
 
@@ -70,6 +73,7 @@ class QueueServiceImplTest {
         DoctorCatalogResponseDto d = new DoctorCatalogResponseDto();
         d.setId(10L);
         d.setUserId(DOCTOR_USER);
+        d.setName("Dr. Arjun Sharma");
         d.setSpecialization("Cardiology");
         d.setDepartmentName("Cardiology");
         d.setAvgConsultationTimeMinutes(15);
@@ -80,7 +84,8 @@ class QueueServiceImplTest {
     @BeforeEach
     void setUp() {
         queueService = new QueueServiceImpl(
-                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService, 30, 1000);
+                queueEntryRepository, doctorServiceClient, aiTriageService, orderingService,
+                eventPublisher, 30, 1000);
     }
 
     @Test
@@ -112,6 +117,40 @@ class QueueServiceImplTest {
         assertThat(response.getPosition()).isEqualTo(1);
         assertThat(response.getPredictedWaitMinutes()).isZero();
         assertThat(response.getEffectiveTriage()).isEqualTo(TriageLevel.EMERGENCY);
+    }
+
+    @Test
+    void joinQueue_PublishesQueueJoinedEvent() {
+        given(doctorServiceClient.getDoctorById(10L)).willReturn(availableDoctor());
+        given(queueEntryRepository.existsByPatientIdAndDoctorCatalogEntryIdAndStatusIn(
+                eq(PATIENT), eq(10L), anyList())).willReturn(false);
+        given(aiTriageService.classifyWithFallback("severe chest pain")).willReturn(TriageLevel.EMERGENCY);
+
+        QueueEntry saved = new QueueEntry();
+        saved.setId(1L);
+        saved.setPatientId(PATIENT);
+        saved.setPatientName("John Patient");
+        saved.setDoctorCatalogEntryId(10L);
+        saved.setSymptomText("severe chest pain");
+        saved.setAiSuggestedTriage(TriageLevel.EMERGENCY);
+        saved.setStatus(QueueStatus.WAITING);
+        saved.setJoinedAt(LocalDateTime.of(2026, 7, 31, 9, 0));
+        given(queueEntryRepository.save(any(QueueEntry.class))).willReturn(saved);
+        given(queueEntryRepository.findByDoctorCatalogEntryIdAndStatusInOrderByJoinedAtAsc(eq(10L), anyList()))
+                .willReturn(List.of(saved));
+
+        JoinQueueRequestDto request = new JoinQueueRequestDto();
+        request.setDoctorCatalogEntryId(10L);
+        request.setSymptomText("severe chest pain");
+
+        queueService.joinQueue(PATIENT, request);
+
+        // The join publishes a queue.joined event carrying the patient as recipient.
+        verify(eventPublisher).publish(eq(QueueEventPublisher.QUEUE_JOINED), argThat(event ->
+                PATIENT.equals(event.getRecipientUserId())
+                        && "Dr. Arjun Sharma".equals(event.getDoctorName())
+                        && event.getPosition() == 1
+                        && "EMERGENCY".equals(event.getTriageLevel())));
     }
 
     @Test
