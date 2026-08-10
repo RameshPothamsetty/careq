@@ -100,6 +100,8 @@ The queue-service never duplicates doctor consultation data — it fetches `avgC
 - Java 17+
 - Node.js 18+
 - MySQL 8+ (running locally)
+- Redis 7+ (running locally — doctor-service catalog cache, Day 13)
+- RabbitMQ 3.x+ (running locally — queue → notification event bus, Day 13)
 - Maven 3.9+
 - A Groq API key (optional at runtime — without it, AI triage gracefully falls back to `NORMAL`)
 
@@ -110,6 +112,7 @@ The queue-service never duplicates doctor consultation data — it fetches `avgC
 | `GROQ_API_KEY` | No¹ | queue-service AI triage | — |
 | `JWT_SECRET` | No | auth-service + gateway | dev secret |
 | `MYSQL_PASSWORD` | No | all DB-backed services | `root` |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | No | queue-service + notification-service | `guest` / `guest` |
 
 ¹ Without `GROQ_API_KEY` every patient is triaged `NORMAL`. Set it for the real AI behavior:
 
@@ -118,13 +121,24 @@ export GROQ_API_KEY="your-groq-key"          # bash
 setx GROQ_API_KEY "your-groq-key"            # Windows (new shells only)
 ```
 
-### 1. Database
+### 1. Infrastructure — MySQL + Redis + RabbitMQ
+
+Since Day 13 the no-Docker path needs **three** data stores up before the services boot (all default to `localhost`, so no env vars are required):
 
 ```bash
+# 1a. MySQL 8 — create the database once (tables auto-create via Hibernate)
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS careq_db;"
+
+# 1b. Redis 7 — start the server (default :6379)
+redis-server
+
+# 1c. RabbitMQ — start the broker (default :5672, guest/guest; UI at http://localhost:15672)
+#     macOS:  brew services start rabbitmq
+#     Ubuntu: sudo systemctl start rabbitmq-server
+#     Windows: install Erlang + RabbitMQ, then start the "RabbitMQ" service
 ```
 
-Tables are created/updated automatically by Hibernate (`ddl-auto: update`).
+Doctor-service reads its catalog cache from Redis; queue-service publishes queue events and notification-service consumes them via RabbitMQ. Both are designed to fail gracefully (apps still boot without them), but start them anyway for the full experience.
 
 ### 2. Backend — start in this order (one terminal each)
 
