@@ -1,7 +1,10 @@
-# CareQ — Database Schema (Day 7a)
+# CareQ — Database Schema (Day 13)
 
-**Version:** 1.6 (Day 7a)  
+**Version:** 1.7 (Day 13)  
 **Database:** MySQL 8.x
+
+> **Day 13 schema addition** (applied automatically by Hibernate `ddl-auto: update`):
+> - `notification_entries` — persisted in-app notifications, one row per consumed RabbitMQ queue event (owned by notification-service). See § 8 below.
 
 > **Day 7a schema additions** (all applied automatically by Hibernate `ddl-auto: update`):
 > - `user_profiles`: `full_name VARCHAR(255)`, `email VARCHAR(255)` — populated from JWT claims (forwarded as `X-User-Name`/`X-User-Email`) at profile creation, with a self-healing backfill on the next `/api/users/me` access.
@@ -194,6 +197,24 @@ CREATE TABLE queue_entries (
     INDEX idx_queue_ai_triage (ai_suggested_triage),
     INDEX idx_queue_override (doctor_override_triage)
 ) ENGINE=InnoDB;
+
+-- ============================================================
+-- 8. notification_entries — Persisted in-app notifications (Day 13)
+--     Owned by notification-service. Written by the RabbitMQ consumer
+--     (one row per queue.joined|triaged|called|completed event), read by
+--     GET /api/notifications/me. recipientUserId is a plain reference to
+--     users.id (microservice boundary, no FK).
+-- ============================================================
+CREATE TABLE notification_entries (
+    id                  BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id   CHAR(36)     NOT NULL,          -- users.id (plain ref)
+    type                VARCHAR(32)  NOT NULL,          -- queue.joined | queue.triaged | queue.called | queue.completed
+    message             VARCHAR(500) NOT NULL,          -- human-readable, composed by the consumer
+    is_read             BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notification_recipient (recipient_user_id),
+    INDEX idx_notification_created (created_at)
+) ENGINE=InnoDB;
 ```
 
 ---
@@ -209,3 +230,4 @@ CREATE TABLE queue_entries (
 | departments | doctor-service | id (BIGINT) | — | Day 4 — CRUD managed by Admin |
 | doctor_catalog_entries | doctor-service | id (BIGINT) | user_id (plain ref) | Day 4 — Catalog data separate from user_profiles |
 | queue_entries | queue-service | id (BIGINT) | patient_id, doctor_catalog_entry_id (plain refs) | Day 5 — AI triage + wait-time prediction; doctor consultation data NOT duplicated (fetched via Feign) |
+| notification_entries | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 13 — persisted in-app notifications, written by the RabbitMQ consumer |
