@@ -1,0 +1,29 @@
+# CareQ — CI/CD smoke override (Day 14)
+#
+# Used ONLY by the CD workflows' docker-smoke job. Pins every application
+# service to the GHCR image the pipeline just built & pushed, so the smoke
+# validates the exact pushed artifacts instead of rebuilding locally.
+#
+# Usage:
+#   GHCR_OWNER=<lowercase-owner> CAREQ_IMAGE_TAG=<sha|develop-latest|vX.Y> \
+#     docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# The base compose file's mysql/redis/rabbitmq (pure `image:` services) are
+# untouched — only the eight app services are overridden.
+services:
+  eureka-server:
+    image: ghcr.io/${GHCR_OWNER}/careq-eureka-server:${CAREQ_IMAGE_TAG}
+  api-gateway:
+    image: ghcr.io/${GHCR_OWNER}/careq-api-gateway:${CAREQ_IMAGE_TAG}
+  auth-service:
+    image: ghcr.io/${GHCR_OWNER}/careq-auth-service:${CAREQ_IMAGE_TAG}
+  user-service:
+    image: ghcr.io/${GHCR_OWNER}/careq-user-service:${CAREQ_IMAGE_TAG}
+  doctor-service:
+    image: ghcr.io/${GHCR_OWNER}/careq-doctor-service:${CAREQ_IMAGE_TAG}
+  queue-service:
+    image: ghcr.io/${GHCR_OWNER}/careq-queue-service:${CAREQ_IMAGE_TAG}
+  notification-service:
+    image: ghcr.io/${GHCR_OWNER}/careq-notification-service:${CAREQ_IMAGE_TAG}
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/careq-frontend:${CAREQ_IMAGE_TAG}

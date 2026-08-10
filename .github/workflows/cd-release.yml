@@ -5,6 +5,7 @@
 #   - Build + push every image to ghcr.io/<owner>/careq-<service>
 #     tagged with the release version (tag name, or `main` for plain
 #     branch pushes) plus `latest`
+#   - Full-stack smoke against the pushed images (pulled from GHCR)
 #
 # This is the pipeline Day 15's cloud deployment hooks into: a `deploy`
 # job would be added here, after `build-and-push`, that pulls the
@@ -19,6 +20,10 @@ on:
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: cd-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend-tests:
@@ -44,7 +49,7 @@ jobs:
           java-version: '17'
           cache: maven
       - name: Run tests
-        run: mvn -B --no-transfer-progress -f backend/pom.xml -pl ${{ matrix.service }} test
+        run: mvn -B --no-transfer-progress -f backend/pom.xml -pl ${{ matrix.service }} -am test
 
   frontend-tests:
     name: Frontend · typecheck + tests + build
@@ -128,13 +133,82 @@ jobs:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           push: true
-          load: true
           tags: |
             ghcr.io/${{ env.GHCR_OWNER }}/careq-${{ matrix.name }}:${{ env.IMAGE_TAG }}
             ghcr.io/${{ env.GHCR_OWNER }}/careq-${{ matrix.name }}:latest
-            careq-${{ matrix.name }}:latest
           cache-from: type=gha
           cache-to: type=gha, mode=max
+
+  # ── Smoke the exact pushed images inside the runner ────────────────
+  docker-smoke:
+    name: Docker · full-stack health check (pushed images)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute release version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "IMAGE_TAG=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE_TAG=main" >> "$GITHUB_ENV"
+          fi
+          echo "GHCR_OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the full stack from pushed images
+        run: |
+          GHCR_OWNER="${{ env.GHCR_OWNER }}" CAREQ_IMAGE_TAG="${{ env.IMAGE_TAG }}" \
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+      - name: Wait for every container to be healthy
+        run: |
+          set -e
+          containers="careq-eureka careq-gateway careq-auth careq-user careq-doctor careq-queue careq-notification careq-frontend"
+          for i in $(seq 1 120); do
+            all_ok=1
+            for c in $containers; do
+              h=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
+              if [ "$h" != "healthy" ]; then all_ok=0; break; fi
+            done
+            if [ "$all_ok" = "1" ]; then echo "All containers healthy after ~$((i * 5))s"; break; fi
+            sleep 5
+          done
+          fail=0
+          for c in $containers; do
+            h=$(docker inspect -f '{{.State.Health.Status}}' "$c" 2>/dev/null || echo missing)
+            echo "$c: $h"
+            if [ "$h" != "healthy" ]; then docker logs "$c" --tail 30 || true; fail=1; fi
+          done
+          [ "$fail" -eq 0 ]
+
+      - name: Smoke test
+        run: |
+          set -e
+          curl -fsS http://localhost:8080/actuator/health > /dev/null && echo "gateway OK"
+          curl -fsS http://localhost:8080/api/auth/health > /dev/null && echo "auth OK"
+          curl -fsS http://localhost:8080/api/users/health > /dev/null && echo "user OK"
+          curl -fsS http://localhost:8080/api/doctors/health > /dev/null && echo "doctor OK"
+          curl -fsS http://localhost:8080/api/queue/health > /dev/null && echo "queue OK"
+          curl -fsS http://localhost:8080/api/notifications/health > /dev/null && echo "notification OK"
+          curl -fsS http://localhost:3030 | grep -q 'id="root"' && echo "SPA OK"
+          EMAIL="rel-${{ github.sha }}@careq.test"
+          curl -fsS -X POST http://localhost:8080/api/auth/signup \
+            -H 'Content-Type: application/json' \
+            -d "{\"fullName\":\"Release Tester\",\"email\":\"$EMAIL\",\"password\":\"CIPass123\",\"role\":\"PATIENT\"}" \
+            | grep -q '"token"' && echo "signup OK"
+          curl -fsS -X POST http://localhost:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"CIPass123\"}" \
+            | grep -q '"token"' && echo "login OK"
+          echo "── Smoke test passed ──"
 
   # ── Day 15 plug-in point ────────────────────────────────────────────
   # A `deploy` job belongs here, after `build-and-push` succeeds:

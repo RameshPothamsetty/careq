@@ -3,12 +3,11 @@
 # Runs on every Pull Request targeting `develop` or `main`:
 #   1. backend-tests  — matrix job, one per service (failures attributed per service)
 #   2. frontend-tests — install, unit tests, production build
-#   3. docker-build   — builds every image (loaded into the runner, not pushed)
-#   4. docker-smoke   — boots the full stack via docker-compose INSIDE the runner,
-#                       waits for all health checks, then hits the gateway, every
-#                       service's health endpoint, the SPA, and a real signup→login
-#                       flow. This is the pipeline's health check until Day 15
-#                       deployment exists.
+#   3. docker-smoke   — builds every image via docker-compose, boots the full
+#                       stack INSIDE the runner, waits for all health checks,
+#                       then hits the gateway, every service's health endpoint,
+#                       the SPA, and a real signup→login flow. This is the
+#                       pipeline's health check until Day 15 deployment exists.
 name: CI
 
 on:
@@ -17,6 +16,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ── Backend: build + test every service in a matrix ────────────────
@@ -45,7 +48,7 @@ jobs:
           cache: maven
 
       - name: Run tests
-        run: mvn -B --no-transfer-progress -f backend/pom.xml -pl ${{ matrix.service }} test
+        run: mvn -B --no-transfer-progress -f backend/pom.xml -pl ${{ matrix.service }} -am test
 
   # ── Frontend: install, test, build ─────────────────────────────────
   frontend-tests:
@@ -73,66 +76,19 @@ jobs:
       - name: Production build
         run: npm run build
 
-  # ── Docker: build every image (loaded locally, compose-compatible tag) ──
-  # The `careq-<service>:latest` tag matches the image names docker-compose
-  # derives from its `name: careq` project, so `docker compose up` in the
-  # smoke job reuses these images instead of rebuilding them.
-  docker-build:
-    name: Docker · ${{ matrix.name }}
-    needs: [backend-tests, frontend-tests]
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: eureka-server
-            context: backend
-            file: backend/eureka-server/Dockerfile
-          - name: api-gateway
-            context: backend
-            file: backend/api-gateway/Dockerfile
-          - name: auth-service
-            context: backend
-            file: backend/auth-service/Dockerfile
-          - name: user-service
-            context: backend
-            file: backend/user-service/Dockerfile
-          - name: doctor-service
-            context: backend
-            file: backend/doctor-service/Dockerfile
-          - name: queue-service
-            context: backend
-            file: backend/queue-service/Dockerfile
-          - name: notification-service
-            context: backend
-            file: backend/notification-service/Dockerfile
-          - name: frontend
-            context: frontend
-            file: frontend/Dockerfile
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          push: false
-          load: true
-          tags: careq-${{ matrix.name }}:latest
-          cache-from: type=gha
-          cache-to: type=gha, mode=max
-
-  # ── Smoke: boot the whole stack from the built images and verify it works ──
+  # ── Smoke: build all images, boot the stack, verify it works ───────
+  # Self-contained on ONE runner (matrix runners don't share Docker daemons):
+  # `docker compose build` produces the exact `careq-<service>` image names
+  # the compose file expects, so `docker compose up -d` reuses them.
   docker-smoke:
     name: Docker · full-stack health check
-    needs: docker-build
+    needs: [backend-tests, frontend-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Build all images
+        run: docker compose build
 
       - name: Start the full stack
         run: docker compose up -d
@@ -141,7 +97,7 @@ jobs:
         run: |
           set -e
           containers="careq-eureka careq-gateway careq-auth careq-user careq-doctor careq-queue careq-notification careq-frontend"
-          for i in $(seq 1 90); do  # up to ~7.5 min for first boot (mysql init + eureka)
+          for i in $(seq 1 120); do  # up to ~10 min: cold runner pulls mysql/redis/rabbitmq first
             all_ok=1
             for c in $containers; do
               h=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
