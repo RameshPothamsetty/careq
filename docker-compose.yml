@@ -9,6 +9,7 @@
 # between the two requires no relearning:
 #   frontend :3030   gateway :8080   eureka :8761
 #   auth :8081   user :8082   doctor :8083   queue :8084
+#   notification :8085   rabbitmq mgmt UI :15672   redis :6379 (internal)
 #
 # Secrets come from the root .env file (see .env.example) — never
 # hardcoded here. The real .env is gitignored.
@@ -38,6 +39,40 @@ services:
     # No host port by default — services reach it on the internal network
     # (avoids clashing with a local MySQL on :3306). Uncomment for local
     # tooling:  ports: ["3306:3306"]
+
+  # ── Day 13: Redis — catalog cache for doctor-service (60s TTL).
+  redis:
+    image: redis:7-alpine
+    container_name: careq-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks:
+      - careq-net
+
+  # ── Day 13: RabbitMQ — event bus for queue → notification events.
+  #    Management UI exposed on :15672 (guest/guest in dev).
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: careq-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - careq-net
 
   # ── Service registry — must be healthy before anything else starts.
   eureka-server:
@@ -157,10 +192,14 @@ services:
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      # Day 13: Redis catalog cache.
+      REDIS_HOST: redis
     depends_on:
       mysql:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
@@ -187,13 +226,51 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       # Optional: without it, AI triage falls back to NORMAL (by design).
       GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # Day 13: RabbitMQ event publishing (post-decision notifications only).
+      RABBITMQ_HOST: rabbitmq
     depends_on:
       mysql:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8084/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - careq-net
+
+  # ── Day 13: notification-service — consumes RabbitMQ events, persists and
+  #    serves the caller's in-app notifications.
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: notification-service/Dockerfile
+    container_name: careq-notification
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      # Day 13: RabbitMQ consumer.
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 12
