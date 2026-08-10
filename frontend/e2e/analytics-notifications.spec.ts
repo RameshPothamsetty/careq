@@ -13,9 +13,9 @@ import { login, ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers';
 
 // Gateway base for direct API calls (the browser talks to it via
 // VITE_API_BASE_URL; the Vite dev proxy is not used here).
-// Overridable with E2E_GATEWAY_URL when the gateway is not on 8090
-// (e.g. 8080 in the standard setup, or a custom port in CI).
-const GATEWAY_URL = process.env.E2E_GATEWAY_URL ?? 'http://localhost:8090';
+// Overridable with E2E_GATEWAY_URL when the gateway is not on 8080
+// (e.g. a custom port in CI).
+const GATEWAY_URL = process.env.E2E_GATEWAY_URL ?? 'http://localhost:8080';
 
 // Catalog entry id 1 is Dr. Arjun (per the seeded doctor catalog). Joining his
 // queue lets the seeded doctor account call this exact patient next.
@@ -67,7 +67,11 @@ async function joinQueueAsPatient(page: Page) {
   // My Queue page: join flow
   await page.goto('/patient/queue');
   await page.getByText('Join a queue', { exact: false }).waitFor({ timeout: 15_000 });
-  await page.locator('select').selectOption(TARGET_DOCTOR_CATALOG_ID);
+  // The join flow is symptoms-first (AI auto-join is the primary CTA) —
+  // reveal the manual doctor picker before selecting a doctor. The header's
+  // language switcher is also a <select>, so target the picker explicitly.
+  await page.getByText(/choose a doctor manually/i).click();
+  await page.locator('select.select-field').selectOption(TARGET_DOCTOR_CATALOG_ID);
   await page
     .locator('textarea')
     .fill('Mild chest pain for the past two hours, some shortness of breath');

@@ -89,8 +89,13 @@ test.describe.serial('queue happy path (patient join → doctor call-next → co
 
     sharedSymptom = `E2E chest pain ${Date.now()}`;
 
+    // The join flow is symptoms-first (AI auto-join is the primary CTA) —
+    // reveal the manual doctor picker before selecting. The header's language
+    // switcher is also a <select>, so target the picker explicitly.
+    await page.getByText(/choose a doctor manually/i).click();
+
     // selectOption() rejects regex labels — resolve the option value first.
-    const doctorSelect = page.locator('select');
+    const doctorSelect = page.locator('select.select-field');
     const doctorValue = await doctorSelect
       .locator('option', { hasText: 'Interventional Cardiology' })
       .getAttribute('value');
@@ -123,8 +128,12 @@ test.describe.serial('queue happy path (patient join → doctor call-next → co
     await page.getByRole('button', { name: /complete/i }).click();
     await expect(page.getByText(/queue advanced/i)).toBeVisible({ timeout: 10_000 });
 
-    // The patient has left the active queue.
+    // The patient has left the active queue — the kanban's Waiting column is
+    // now empty (the patient sits in this session's Completed column, which
+    // shows no symptom text).
     await expect(page.getByText(sharedSymptom)).toHaveCount(0);
-    await expect(page.getByText('No patients in queue right now')).toBeVisible();
+    await expect(
+      page.getByText('No patients waiting — new joins appear here with AI triage.'),
+    ).toBeVisible();
   });
 });
