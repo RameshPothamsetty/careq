@@ -284,7 +284,7 @@ jobs:
             echo "── careq-$svc ──"
             az containerapp update \
               --name "careq-$svc" \
-              --resource-group careq-rg \
+              --resource-group careq-rg-south \
               --image "ghcr.io/$GHCR_OWNER/careq-$svc:$IMAGE_TAG" \
               --secrets \
                 "jwt-secret=${{ secrets.JWT_SECRET }}" \
@@ -308,7 +308,7 @@ jobs:
           # deterministic, so no DNS lookup is needed.
           az containerapp update \
             --name careq-api-gateway \
-            --resource-group careq-rg \
+            --resource-group careq-rg-south \
             --set-env-vars "CORS_ALLOWED_ORIGINS=https://careq-frontend.vercel.app"
           echo "Gateway CORS allowed origin -> https://careq-frontend.vercel.app"
 

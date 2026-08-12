@@ -8,7 +8,7 @@
 # Prerequisites:
 #   1. az CLI logged in:            az login
 #   2. Subscription set:            az account set --subscription "<name or id>"
-#   3. Resource group exists:       az group create -n careq-rg -l <region>
+#   3. Resource group exists:       az group create -n careq-rg-south -l <region>
 #   4. Env vars below (or edit defaults)
 #
 # Usage:
@@ -32,7 +32,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Configuration ─────────────────────────────────────────────────────
-RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-careq-rg}"
+RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-careq-rg-south}"
 LOCATION="${AZURE_LOCATION:-eastus2}"
 GHCR_OWNER="${GHCR_OWNER:-rameshpothamsetty}"
 IMAGE_TAG="${IMAGE_TAG:-develop-latest}"

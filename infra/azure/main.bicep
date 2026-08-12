@@ -1,7 +1,7 @@
 // =====================================================================
 // CareQ — Day 15 Azure infrastructure (ONE-TIME provisioning)
 //
-// Deploys into the EXISTING resource group `careq-rg`:
+// Deploys into the EXISTING resource group `careq-rg-south`:
 //   • custom VNet (10.0.0.0/16)
 //       - apps-subnet   10.0.1.0/24  (delegated to Microsoft.App/environments)
 //       - mysql-subnet  10.0.3.0/24  (delegated to Microsoft.DBforMySQL/flexibleServers)
@@ -38,7 +38,7 @@
 //
 // Apply with infra/azure/provision.sh — or:
 //   az deployment group create \
-//     --resource-group careq-rg \
+//     --resource-group careq-rg-south \
 //     --template-file infra/azure/main.bicep \
 //     --parameters mysqlPassword='...' ghcrOwner='rameshpothamsetty' \
 //                  imageTag='develop-latest'

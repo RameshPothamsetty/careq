@@ -562,7 +562,7 @@ Pull develop → branch feature/ci-cd-pipeline → build the workflow files → 
 
 > Save as the next entry in `docs/11_PROMPTS.md`.
 > Paste everything below the `---` into Freebuff exactly as-is.
-> Assumes: Day 13's CI/CD pipeline working (images build and push to GHCR on merge), Azure credentials already set up — Resource Group `careq-rg`, App Registration with federated OIDC credentials, Contributor role assigned, and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` already in GitHub repo secrets.
+> Assumes: Day 13's CI/CD pipeline working (images build and push to GHCR on merge), Azure credentials already set up — Resource Group `careq-rg-south`, App Registration with federated OIDC credentials, Contributor role assigned, and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` already in GitHub repo secrets.
 > You run any one-time Azure CLI provisioning commands yourself in Cloud Shell (same pattern as the credential setup) — Freebuff generates the scripts/templates and explains each command, but doesn't execute interactive cloud provisioning for you. The recurring deploy workflow, once written, runs automatically via GitHub Actions from then on.
 
 ---
@@ -574,7 +574,7 @@ You are acting as a **Cloud/DevOps Engineer** deploying CareQ to Azure for the f
 ## PROJECT CONTEXT (recap)
 
 - **Services to deploy:** `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`, `notification-service` (if merged), plus `redis` and `rabbitmq` (if that feature is merged) as self-hosted containers, plus the React frontend
-- **Resource Group:** `careq-rg` (already exists)
+- **Resource Group:** `careq-rg-south` (already exists)
 - **Existing CI/CD (Day 13):** builds, tests, and pushes images to `ghcr.io` on merge to `develop`/`main` — today extends this with an actual deploy step
 - **Azure credentials:** already configured for OIDC (no client secret) — `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` are in GitHub secrets
 
@@ -589,7 +589,7 @@ Create `Day 14: Cloud Deployment (Azure)` as a GitHub Issue, checklist from belo
 
 ### 1. One-time infrastructure provisioning script (Bicep preferred, or a documented `az cli` script if simpler)
 Output as a runnable script/template plus the exact `az` commands to apply it. This is what I run once in Cloud Shell, not something GitHub Actions runs repeatedly. Must provision:
-- A **Container Apps Environment** (with a Log Analytics workspace for logging) in `careq-rg`
+- A **Container Apps Environment** (with a Log Analytics workspace for logging) in `careq-rg-south`
 - Seven (or however many exist) **Container App** definitions — one per backend service — with the min/max replica settings from the cost section above, correct internal networking so they can reach each other and Eureka
 - `redis` and `rabbitmq` as additional Container Apps using their public images (`redis:alpine`, `rabbitmq:3-management`) — clearly document that their storage is ephemeral (data lost on restart) as a known limitation of this free-tier approach, not a bug
 - A small **MySQL VM** (`Standard_B1s`, the 12-months-free size) with MySQL installed via cloud-init, firewalled to only accept connections from the Container Apps Environment's subnet, not the open internet
@@ -613,7 +613,7 @@ Modify `cd-develop.yml` and `cd-release.yml` from Day 13 to add a `deploy` job t
 - Confirm cold-start behavior on a scaled-to-zero service is acceptable (note the delay observed)
 
 ### 5. Documentation
-- `docs/10_DEPLOYMENT.md` — full Azure section: architecture diagram (which services always-on vs scale-to-zero), how to redeploy, how to check costs in Azure Cost Management, how to tear everything down (`az group delete --name careq-rg`) if needed
+- `docs/10_DEPLOYMENT.md` — full Azure section: architecture diagram (which services always-on vs scale-to-zero), how to redeploy, how to check costs in Azure Cost Management, how to tear everything down (`az group delete --name careq-rg-south`) if needed
 - `README.md` — add the live demo URL, replace the "Run with Docker" section's implied "that's the only way to run this" framing with "also deployed live at: ..."
 
 **Explicitly OUT of scope today:**

@@ -226,8 +226,8 @@ smallest safe pair (0.5 vCPU / 1 GiB — 0.5 GiB is too tight for a JVM), so a
 couple of hours of demoing per day sits roughly at the 50 free vCPU-hours;
 heavy daily demos may exceed it by a **few dollars/month** (still far inside
 the $200 trial credit for the interview window). Set a **budget alert** in
-Azure Cost Management (50%/90% on `careq-rg`) and **tear down after
-interviews** (`az group delete --name careq-rg --yes --no-wait`).
+Azure Cost Management (50%/90% on `careq-rg-south`) and **tear down after
+interviews** (`az group delete --name careq-rg-south --yes --no-wait`).
 
 ### 4.2 Cold-start & scale-to-zero behavior (measured on the Day 15 checklist)
 
@@ -268,7 +268,7 @@ interviews** (`az group delete --name careq-rg --yes --no-wait`).
 
 ### 4.4 One-time provisioning (run once, ~10–20 min)
 
-Assumes: `careq-rg` exists; OIDC App Registration with Contributor on `careq-rg`
+Assumes: `careq-rg-south` exists; OIDC App Registration with Contributor on `careq-rg-south`
 and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` GitHub secrets.
 
 ```bash
@@ -318,7 +318,7 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
 | `VERCEL_PROJECT_ID` | frontend deploy | `projectId` in the same `frontend/.vercel/project.json` |
-| `AZURE_STORAGE_CONNECTION_STRING` | user-service profile pictures | `az storage account show-connection-string -n <account> -g careq-rg --query connectionString -o tsv` (printed by `provision.sh`) |
+| `AZURE_STORAGE_CONNECTION_STRING` | user-service profile pictures | `az storage account show-connection-string -n <account> -g careq-rg-south --query connectionString -o tsv` (printed by `provision.sh`) |
 
 > The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
 > moved to Vercel (Day 15 revision).
@@ -344,7 +344,7 @@ run after images pass the full-stack smoke, on every **branch** push to
 
 ```bash
 # URLs
-GATEWAY_URL="https://$(az containerapp show -n careq-api-gateway -g careq-rg --query properties.configuration.ingress.fqdn -o tsv)"
+GATEWAY_URL="https://$(az containerapp show -n careq-api-gateway -g careq-rg-south --query properties.configuration.ingress.fqdn -o tsv)"
 FRONTEND_URL="https://careq-frontend.vercel.app"
 
 # Seed the live DB (once):
@@ -354,10 +354,10 @@ API_BASE="$GATEWAY_URL" bash scripts/seed-data.sh
 API_BASE="$GATEWAY_URL" FRONTEND_BASE="$FRONTEND_URL" node scripts/day15-azure-smoke.mjs
 
 # Logs (one app):
-az containerapp logs show -n careq-queue-service -g careq-rg --type console
+az containerapp logs show -n careq-queue-service -g careq-rg-south --type console
 
 # Eureka dashboard (internal only — reachable from within the env):
-az containerapp exec -n careq-eureka-server -g careq-rg --command curl -s http://localhost:8761
+az containerapp exec -n careq-eureka-server -g careq-rg-south --command curl -s http://localhost:8761
 ```
 
 ### 4.8 Teardown
@@ -365,10 +365,10 @@ az containerapp exec -n careq-eureka-server -g careq-rg --command curl -s http:/
 Delete EVERYTHING (all apps, environment, Flexible Server, VNet, logs):
 
 ```bash
-az group delete --name careq-rg --yes --no-wait
+az group delete --name careq-rg-south --yes --no-wait
 ```
 
 Then remove the GitHub secrets (or leave them for a future re-provision — the
 OIDC federation can stay). The Vercel project can be deleted from the Vercel
 dashboard (it costs nothing while dormant). Nothing else is created outside
-`careq-rg`.
+`careq-rg-south`.
