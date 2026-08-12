@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml/badge.svg)](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml)
 
-> 🚀 **Live on Azure (Day 15):** <https://careq-frontend.azurestaticapps.net> — backend on Azure Container Apps, frontend on Azure Static Web Apps. See [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 4 for URLs, costs, and teardown.
+> 🚀 **Live (Day 15):** <https://careq-frontend.vercel.app> — frontend on **Vercel** (free Hobby plan), backend on **Azure Container Apps** backed by a **free 12-month** MySQL Flexible Server. See [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 4 for URLs, costs, and teardown.
 
 **AI-powered OPD operations: predict wait times, triage patients by urgency, and run a live, role-specific view of hospital queues.**
 
@@ -213,7 +213,7 @@ Every Pull Request runs the full test gate — a **matrix job per backend servic
 
 The pipeline is proven in production-of-record: PR #20 merged with a **green CI run** (including the full-stack compose smoke), and the post-merge **CD run pushed all 8 images to GHCR** — `ghcr.io/rameshpothamsetty/careq-<service>` tagged with the commit SHA and `develop-latest` (visible in the repo's **Packages** tab; the packages are private by default — flip them to public if you want them browsable). Pushes to `main` / `v*` tags produce release images (`latest` + version tag).
 
-**Day 15** extends the pipeline with real deployment: `deploy` and `deploy-frontend` jobs roll the freshly-pushed images onto **Azure Container Apps** (OIDC auth, no stored secret) and the SPA onto **Azure Static Web Apps** automatically on every `develop`/`main` push. Details: [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 3–4.
+**Day 15** extends the pipeline with real deployment: `deploy` and `deploy-frontend` jobs roll the freshly-pushed images onto **Azure Container Apps** (OIDC auth, no stored secret) and the SPA onto **Vercel** (free Hobby plan) automatically on every `develop`/`main` push. Details: [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 3–4.
 
 ---
 
@@ -244,7 +244,7 @@ The pipeline is proven in production-of-record: PR #20 merged with a **green CI 
 | **Day 13** | **Redis Caching + RabbitMQ Notification Service** — Redis catalog cache (60s TTL, evict-on-mutation, fail-open), RabbitMQ `careq.events` topic exchange, new `notification-service` (persisted notifications, `GET/PUT /api/notifications/**`), notification bell backed by real data, `/api/doctors/me` + admin doctor-account picker fixing the doctor queue dead-end | ✅ Complete |
 | **Post-13** | **Language Localization (i18n)** — zero-dependency i18n layer (English / हिन्दी / తెలుగు, persisted choice, `<html lang>` set), 🌐 switcher on login/signup + shared header, patient-facing screens, confirm dialogs, tooltips and notification toasts translated | ✅ Complete |
 | **Day 14** | **CI/CD Pipeline** — GitHub Actions: PR CI (per-service matrix tests, frontend typecheck/tests/build, in-pipeline docker-compose health check + auth smoke), CD on `develop` merge pushing all images to GHCR (`develop-latest` + SHA tags), release workflow for `main`/tags (`latest` + version), README badge. **PR #20 merged, CI green, CD green — 8 images live in GHCR** | ✅ Complete |
-| **Day 15** | **Azure Cloud Deployment** — Bicep infra (Container Apps Environment + 9 apps, MySQL VM firewalled to the CAE subnet, Static Web App), `deploy`/`deploy-frontend` jobs (OIDC login, secret injection, SWA upload), Eureka FQDN registration for scale-to-zero, live smoke script | 🚧 In progress |
+| **Day 15** | **Azure + Vercel Cloud Deployment** — Bicep infra (Container Apps Environment + 9 apps, **free-tier MySQL Flexible Server** with private VNet access), frontend on **Vercel** (free), `deploy`/`deploy-frontend` jobs (OIDC login, secret injection, Vercel CLI deploy), Eureka FQDN registration for scale-to-zero, live smoke script | 🚧 In progress |
 
 ---
 
@@ -285,7 +285,7 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Static Web Apps; ephemeral Redis/RabbitMQ storage and ephemeral profile pictures are the documented trade-offs). Still on the Phase 2 roadmap: **actual email/SMS/push delivery** (notifications remain in-app only today). Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–13 for the design decisions.
+Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Vercel frontend + free-tier MySQL Flexible Server; ephemeral Redis/RabbitMQ storage and ephemeral profile pictures are the documented trade-offs). Still on the Phase 2 roadmap: **actual email/SMS/push delivery** (notifications remain in-app only today). Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–13 for the design decisions.
 
 ## Git Branching Strategy
 

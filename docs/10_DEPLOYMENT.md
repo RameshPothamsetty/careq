@@ -141,7 +141,7 @@ Three GitHub Actions workflows automate build, test, containerization and regist
 |----------|---------|--------------|
 | `.github/workflows/ci.yml` | Every PR to `develop`/`main` | Backend matrix tests (one job per service, Java 17 + Maven cache), frontend `npm ci` → Vitest → `tsc`+Vite build, then an **in-pipeline health check**: builds all 8 images (loaded locally), boots the full `docker-compose` stack inside the runner, waits for every container to be `healthy`, and smokes the gateway health endpoint, all five service health endpoints (`/api/{auth,users,doctors,queue,notifications}/health`), the SPA root, and a real signup→login flow through the gateway. |
 | `.github/workflows/cd-develop.yml` | Push to `develop` (post-PR-merge) | Re-runs the test gate, then builds and pushes every image to `ghcr.io/<owner>/careq-<service>` with tags `<commit SHA>` and `develop-latest`, followed by the same full-stack smoke. |
-| `.github/workflows/cd-release.yml` | Push to `main` + tags `v*` | Same gate + build, pushed with the release version (tag name, or `main`) and `latest`. **This is where Day 15's `deploy` job plugs in** (see 3.4). |
+| `.github/workflows/cd-release.yml` | Push to `main` + tags `v*` | Same gate + build, pushed with the release version (tag name, or `main`) and `latest`. |
 
 ### 3.2 Image naming & tags
 
@@ -159,21 +159,7 @@ ghcr.io/rameshpothamsetty/careq-<service>
 
 Only the built-in `GITHUB_TOKEN` is required (the workflows request `packages: write` to push to GHCR). No other secrets are needed for the current smoke test, which exercises health endpoints and the auth flow without AI triage. To exercise the real AI triage path in the pipeline later, add `GROQ_API_KEY` as a repository secret and reference `${{ secrets.GROQ_API_KEY }}` in the smoke job's environment — never hardcode it.
 
-### 3.4 Day 15 plug-in point
-
-Deployment is deliberately out of scope for Day 14. To actually deploy, add a `deploy` job to `cd-release.yml` that runs **after** `build-and-push`:
-
-```yaml
-  deploy:
-    name: Deploy to <platform>
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      # pull ghcr.io/<owner>/careq-<service>:${{ env.IMAGE_TAG }}
-      # and roll out on the chosen platform (Render / Fly.io / Railway / VM / K8s…)
-```
-
-### 3.5 Verifying a run
+### 3.4 Verifying a run
 
 - PRs: open the **Actions** tab — `CI` must be green (all matrix jobs + `docker-smoke`).
 - After merging to `develop`: `CD · develop images` runs and the **Packages** page of the repo (`https://github.com/RameshPothamsetty/careq/pkgs`) shows `careq-<service>` images with `develop-latest`.
@@ -181,16 +167,16 @@ Deployment is deliberately out of scope for Day 14. To actually deploy, add a `d
 
 ---
 
-## 4. Azure Deployment (Day 15)
+## 4. Azure Deployment (Day 15) — Vercel frontend + Azure backend, free-tier
 
-**Version:** 1.2 (Day 15 — Azure Container Apps + Static Web Apps + MySQL VM)
+**Version:** 1.3 (Day 15 — Azure Container Apps + **Vercel** frontend + **Azure Database for MySQL Flexible Server** free tier)
 
-Live at **<GATEWAY_URL>** / **<SWA_URL>** once the first deploy run completes (filled in on the Day 15 checklist).
+Live at **<GATEWAY_URL>** (backend gateway) / **https://careq-frontend.vercel.app** (frontend on Vercel) once the first deploy run completes (filled in on the Day 15 checklist).
 
 ### 4.1 Target architecture
 
 ```
-Internet ──▶ Azure Static Web App (careq-frontend.azurestaticapps.net)   [always-on, free]
+Internet ──▶ Vercel (careq-frontend.vercel.app)   [free Hobby plan, always-on CDN]
                 │  HTTPS, CORS-enabled
                 ▼
         careq-api-gateway  ── external HTTPS ingress (always-on, min 1)   ◀── the only public backend
@@ -207,13 +193,15 @@ Internet ──▶ Azure Static Web App (careq-frontend.azurestaticapps.net)   [
  (min 1)                  │  careq.notifications queue ─────────────────────┘
    │                       │
    ▼                       ▼
- MySQL VM (10.0.2.10, Standard_B1s)  —  NSG allows :3306 ONLY from 10.0.1.0/24
- (private, no public IP, MySQL 8 via cloud-init)
+ Azure Database for MySQL Flexible Server (careq-mysql, Standard_B1ms)
+ (private access, no public endpoint, 32 GB — FREE for 12 months)
 ```
 
-All nine apps live in one VNet-injected Container Apps Environment (`careq-env`,
-consumption-only, `careq-vnet` 10.0.0.0/16): `apps-subnet` 10.0.1.0/24 (delegated
-`Microsoft.App/environments`) and `vms-subnet` 10.0.2.0/24 (MySQL VM).
+All nine container apps live in one VNet-injected Container Apps Environment
+(`careq-env`, consumption-only, `careq-vnet` 10.0.0.0/16): `apps-subnet`
+10.0.1.0/24 (delegated `Microsoft.App/environments`) and `mysql-subnet`
+10.0.3.0/24 (delegated `Microsoft.DBforMySQL/flexibleServers`, private DNS
+zone `private.mysql.database.azure.com`).
 
 **Always-on vs scale-to-zero (cost policy — read this):**
 
@@ -229,13 +217,18 @@ consumption-only, `careq-vnet` 10.0.0.0/16): `apps-subnet` 10.0.1.0/24 (delegate
 | careq-redis | 0 / 1 | TCP rule — wakes on first connection |
 | careq-rabbitmq | 0 / 1 | TCP rule — wakes on first connection |
 
-**Honest cost reality.** Consumption billing is per-second (vCPU + GiB). Three
-always-on Java apps at 0.25 vCPU / 1 GiB run roughly **$20–25/mo each**; the MySQL
-VM is ~$12/mo (Standard_B1s). Expect **~$75–100/mo** in total once the container
-apps' free grant is exhausted. The $200 trial credit is a **30-day buffer, not a
-permanent solution** — set a budget alert in **Azure Cost Management** (Cost
-Management → Budgets → create a budget on the `careq-rg` scope) and watch it
-weekly. Scale-to-zero services bill only when they actually run.
+**Honest cost reality (free-tier driven).** The frontend is **free forever**
+(Vercel Hobby). The database is **free for 12 months** (MySQL Flexible Server
+Burstable B1ms + 32 GB + 750 hrs/month — enough for 24/7; no HA, no geo
+backup, which is exactly what the free tier requires). The only real cost is
+the **three always-on Java apps**: consumption billing is per-second, and the
+Container Apps free grant (180k vCPU-seconds/mo) covers roughly one week of a
+single 0.25-vCPU app — the three warm apps run about **$60–75/mo** total.
+Within the **$200 / 30-day trial credit** that's covered for a full month of
+interview demos; the scale-to-zero services, Redis, RabbitMQ, DB and frontend
+bill **$0** when idle. Set a **budget alert** in Azure Cost Management
+(50%/90% on `careq-rg`) and **tear down after interviews**
+(`az group delete --name careq-rg --yes --no-wait`) — then total spend is $0.
 
 ### 4.2 Cold-start & scale-to-zero behavior (measured on the Day 15 checklist)
 
@@ -260,10 +253,19 @@ weekly. Scale-to-zero services bill only when they actually run.
   volume doesn't exist in Container Apps. Pics persist for the app's lifetime and
   are lost on redeploy. Follow-up: mount Azure Files or switch user-service to
   Azure Blob Storage (out of scope today).
-- **No custom domains** — Azure's default `*.azurecontainerapps.io` /
-  `*.azurestaticapps.net` URLs are used (explicitly out of scope today).
+- **No custom domains** — Vercel's default `*.vercel.app` and Azure's default
+  `*.azurecontainerapps.io` URLs are used (explicitly out of scope today).
+- **MySQL free tier is 750 hours/month and lasts 12 months** — a single
+  24/7 server fits comfortably (744 h in a 31-day month), but after 12 months
+  (or if you add a second server) billing starts (~$25/mo for B1ms + 32 GB).
+  Plan to tear down after interviews, or accept the small cost if you keep
+  demoing.
+- **MySQL SSL is disabled (`require_secure_transport=OFF`)** — a demo
+  convenience so the app's existing `useSSL=false` JDBC URLs work unchanged.
+  For a hardened deployment turn it back ON and add `useSSL=true&requireSSL=true`
+  to the datasource URL in `application.yml`.
 
-### 4.4 One-time provisioning (run once in Cloud Shell, ~15–20 min)
+### 4.4 One-time provisioning (run once, ~10–20 min)
 
 Assumes: `careq-rg` exists; OIDC App Registration with Contributor on `careq-rg`
 and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` GitHub secrets.
@@ -271,43 +273,34 @@ and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` GitHub secre
 ```bash
 cd infra/azure
 MYSQL_PASSWORD="$(openssl rand -base64 24)" \
-VM_ADMIN_PASSWORD="$(openssl rand -base64 24)" \
 ./provision.sh
 ```
 
-What it provisions (`infra/azure/main.bicep`): VNet + subnets, Log Analytics, the
-Container Apps Environment, **nine** container apps (seven GHCR images + `redis:7-alpine`
-+ `rabbitmq:3-management`), the MySQL VM (cloud-init installs MySQL 8, creates
-`careq_db` + `careq` user), and the Static Web App. The script then prints the
-Static Web App **deployment token** and the full GitHub secrets list.
+What it provisions (`infra/azure/main.bicep`): VNet + subnets, **Azure Database
+for MySQL Flexible Server** (free tier: B1ms burstable, 32 GB, private access),
+Log Analytics, the Container Apps Environment, **nine** container apps (seven
+GHCR images + `redis:7-alpine` + `rabbitmq:3-management`), then creates the
+`careq_db` database and disables SSL enforcement. The script prints the live
+gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 
-> The container apps may crash-loop for the first minutes because MySQL is still
-> installing inside the VM — they self-heal once it answers. That's expected.
+> **Frontend is NOT provisioned here** — it deploys to Vercel (free). After
+> provisioning, create the Vercel project once:
+> `cd frontend && npx vercel link && npx vercel env add VITE_API_BASE_URL production`
+> (value = `https://<gateway-fqdn>`), then copy `orgId` / `projectId` from
+> `frontend/.vercel/project.json` into the `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`
+> GitHub secrets.
 >
-> **Region capacity:** a region must satisfy **two** constraints — the VM size
-> must be provisionable (`Standard_B1s` is capacity-restricted in many regions
-> right now → `SkuNotAvailable`) AND the region must be enabled for the
-> resource types on your subscription (`LocationNotAvailableForResourceType`).
-> `provision.sh` pre-checks **both** against every candidate and auto-falls
-> back to the first region that passes. The Static Web App is **decoupled**
-> (`swaLocation`, default `eastus2`) so the frontend always lands in a
-> SWA-capable region. If **no** free-tier region works, the script prints the
-> ready-made paid fallback: `AZURE_LOCATION=centralus VM_SIZE=Standard_B2s
-> ./provision.sh` (≈$25–30/mo, within the trial credit). Override with
-> `AZURE_LOCATION` / `SWA_LOCATION` / `VM_SIZE`. (Preflight failures create
-> nothing, so re-running is clean.)
+> **Region capacity:** the free-tier MySQL SKU (Standard_B1ms) is
+> capacity-restricted in some regions right now. `provision.sh` probes the
+> requested region and auto-falls back to the first of 12 candidates that
+> offers the SKU. (Preflight failures create nothing, so re-running is clean.)
+> There is **no paid fallback needed anymore** — the free Flexible Server
+> replaces the old Standard_B2s MySQL VM entirely.
 >
 > **GHCR image pulls:** the apps pull `ghcr.io/<owner>/careq-*` images. If those
 > packages are **private**, pass `ghcrUsername=<your-gh-username>` to the deploy
 > and add the `GHCR_PAT` GitHub secret (see § 4.5). If they're public (default
 > for a public repo), leave both unset.
->
-> **VM outbound:** the MySQL VM has no public IP and no NAT gateway, so it relies
-> on Azure's default outbound access for `apt` during cloud-init. On very new
-> subscriptions this may be unavailable (Azure is retiring default outbound) —
-> if MySQL isn't ready after ~10 min, add a NAT gateway to `vms-subnet` or
-> attach a temporary public IP (the NSG still blocks everything except :3306
-> from the apps subnet), then re-provision.
 
 ### 4.5 GitHub secrets (all required before the first deploy succeeds)
 
@@ -316,40 +309,47 @@ Static Web App **deployment token** and the full GitHub secrets list.
 | `AZURE_CLIENT_ID` | OIDC login (already present) | App Registration |
 | `AZURE_TENANT_ID` | OIDC login (already present) | App Registration |
 | `AZURE_SUBSCRIPTION_ID` | OIDC login (already present) | Subscription |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | frontend deploy | `az staticwebapp secrets list --name careq-frontend -g careq-rg --query properties.apiKey -o tsv` |
-| `JWT_SECRET` | gateway + auth | `openssl rand -base64 48` (must match no other system — new value for Azure) |
-| `MYSQL_PASSWORD` | all MySQL-backed services | **must equal** the `MYSQL_PASSWORD` used at provisioning |
-| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generate at provisioning |
+| `JWT_SECRET` | gateway + auth | `openssl rand -base64 48` (new value for Azure) |
+| `MYSQL_PASSWORD` | all MySQL-backed services | **must equal** the `MYSQL_PASSWORD` used at provisioning (it is the Flexible Server admin password) |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
-| `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`). With public packages, skip it; anonymous pull works |
+| `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
+| `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
+| `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
+| `VERCEL_PROJECT_ID` | frontend deploy | `projectId` in the same `frontend/.vercel/project.json` |
+
+> The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
+> moved to Vercel (Day 15 revision).
 
 ### 4.6 Recurring deployment (automatic, no manual steps)
 
-The `deploy` and `deploy-frontend` jobs in `cd-develop.yml` / `cd-release.yml` run
-after images pass the full-stack smoke, on every **branch** push to `develop`/`main`
-(tag-triggered release runs skip deployment):
+The `deploy` and `deploy-frontend` jobs in `cd-develop.yml` / `cd-release.yml`
+run after images pass the full-stack smoke, on every **branch** push to
+`develop`/`main` (tag-triggered release runs skip deployment):
 
 1. `azure/login@v2` — OIDC, **no client secret stored anywhere**.
 2. `az containerapp update` per service — new image (`ghcr.io/<owner>/careq-<svc>:<sha|main>`)
    + all secrets (GitHub secrets → Container App secrets; `secretref:` env vars pick
    them up automatically — no app restart needed beyond the revision roll).
-3. Gateway CORS env pointed at the live SWA origin.
-4. Frontend: `VITE_API_BASE_URL` = live gateway FQDN baked at build time, then
-   `azure/static-web-apps-deploy@v1` with `skip_app_build` (deterministic upload
-   of the pre-built `frontend/dist`).
+3. Gateway CORS env pointed at `https://careq-frontend.vercel.app`.
+4. Frontend: `deploy-frontend` runs the **Vercel CLI** in `frontend/`
+   (`vercel pull` → `vercel build` → `vercel deploy --prebuilt --prod`).
+   `VITE_API_BASE_URL` is set **once** in the Vercel project's production env
+   (the gateway FQDN is stable), so no DNS lookup or URL baking is needed in
+   the pipeline.
 
 ### 4.7 Verify a deployment
 
 ```bash
 # URLs
 GATEWAY_URL="https://$(az containerapp show -n careq-api-gateway -g careq-rg --query properties.configuration.ingress.fqdn -o tsv)"
-SWA_URL="https://$(az staticwebapp show -n careq-frontend -g careq-rg --query defaultHostname -o tsv)"
+FRONTEND_URL="https://careq-frontend.vercel.app"
 
 # Seed the live DB (once):
 API_BASE="$GATEWAY_URL" bash scripts/seed-data.sh
 
 # Full smoke against the live URLs (signup → login → browse → join → AI triage → status):
-API_BASE="$GATEWAY_URL" FRONTEND_BASE="$SWA_URL" node scripts/day15-azure-smoke.mjs
+API_BASE="$GATEWAY_URL" FRONTEND_BASE="$FRONTEND_URL" node scripts/day15-azure-smoke.mjs
 
 # Logs (one app):
 az containerapp logs show -n careq-queue-service -g careq-rg --type console
@@ -360,11 +360,13 @@ az containerapp exec -n careq-eureka-server -g careq-rg --command curl -s http:/
 
 ### 4.8 Teardown
 
-Delete EVERYTHING (all apps, environment, VM, VNet, SWA, logs):
+Delete EVERYTHING (all apps, environment, Flexible Server, VNet, logs):
 
 ```bash
 az group delete --name careq-rg --yes --no-wait
 ```
 
 Then remove the GitHub secrets (or leave them for a future re-provision — the
-OIDC federation can stay). Nothing else is created outside `careq-rg`.
+OIDC federation can stay). The Vercel project can be deleted from the Vercel
+dashboard (it costs nothing while dormant). Nothing else is created outside
+`careq-rg`.

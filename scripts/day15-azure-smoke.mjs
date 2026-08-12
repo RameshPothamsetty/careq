@@ -7,8 +7,8 @@
  *
  * Usage (after the first CD deploy run succeeds):
  *   API_BASE="https://careq-api-gateway.<env>.<region>.azurecontainerapps.io" \
- *   FRONTEND_BASE="https://careq-frontend.azurestaticapps.net" \
- *   node scripts/day14-azure-smoke.mjs
+ *   FRONTEND_BASE="https://careq-frontend.vercel.app" \
+ *   node scripts/day15-azure-smoke.mjs
  *
  * Prereq (once): seed the live DB so doctors/departments exist:
  *   API_BASE="https://<gateway-fqdn>" bash scripts/seed-data.sh
@@ -22,7 +22,7 @@
  * Exit code is non-zero if any check fails.
  */
 const GATEWAY = process.env.API_BASE || 'https://careq-api-gateway.azurecontainerapps.io';
-const FRONTEND = process.env.FRONTEND_BASE || 'https://careq-frontend.azurestaticapps.net';
+const FRONTEND = process.env.FRONTEND_BASE || 'https://careq-frontend.vercel.app';
 
 const results = [];
 let ok = 0;
@@ -55,10 +55,10 @@ async function main() {
   console.log(`  gateway:  ${GATEWAY}`);
   console.log(`  frontend: ${FRONTEND}\n`);
 
-  // 1. Static Web App serves the SPA.
+  // 1. Vercel serves the SPA.
   const fe = await fetch(FRONTEND + '/');
   const feHtml = await fe.text();
-  record('Static Web App serves the SPA', fe.status === 200 && feHtml.includes('id="root"'), `status=${fe.status}`);
+  record('Vercel serves the SPA', fe.status === 200 && feHtml.includes('id="root"'), `status=${fe.status}`);
 
   // 2. Gateway health through the public HTTPS FQDN.
   const gw = await fetch(GATEWAY + '/actuator/health');

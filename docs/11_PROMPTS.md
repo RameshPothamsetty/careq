@@ -537,6 +537,16 @@ Pull develop → branch feature/ci-cd-pipeline → build the workflow files → 
 
 ## Day 15: Azure Cloud Deployment (Container Apps, Static Web Apps, MySQL VM)
 
+> **Revised 2026-08-12 (free-tier plan, per mentor guidance):** the frontend
+> moved from Azure Static Web Apps to **Vercel** (free Hobby plan, deployed via
+> the Vercel CLI in the `deploy-frontend` job), and the MySQL VM was replaced by
+> **Azure Database for MySQL Flexible Server** (Burstable B1ms, 32 GB — free for
+> 12 months, private VNet access). `infra/azure/main.bicep` no longer contains a
+> VM/NSG/Static Web App; `provision.sh` creates `careq_db` and disables SSL
+> enforcement (`require_secure_transport=OFF`). GitHub secrets now include
+> `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`; the SWA token is gone.
+> See `docs/10_DEPLOYMENT.md` § 4.1–4.6 for the updated architecture and costs.
+
 **Prompt:** CareQ — Day 15 Prompt (Cloud Deployment: Azure Container Apps, Static Web Apps, MySQL)
 
 **Date Executed:** 2026-08-11

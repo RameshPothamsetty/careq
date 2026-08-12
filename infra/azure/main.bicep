@@ -3,8 +3,11 @@
 //
 // Deploys into the EXISTING resource group `careq-rg`:
 //   • custom VNet (10.0.0.0/16)
-//       - apps-subnet  10.0.1.0/24  (delegated to Microsoft.App/environments)
-//       - vms-subnet   10.0.2.0/24  (MySQL VM)
+//       - apps-subnet   10.0.1.0/24  (delegated to Microsoft.App/environments)
+//       - mysql-subnet  10.0.3.0/24  (delegated to Microsoft.DBforMySQL/flexibleServers)
+//   • private DNS zone for MySQL (private.mysql.database.azure.com)
+//   • Azure Database for MySQL Flexible Server — FREE for 12 months
+//     (Burstable Standard_B1ms, 32 GB, 750 hrs/month, no HA, no geo backup)
 //   • Log Analytics workspace (container logs)
 //   • Container Apps Environment (consumption-only, external, VNet-injected)
 //   • 9 container apps:
@@ -17,14 +20,16 @@
 //       careq-notification-service (scale-to-zero)      internal http :8085
 //       careq-redis                (scale-to-zero, TCP) internal tcp  :6379
 //       careq-rabbitmq             (scale-to-zero, TCP) internal tcp  :5672
-//   • MySQL VM (Standard_B1s, no public IP) with cloud-init MySQL 8,
-//     NSG allowing 3306 ONLY from the apps subnet (10.0.1.0/24)
-//   • Azure Static Web App `careq-frontend` (Free tier)
 //
-// COST POLICY (see docs/10_DEPLOYMENT.md §4): eureka / gateway / auth stay
-// always-warm because they sit on every request path; the rest scale to zero
-// and cold-start on demand. Redis + RabbitMQ use TCP scale rules so they wake
-// on the first connection after idle.
+// The React frontend is NOT here — it deploys to Vercel (free Hobby plan)
+// and calls the gateway cross-origin (gateway CORS allows
+// https://careq-frontend.vercel.app). See docs/10_DEPLOYMENT.md §4.
+//
+// COST POLICY: free-tier-first. The MySQL Flexible Server is FREE for 12
+// months (replacing the old paid VM) and the frontend is FREE on Vercel.
+// eureka / gateway / auth stay always-warm because they sit on every
+// request path; the rest scale to zero and cold-start on demand. Redis +
+// RabbitMQ use TCP scale rules so they wake on the first connection.
 //
 // SECRETS: this template contains ONLY placeholders. Every secret value is
 // injected at deploy time by the GitHub Actions deploy job
@@ -34,26 +39,22 @@
 //   az deployment group create \
 //     --resource-group careq-rg \
 //     --template-file infra/azure/main.bicep \
-//     --parameters mysqlPassword='...' mysqlVmAdminPassword='...' \
-//                  ghcrOwner='rameshpothamsetty' imageTag='develop-latest'
+//     --parameters mysqlPassword='...' ghcrOwner='rameshpothamsetty' \
+//                  imageTag='develop-latest'
 // =====================================================================
 
 param location string = 'eastus2'
-@description('Root password for the MySQL `careq` user — must be added to GitHub secrets as MYSQL_PASSWORD (same value).')
+@description('Administrator password for the MySQL Flexible Server — must be added to GitHub secrets as MYSQL_PASSWORD (same value).')
 @secure()
 param mysqlPassword string
-@secure()
-param mysqlVmAdminPassword string
 @description('GHCR owner (lowercase) hosting the careq-* images.')
 param ghcrOwner string = 'rameshpothamsetty'
-@description('Local admin username on the MySQL VM (no public IP — only used by cloud-init).')
-param mysqlVmAdminUsername string = 'careqadmin'
+@description('Administrator login for the MySQL Flexible Server (alphanumeric only). The app connects as this user.')
+param mysqlAdminUser string = 'careqadmin'
+@description('Name of the MySQL Flexible Server.')
+param mysqlServerName string = 'careq-mysql'
 @description('Image tag deployed at provisioning time (overwritten by the CD deploy job on every push).')
 param imageTag string = 'develop-latest'
-@description('Region for the Static Web App. Decoupled from `location` because the free-tier VM size (Standard_B1s) and Static Web Apps Free tier are available in different sets of regions — the SWA always goes somewhere known-good (eastus2) regardless of where the backend lands.')
-param swaLocation string = 'eastus2'
-@description('MySQL VM size. Standard_B1s is the 12-months-free size but is capacity-restricted in many regions; set Standard_B2s (paid) if B1s is unavailable everywhere on your subscription.')
-param vmSize string = 'Standard_B1s'
 @description('GHCR username for image pulls. Leave EMPTY to pull the (public) ghcr.io packages anonymously. If set, you MUST also set the GHCR_PAT GitHub secret (fine-grained PAT, packages:read) — the deploy job wires it in. Set both or neither.')
 param ghcrUsername string = ''
 
@@ -88,48 +89,17 @@ resource appsSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
   }
 }
 
-// Subnet for the MySQL VM (no public IP — not reachable from the internet).
-resource vmsSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
+// Subnet for the MySQL Flexible Server (private access — no public endpoint).
+resource mysqlSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-11-01' = {
   parent: vnet
-  name: 'vms-subnet'
+  name: 'mysql-subnet'
   properties: {
-    addressPrefix: '10.0.2.0/24'
-  }
-}
-
-// NSG: MySQL reachable ONLY from the Container Apps subnet. Everything else
-// inbound is denied (Azure platform services — DHCP/metadata — are exempt).
-resource mysqlNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
-  name: 'careq-mysql-nsg'
-  location: location
-  properties: {
-    securityRules: [
+    addressPrefix: '10.0.3.0/24'
+    delegations: [
       {
-        name: 'AllowMySQLFromContainerApps'
+        name: 'mysql-delegation'
         properties: {
-          description: 'MySQL 3306 from the Container Apps apps-subnet only'
-          protocol: 'Tcp'
-          sourceAddressPrefix: '10.0.1.0/24'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '10.0.2.0/24'
-          destinationPortRange: '3306'
-          access: 'Allow'
-          priority: 1000
-          direction: 'Inbound'
-        }
-      }
-      {
-        name: 'DenyAllOtherInbound'
-        properties: {
-          description: 'No other inbound traffic (no public IP on this VM anyway)'
-          protocol: '*'
-          sourceAddressPrefix: '*'
-          sourcePortRange: '*'
-          destinationAddressPrefix: '*'
-          destinationPortRange: '*'
-          access: 'Deny'
-          priority: 4096
-          direction: 'Inbound'
+          serviceName: 'Microsoft.DBforMySQL/flexibleServers'
         }
       }
     ]
@@ -137,70 +107,58 @@ resource mysqlNsg 'Microsoft.Network/networkSecurityGroups@2023-11-01' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// MySQL VM (Standard_B1s — the 12-months-free size), static private IP
-// 10.0.2.10, MySQL 8 installed via cloud-init.
+// Private DNS zone so the apps resolve the MySQL server privately.
+// Must be named private.mysql.database.azure.com (Azure requirement).
 // ─────────────────────────────────────────────────────────────────────
-resource mysqlNic 'Microsoft.Network/networkInterfaces@2023-11-01' = {
-  name: 'careq-mysql-vm-nic'
-  location: location
+resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'private.mysql.database.azure.com'
+  location: 'global'
+}
+
+resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: privateDnsZone
+  name: 'careq-vnet-link'
+  location: 'global'
   properties: {
-    ipConfigurations: [
-      {
-        name: 'ipconfig1'
-        properties: {
-          subnet: {
-            id: vmsSubnet.id
-          }
-          privateIPAllocationMethod: 'Static'
-          privateIPAddress: '10.0.2.10'
-          primary: true
-        }
-      }
-    ]
-    networkSecurityGroup: {
-      id: mysqlNsg.id
+    virtualNetwork: {
+      id: vnet.id
     }
+    registrationEnabled: false
   }
 }
 
-resource mysqlVm 'Microsoft.Compute/virtualMachines@2023-09-01' = {
-  name: 'careq-mysql-vm'
+// ─────────────────────────────────────────────────────────────────────
+// Azure Database for MySQL Flexible Server — FREE for 12 months.
+// Free-tier eligibility: Burstable Standard_B1ms, 32 GB, no high
+// availability, no geo-redundant backup (set below). 750 hours/month is
+// enough for 24/7 operation of a single server.
+// ─────────────────────────────────────────────────────────────────────
+resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
+  name: mysqlServerName
   location: location
+  sku: {
+    name: 'Standard_B1ms'
+    tier: 'Burstable'
+  }
   properties: {
-    hardwareProfile: {
-      vmSize: vmSize
+    administratorLogin: mysqlAdminUser
+    administratorLoginPassword: mysqlPassword
+    version: '8.0.21'
+    storage: {
+      storageSizeGB: 32
+      autoGrow: 'Disabled'
     }
-    osProfile: {
-      computerName: 'careq-mysql-vm'
-      adminUsername: mysqlVmAdminUsername
-      adminPassword: mysqlVmAdminPassword
-      customData: base64(replace(loadTextContent('cloud-init-mysql.sh'), '__MYSQL_PASSWORD__', mysqlPassword))
-      linuxConfiguration: {
-        disablePasswordAuthentication: false
-      }
+    network: {
+      publicNetworkAccess: 'Disabled'
+      delegatedSubnetResourceId: mysqlSubnet.id
+      privateDnsZoneResourceId: privateDnsZone.id
     }
-    storageProfile: {
-      imageReference: {
-        publisher: 'Canonical'
-        offer: 'ubuntu-24_04-lts'
-        sku: 'server'
-        version: 'latest'
-      }
-      osDisk: {
-        createOption: 'FromImage'
-        caching: 'ReadWrite'
-        diskSizeGB: 30
-        managedDisk: {
-          storageAccountType: 'Standard_LRS'
-        }
-      }
+    highAvailability: {
+      mode: 'Disabled'
     }
-    networkProfile: {
-      networkInterfaces: [
-        {
-          id: mysqlNic.id
-        }
-      ]
+    backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
     }
   }
 }
@@ -251,14 +209,18 @@ var placeholderSecrets = [
   { name: 'ghcr-pat', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
 ]
 
+// Private FQDN of the Flexible Server — resolved inside the VNet through
+// the private DNS zone above.
+var mysqlFqdn = '${mysqlServer.name}.private.mysql.database.azure.com'
+
 // Shared env wiring for every MySQL-backed service.
 var mysqlEnv = [
   { name: 'EUREKA_URI', value: 'http://eureka-server/eureka/' }
   { name: 'SPRING_PROFILES_ACTIVE', value: 'azure' }
   { name: 'JAVA_OPTS', value: '-Xmx384m -XX:MaxMetaspaceSize=192m' }
-  { name: 'MYSQL_HOST', value: '10.0.2.10' }
+  { name: 'MYSQL_HOST', value: mysqlFqdn }
   { name: 'MYSQL_PORT', value: '3306' }
-  { name: 'MYSQL_USER', value: 'careq' }
+  { name: 'MYSQL_USER', value: mysqlAdminUser }
   { name: 'MYSQL_PASSWORD', secretRef: 'mysql-password' }
 ]
 
@@ -323,7 +285,7 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 
 // ─────────────────────────────────────────────────────────────────────
 // 2. api-gateway — always on, the ONLY externally reachable service
-//    (Static Web App → https://careq-api-gateway.<env>...azurecontainerapps.io)
+//    (Vercel → https://careq-api-gateway.<env>...azurecontainerapps.io)
 // ─────────────────────────────────────────────────────────────────────
 resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'careq-api-gateway'
@@ -364,8 +326,9 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'SPRING_PROFILES_ACTIVE', value: 'azure' }
             { name: 'JAVA_OPTS', value: '-Xmx384m -XX:MaxMetaspaceSize=192m' }
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
-            // Placeholder — the deploy job overwrites it with the live SWA origin.
-            { name: 'CORS_ALLOWED_ORIGINS', value: 'http://localhost:3030' }
+            // The frontend is on Vercel — the deploy job re-asserts this
+            // origin on every rollout.
+            { name: 'CORS_ALLOWED_ORIGINS', value: 'https://careq-frontend.vercel.app' }
           ]
           probes: [
             {
@@ -498,9 +461,6 @@ resource userServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         allowInsecure: true
       }
       secrets: placeholderSecrets
-      // Optional registry creds for pulling the ghcr.io packages. Empty by
-      // default (public packages); set ghcrUsername at provision time (plus
-      // the GHCR_PAT GitHub secret) to pull private packages.
       registries: (empty(ghcrUsername) ? [] : [
         {
           server: 'ghcr.io'
@@ -565,9 +525,6 @@ resource doctorServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         allowInsecure: true
       }
       secrets: placeholderSecrets
-      // Optional registry creds for pulling the ghcr.io packages. Empty by
-      // default (public packages); set ghcrUsername at provision time (plus
-      // the GHCR_PAT GitHub secret) to pull private packages.
       registries: (empty(ghcrUsername) ? [] : [
         {
           server: 'ghcr.io'
@@ -635,9 +592,6 @@ resource queueServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         allowInsecure: true
       }
       secrets: placeholderSecrets
-      // Optional registry creds for pulling the ghcr.io packages. Empty by
-      // default (public packages); set ghcrUsername at provision time (plus
-      // the GHCR_PAT GitHub secret) to pull private packages.
       registries: (empty(ghcrUsername) ? [] : [
         {
           server: 'ghcr.io'
@@ -708,9 +662,6 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
         allowInsecure: true
       }
       secrets: placeholderSecrets
-      // Optional registry creds for pulling the ghcr.io packages. Empty by
-      // default (public packages); set ghcrUsername at provision time (plus
-      // the GHCR_PAT GitHub secret) to pull private packages.
       registries: (empty(ghcrUsername) ? [] : [
         {
           server: 'ghcr.io'
@@ -847,9 +798,6 @@ resource rabbitmqApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         transport: 'tcp'
       }
       secrets: placeholderSecrets
-      // Optional registry creds for pulling the ghcr.io packages. Empty by
-      // default (public packages); set ghcrUsername at provision time (plus
-      // the GHCR_PAT GitHub secret) to pull private packages.
       registries: (empty(ghcrUsername) ? [] : [
         {
           server: 'ghcr.io'
@@ -902,28 +850,10 @@ resource rabbitmqApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Static Web App for the React frontend (Free tier). The deployment token
-// is NOT a secret in this template — fetch it after provisioning with:
-//   az staticwebapp secrets list --name careq-frontend \
-//     --resource-group careq-rg --query properties.apiKey -o tsv
-// and add it as the GitHub secret AZURE_STATIC_WEB_APPS_API_TOKEN.
-// ─────────────────────────────────────────────────────────────────────
-resource swa 'Microsoft.Web/staticSites@2022-09-01' = {
-  name: 'careq-frontend'
-  location: swaLocation
-  sku: {
-    name: 'Free'
-    tier: 'Free'
-  }
-  properties: {}
-}
-
-// ─────────────────────────────────────────────────────────────────────
 // Outputs — captured by infra/azure/provision.sh
 // ─────────────────────────────────────────────────────────────────────
 output gatewayFqdn string = apiGatewayApp.properties.configuration.ingress.fqdn
 output eurekaFqdn string = eurekaApp.properties.configuration.ingress.fqdn
-output mysqlPrivateIp string = mysqlNic.properties.ipConfigurations[0].properties.privateIPAddress
-output swaDefaultHostname string = swa.properties.defaultHostname
-output swaName string = swa.name
+output mysqlFqdn string = mysqlFqdn
+output mysqlServerName string = mysqlServer.name
 output caeName string = cae.name
