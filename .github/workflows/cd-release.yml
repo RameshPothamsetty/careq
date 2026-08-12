@@ -282,10 +282,14 @@ jobs:
           fi
           for svc in eureka-server api-gateway auth-service user-service doctor-service queue-service notification-service; do
             echo "── careq-$svc ──"
-            az containerapp update \
+            # 1) Secrets via the dedicated command — newer containerapp extensions
+            #    removed --secrets from `az containerapp update`, so split it out.
+            #    `secret set` upserts the listed keys (overwriting the Bicep
+            #    placeholders). GROQ/GHCR vars are empty strings when unset and
+            #    expand to nothing.
+            az containerapp secret set \
               --name "careq-$svc" \
               --resource-group careq-rg-south \
-              --image "ghcr.io/$GHCR_OWNER/careq-$svc:$IMAGE_TAG" \
               --secrets \
                 "jwt-secret=${{ secrets.JWT_SECRET }}" \
                 "mysql-password=${{ secrets.MYSQL_PASSWORD }}" \
@@ -293,11 +297,13 @@ jobs:
                 "rabbitmq-pass=${{ secrets.RABBITMQ_PASSWORD }}" \
                 "storage-connection-string=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
                 $GROQ_SECRET \
-                $GHCR_SECRET \
-                "${REGISTRY_ARGS[@]}"
-            # NOTE: --secrets replaces the ENTIRE secret set. Any secret added
-            # to the Bicep must be added here too, or it silently disappears
-            # on the next deploy.
+                $GHCR_SECRET
+            # 2) Roll the image forward (+ optional GHCR registry credentials).
+            az containerapp update \
+              --name "careq-$svc" \
+              --resource-group careq-rg-south \
+              --image "ghcr.io/$GHCR_OWNER/careq-$svc:$IMAGE_TAG" \
+              "${REGISTRY_ARGS[@]}"
           done
 
       - name: Point gateway CORS at the Vercel origin
