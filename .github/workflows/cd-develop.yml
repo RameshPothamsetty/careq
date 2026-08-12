@@ -286,6 +286,21 @@ jobs:
               --image "ghcr.io/$GHCR_OWNER/careq-$svc:$IMAGE_TAG" \
               "${REGISTRY_ARGS[@]}"
           done
+          # 3) RabbitMQ broker needs the SAME credentials — it is NOT part of
+          #    the image loop above, so set its secrets and force a restart so
+          #    the fresh container re-reads them (changing a secret alone does
+          #    NOT restart an already-running broker).
+          az containerapp secret set \
+            --name careq-rabbitmq \
+            --resource-group careq-rg-south \
+            --secrets \
+              "rabbitmq-user=${{ secrets.RABBITMQ_USERNAME }}" \
+              "rabbitmq-pass=${{ secrets.RABBITMQ_PASSWORD }}"
+          az containerapp update \
+            --name careq-rabbitmq \
+            --resource-group careq-rg-south \
+            --min-replicas 1 \
+            --max-replicas 1
 
       - name: Point gateway CORS at the Vercel origin
         shell: bash

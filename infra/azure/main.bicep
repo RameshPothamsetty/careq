@@ -271,6 +271,14 @@ var mysqlEnv = [
   { name: 'MYSQL_PORT', value: '3306' }
   { name: 'MYSQL_USER', value: mysqlAdminUser }
   { name: 'MYSQL_PASSWORD', secretRef: 'mysql-password' }
+  // Day 15 routing fix: the base application.yml sets
+  // eureka.instance.prefer-ip-address=true, which makes instances register
+  // with their pod IP. Other apps can't reach a pod IP on the ingress port
+  // (connection refused) — so on Azure we MUST register a resolvable
+  // hostname (the app name -> Envoy proxy). This env var overrides
+  // prefer-ip-address; EUREKA_INSTANCE_HOSTNAME (app-specific, set below)
+  // supplies the hostname.
+  { name: 'EUREKA_INSTANCE_PREFER_IP_ADDRESS', value: 'false' }
 ]
 
 // ─────────────────────────────────────────────────────────────────────
@@ -302,8 +310,7 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ])
     }
-    template: {
-      containers: [
+    template: {          containers: [
         {
           name: 'careq-eureka-server'
           image: 'ghcr.io/${ghcrOwner}/careq-eureka-server:${imageTag}'
@@ -313,6 +320,14 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             cpu: '0.5'
             memory: '1.0Gi'
           }
+          env: [
+            { name: 'SPRING_PROFILES_ACTIVE', value: 'azure' }
+            { name: 'JAVA_OPTS', value: '-Xmx384m -XX:MaxMetaspaceSize=192m' }
+            // Single-node Eureka + self-preservation = ghost instances from
+            // deactivated revisions NEVER evict (stale leases make the
+            // gateway round-robin to dead pods -> 404/500). Disable it.
+            { name: 'EUREKA_SERVER_ENABLE_SELF_PRESERVATION', value: 'false' }
+          ]
           probes: [
             {
               type: 'liveness'
@@ -328,7 +343,7 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 1
         rules: [
           {
@@ -394,6 +409,8 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             // The frontend is on Vercel — the deploy job re-asserts this
             // origin on every rollout.
             { name: 'CORS_ALLOWED_ORIGINS', value: 'https://careq-frontend.vercel.app' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-api-gateway' }
+            { name: 'EUREKA_INSTANCE_PREFER_IP_ADDRESS', value: 'false' }
           ]
           probes: [
             {
@@ -420,7 +437,7 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -478,6 +495,7 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           }
           env: concat(mysqlEnv, [
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-auth-service' }
           ])
           probes: [
             {
@@ -494,7 +512,7 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -551,6 +569,7 @@ resource userServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             // Profile pictures land in Azure Blob Storage on Azure; the
             // deploy job injects the account connection string as a secret.
             { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-connection-string' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-user-service' }
           ])
           probes: [
             {
@@ -567,7 +586,7 @@ resource userServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -620,6 +639,7 @@ resource doctorServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           env: concat(mysqlEnv, [
             { name: 'REDIS_HOST', value: 'careq-redis' }
             { name: 'REDIS_PORT', value: '6379' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-doctor-service' }
           ])
           probes: [
             {
@@ -636,7 +656,7 @@ resource doctorServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -692,6 +712,7 @@ resource queueServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-queue-service' }
           ])
           probes: [
             {
@@ -708,7 +729,7 @@ resource queueServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -763,6 +784,7 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
+            { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-notification-service' }
           ])
           probes: [
             {
@@ -779,7 +801,7 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {
@@ -911,7 +933,7 @@ resource rabbitmqApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 1
         rules: [
           {
