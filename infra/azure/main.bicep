@@ -141,6 +141,14 @@ resource dnsVnetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020
 resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
   name: mysqlServerName
   location: location
+  // CRITICAL: Azure requires the VNet to be LINKED to the private DNS zone
+  // BEFORE the server is created, or the write fails with
+  // VnetNotLinkedToPrivateDnsZone. mysqlSubnet + privateDnsZone are already
+  // implicit deps (referenced via .id below); dnsVnetLink is not referenced
+  // anywhere, so it must be forced in with an explicit dependsOn.
+  dependsOn: [
+    dnsVnetLink
+  ]
   sku: {
     name: mysqlSku
     tier: 'Burstable'
