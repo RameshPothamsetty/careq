@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +22,7 @@ public class HealthController {
             description = "Returns the service name, status and a timestamp. Used by load balancers and operators.")
     @ApiResponse(responseCode = "200", description = "Service is up",
             content = @Content(schema = @Schema(example = "{\"service\":\"user-service\",\"status\":\"UP\",\"timestamp\":1700000000000}")))
-    @GetMapping("/health")
+    @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> healthCheck() {
         return ResponseEntity.ok(
                 Map.of("service", "user-service", "status", "UP", "timestamp", System.currentTimeMillis())

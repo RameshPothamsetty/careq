@@ -56,7 +56,11 @@ public class UserProfileController {
             @ApiResponse(responseCode = "400", description = "Missing X-User-Id / X-User-Role header",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    @GetMapping("/me")
+    // Day 15 fix: azure-storage-blob transitively pulls jackson-dataformat-xml,
+    // which Spring's default converter order prefers over JSON. Declaring
+    // produces=application/json keeps every DTO response JSON (the frontend and
+    // the gateway contract expect JSON; the image route below is unaffected).
+    @GetMapping(value = "/me", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserProfileResponseDto> getMyProfile(
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role,
@@ -75,7 +79,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "400", description = "Validation failed (bad phone/gender) or missing header",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    @PutMapping("/me")
+    @PutMapping(value = "/me", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserProfileResponseDto> updateMyProfile(
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Valid @RequestBody UpdateUserProfileRequestDto request) {
@@ -92,7 +96,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "400", description = "Empty file, non-image file, or missing header",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    @PostMapping("/me/profile-picture")
+    @PostMapping(value = "/me/profile-picture", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserProfileResponseDto> uploadProfilePicture(
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(description = "Image file to upload (jpeg/png/gif/webp)", required = true)
@@ -169,7 +173,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    @GetMapping
+    @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Page<UserProfileResponseDto>> getAllUsers(
             @Parameter(description = "Case-insensitive match on fullName or email") @RequestParam(required = false) String search,
             @Parameter(description = "Zero-based page number") @RequestParam(defaultValue = "0") int page,
@@ -191,7 +195,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "404", description = "No profile found for the given user id",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    @GetMapping("/{id}")
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<UserProfileResponseDto> getUserProfile(
             @Parameter(description = "Target user UUID") @PathVariable("id") String targetUserId,
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String requesterUserId,
