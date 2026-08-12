@@ -39,6 +39,12 @@ IMAGE_TAG="${IMAGE_TAG:-develop-latest}"
 MYSQL_SERVER_NAME="${MYSQL_SERVER_NAME:-careq-mysql}"
 MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-careqadmin}"
 STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-carequploads}"
+# Standard_B1ms = free 12-month tier. If burstable capacity is unavailable
+# everywhere, switch to Standard_B2s (paid ≈$25-30/mo, inside the trial credit).
+MYSQL_SKU="${MYSQL_SKU:-Standard_B1ms}"
+# Set SKIP_REGION_CHECK=1 to skip the (flaky) list-skus preflight and just
+# attempt the real deployment — Azure itself then decides if the SKU fits.
+SKIP_REGION_CHECK="${SKIP_REGION_CHECK:-0}"
 
 # Required secrets — generate them ONCE here, reuse the SAME values later
 # when you add them to GitHub secrets.
@@ -70,7 +76,7 @@ az config set extension.use_dynamic_install=yes_without_prompt
 #      (Container Apps + MySQL Flexible Server).
 # If the requested region fails, auto-fall back to the first candidate
 # that passes both.
-FALLBACK_REGIONS=(eastus2 centralus westus2 westeurope northeurope southeastasia eastus southcentralus westus3 uksouth francecentral)
+FALLBACK_REGIONS=(centralindia southindia jioindiawest jioindiacentral indiasouthcentral southeastasia eastus2 centralus westus2 westeurope northeurope eastus southcentralus westus3 uksouth germanywestcentral swedencentral polandcentral italynorth)
 
 # Register the providers this stack needs (free) so the checks below are
 # authoritative instead of fail-open.
@@ -87,45 +93,55 @@ for ns in Microsoft.App Microsoft.OperationalInsights Microsoft.DBforMySQL Micro
 done
 
 mysql_sku_available() {
-  [ "$(az mysql flexible-server list-skus --location "$1" \
-        --query "[?name=='Standard_B1ms'] | length(@)" -o tsv 2>/dev/null)" = "1" ]
+  # list-skus can throw transient InternalServerError on capacity-stressed
+  # regions — retry 3x before declaring the SKU unavailable.
+  local result=""
+  for _ in 1 2 3; do
+    result="$(az mysql flexible-server list-skus --location "$1" \
+      --query "[?name=='$MYSQL_SKU'] | length(@)" -o tsv 2>/dev/null || true)"
+    [ "$result" = "1" ] && return 0
+    sleep 3
+  done
+  return 1
 }
 
 region_ok() {
   mysql_sku_available "$1"
 }
 
-echo "▶ Checking Standard_B1ms (MySQL free tier) in $LOCATION..."
-if ! region_ok "$LOCATION"; then
-  echo "❌ $LOCATION can't run the free-tier MySQL SKU right now."
-  echo "   Trying fallback regions..."
-  FOUND=""
-  for candidate in "${FALLBACK_REGIONS[@]}"; do
-    echo "   → probing $candidate ..."
-    if region_ok "$candidate"; then
-      FOUND="$candidate"
-      break
+if [ "$SKIP_REGION_CHECK" != "1" ]; then
+  echo "▶ Checking $MYSQL_SKU (MySQL) in $LOCATION..."
+  if ! region_ok "$LOCATION"; then
+    echo "❌ $LOCATION can't run $MYSQL_SKU right now (or the flaky list-skus API errored)."
+    echo "   Trying fallback regions..."
+    FOUND=""
+    for candidate in "${FALLBACK_REGIONS[@]}"; do
+      echo "   → probing $candidate ..."
+      if region_ok "$candidate"; then
+        FOUND="$candidate"
+        break
+      fi
+    done
+    if [ -n "$FOUND" ]; then
+      LOCATION="$FOUND"
+      echo "   → using '$FOUND'."
+    else
+      echo "❌ No fallback region currently offers $MYSQL_SKU for MySQL Flexible Server."
+      echo ""
+      echo "   The list-skus API is unreliable (transient errors / extension"
+      echo "   breakage). Let the REAL deployment decide instead:"
+      echo "     SKIP_REGION_CHECK=1 AZURE_LOCATION=centralindia ./provision.sh"
+      echo ""
+      echo "   Paid fallback (within the \$200 trial credit):"
+      echo "     MYSQL_SKU=Standard_B2s SKIP_REGION_CHECK=1 AZURE_LOCATION=centralindia ./provision.sh"
+      exit 1
     fi
-  done
-  if [ -n "$FOUND" ]; then
-    LOCATION="$FOUND"
-    echo "   → using '$FOUND'."
-  else
-    echo "❌ No fallback region currently offers Standard_B1ms for MySQL Flexible Server."
-    echo ""
-    echo "   Options:"
-    echo "     1. Wait a day or two (burstable capacity comes and goes) and re-run —"
-    echo "        nothing has been created, so re-running is clean."
-    echo "     2. Check which regions offer it right now:"
-    echo "          for r in eastus2 centralus westus2 westeurope northeurope southeastasia; do"
-    echo "            echo -n \"\$r: \"; az mysql flexible-server list-skus -l \$r \\"
-    echo "              --query \"[?name=='Standard_B1ms'].name\" -o tsv | head -1;"
-    echo "          done"
-    echo "        then re-run with AZURE_LOCATION=<that region>."
-    exit 1
   fi
+  echo "   ✅ $LOCATION ok for $MYSQL_SKU"
+else
+  echo "▶ SKIP_REGION_CHECK=1 — attempting the real deployment in $LOCATION"
+  echo "   with $MYSQL_SKU. Azure itself decides if the SKU fits."
 fi
-echo "   ✅ $LOCATION ok for Standard_B1ms"
 
 echo "▶ Checking resource group..."
 az group show --name "$RESOURCE_GROUP" --output none \
@@ -143,6 +159,7 @@ az deployment group create \
       mysqlPassword="$MYSQL_PASSWORD" \
       mysqlAdminUser="$MYSQL_ADMIN_USER" \
       mysqlServerName="$MYSQL_SERVER_NAME" \
+      mysqlSku="$MYSQL_SKU" \
       storageAccountName="$STORAGE_ACCOUNT_NAME" \
       ghcrOwner="$GHCR_OWNER" \
       imageTag="$IMAGE_TAG" \
@@ -206,7 +223,9 @@ echo ""
 # unset (default) and omit GHCR_PAT.
 
 # To use private GHCR packages, add to the deployment command above:
-#   ghcrUsername='<github-username>'echo "▶ Fetching the Blob Storage connection string (profile pictures)..."
+#   ghcrUsername='<github-username>'
+
+echo "▶ Fetching the Blob Storage connection string (profile pictures)..."
     STORAGE_CONNECTION_STRING=$(az storage account show-connection-string \
       --name "$STORAGE_ACCOUNT_NAME" \
       --resource-group "$RESOURCE_GROUP" \
@@ -229,7 +248,8 @@ echo ""
     echo "    AZURE_STORAGE_CONNECTION_STRING = $STORAGE_CONNECTION_STRING"
     echo "    GROQ_API_KEY                    = <your groq key — optional, triage falls back to NORMAL without it>"
     echo "    GHCR_PAT                        = <optional — fine-grained PAT, packages:read, ONLY if your ghcr packages are private>"
-echo ""echo "  Vercel (create ONCE at https://vercel.com):"
+echo ""
+    echo "  Vercel (create ONCE at https://vercel.com):"
     echo "    VERCEL_TOKEN                    = Account Settings → Tokens → Create"
     echo "    VERCEL_ORG_ID                   = orgId in frontend/.vercel/project.json after \`npx vercel link\`"
     echo "    VERCEL_PROJECT_ID               = projectId in the same file"
@@ -239,7 +259,8 @@ echo "  for every future deploy (the workflow reads them from GitHub,"
 echo "  never from this repo)."
 echo ""
 echo "▶ Next steps:"
-echo "  1. Add the GitHub secrets above."echo "  2. Create the Vercel project (free Hobby) for the frontend:"
+echo "  1. Add the GitHub secrets above."
+    echo "  2. Create the Vercel project (free Hobby) for the frontend:"
     echo "       cd frontend"
     echo "       npx vercel link           # create project 'careq-frontend'"
     echo "       npx vercel env add VITE_API_BASE_URL production"

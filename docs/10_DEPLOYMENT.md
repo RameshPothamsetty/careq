@@ -221,12 +221,13 @@ Burstable B1ms + 32 GB + 750 hrs/month — enough for 24/7; no HA, no geo
 backup, which is exactly what the free tier requires). Profile pictures live
 in **Blob Storage (5 GB free for 12 months)**. And because **every** container
 app scales to zero, the backend rides the Container Apps monthly free grant
-(180k vCPU-seconds + 360k GiB-seconds + 2M requests) — a few hours of demo
-use per day stays well inside it, so the whole stack runs at **~$0/month**
-(sample math: 3 apps × 0.25 vCPU × 2 hrs/day × 30 days = 45 of the free
-50 vCPU-hours). The only residual is cold starts (below). Still set a
-**budget alert** in Azure Cost Management (50%/90% on `careq-rg`) and
-**tear down after interviews** (`az group delete --name careq-rg --yes --no-wait`).
+(180k vCPU-seconds + 360k GiB-seconds + 2M requests). Java services use the
+smallest safe pair (0.5 vCPU / 1 GiB — 0.5 GiB is too tight for a JVM), so a
+couple of hours of demoing per day sits roughly at the 50 free vCPU-hours;
+heavy daily demos may exceed it by a **few dollars/month** (still far inside
+the $200 trial credit for the interview window). Set a **budget alert** in
+Azure Cost Management (50%/90% on `careq-rg`) and **tear down after
+interviews** (`az group delete --name careq-rg --yes --no-wait`).
 
 ### 4.2 Cold-start & scale-to-zero behavior (measured on the Day 15 checklist)
 

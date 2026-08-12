@@ -25,12 +25,12 @@
 // and calls the gateway cross-origin (gateway CORS allows
 // https://careq-frontend.vercel.app). See docs/10_DEPLOYMENT.md §4.
 //
-// COST POLICY: fully free. The MySQL Flexible Server is FREE for 12
+// COST POLICY: free-first. The MySQL Flexible Server is FREE for 12
 // months, the frontend is FREE on Vercel, and EVERY container app scales
-// to zero — the whole backend rides the Container Apps monthly free grant
-// (~$0/month). Profile pictures go to Azure Blob Storage (5 GB free for
-// 12 months). Redis + RabbitMQ use TCP scale rules so they wake on the
-// first connection.
+// to zero — demo-level usage stays near the Container Apps free grant
+// (~$0/month; heavy daily demos can exceed it by a few dollars). Profile
+// pictures go to Azure Blob Storage (5 GB free for 12 months). Redis +
+// RabbitMQ use TCP scale rules so they wake on the first connection.
 //
 // SECRETS: this template contains ONLY placeholders. Every secret value is
 // injected at deploy time by the GitHub Actions deploy job
@@ -54,6 +54,8 @@ param ghcrOwner string = 'rameshpothamsetty'
 param mysqlAdminUser string = 'careqadmin'
 @description('Name of the MySQL Flexible Server.')
 param mysqlServerName string = 'careq-mysql'
+@description('MySQL SKU. Standard_B1ms = FREE 12-month tier (750 hrs/mo, 32 GB). If burstable capacity is unavailable everywhere on your subscription, set Standard_B2s (paid ≈$25-30/mo, within the trial credit).')
+param mysqlSku string = 'Standard_B1ms'
 @description('Name of the Azure Storage account for profile pictures (free tier: 5 GB LRS hot). Globally unique, lowercase alphanumeric.')
 param storageAccountName string = 'carequploads'
 @description('Image tag deployed at provisioning time (overwritten by the CD deploy job on every push).')
@@ -140,7 +142,7 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
   name: mysqlServerName
   location: location
   sku: {
-    name: 'Standard_B1ms'
+    name: mysqlSku
     tier: 'Burstable'
   }
   properties: {
@@ -298,8 +300,10 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-eureka-server'
           image: 'ghcr.io/${ghcrOwner}/careq-eureka-server:${imageTag}'
           resources: {
-            cpu: '0.25'
-            memory: '0.75Gi'
+            // ACA consumption allows only fixed CPU→memory pairs; 0.5Gi is too
+            // tight for a JVM, so Java services use 0.5 vCPU / 1.0 Gi.
+            cpu: '0.5'
+            memory: '1.0Gi'
           }
           probes: [
             {
@@ -369,7 +373,9 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-api-gateway'
           image: 'ghcr.io/${ghcrOwner}/careq-api-gateway:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: [
@@ -457,7 +463,9 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-auth-service'
           image: 'ghcr.io/${ghcrOwner}/careq-auth-service:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
@@ -526,7 +534,9 @@ resource userServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-user-service'
           image: 'ghcr.io/${ghcrOwner}/careq-user-service:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
@@ -594,7 +604,9 @@ resource doctorServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-doctor-service'
           image: 'ghcr.io/${ghcrOwner}/careq-doctor-service:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
@@ -661,7 +673,9 @@ resource queueServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           name: 'careq-queue-service'
           image: 'ghcr.io/${ghcrOwner}/careq-queue-service:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
@@ -731,7 +745,9 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
           name: 'careq-notification-service'
           image: 'ghcr.io/${ghcrOwner}/careq-notification-service:${imageTag}'
           resources: {
-            cpu: '0.25'
+            // ACA consumption: fixed CPU→memory pairs; 0.5 vCPU / 1.0 Gi is
+            // the smallest safe pair for a Spring Boot JVM.
+            cpu: '0.5'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
@@ -868,7 +884,7 @@ resource rabbitmqApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           image: 'rabbitmq:3-management'
           resources: {
             cpu: '0.25'
-            memory: '0.75Gi'
+            memory: '0.5Gi'
           }
           env: [
             { name: 'RABBITMQ_DEFAULT_USER', secretRef: 'rabbitmq-user' }
