@@ -12,7 +12,9 @@
 #      seed doctor (leftovers from a previous auth DB).
 # ================================================================
 
-API_BASE="http://localhost:8080"
+# Day 15: overridable so the same script seeds the LIVE Azure deployment:
+#   API_BASE="https://<gateway-fqdn>" bash scripts/seed-data.sh
+API_BASE="${API_BASE:-http://localhost:8080}"
 
 echo "=========================================="
 echo "  CareQ — Seed Data Script"

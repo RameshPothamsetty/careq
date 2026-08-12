@@ -19,4 +19,6 @@ USER careq
 EXPOSE 8083
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
   CMD curl -fsS http://localhost:8083/actuator/health || exit 1
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Day 15: JAVA_OPTS (e.g. -Xmx/-XX:MaxMetaspaceSize) can be injected via env —
+# used on Azure Container Apps to cap the JVM heap on small consumption profiles.
+ENTRYPOINT ["sh", "-c", "exec java ${JAVA_OPTS} -jar app.jar"]

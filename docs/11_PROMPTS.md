@@ -532,3 +532,141 @@ Pull develop → branch feature/ci-cd-pipeline → build the workflow files → 
 - Do not deploy anywhere live today
 - State assumptions before generating workflow files
 ```
+
+---
+
+## Day 15: Azure Cloud Deployment (Container Apps, Static Web Apps, MySQL VM)
+
+**Prompt:** CareQ — Day 15 Prompt (Cloud Deployment: Azure Container Apps, Static Web Apps, MySQL)
+
+**Date Executed:** 2026-08-11
+
+**Branch:** `feature/cloud-deployment`
+
+**Summary:** Deployed CareQ to Azure. **One-time infra (`infra/azure/`)**: `main.bicep` provisions a VNet (apps-subnet 10.0.1.0/24 delegated to `Microsoft.App/environments`, vms-subnet 10.0.2.0/24), Log Analytics, a consumption-only VNet-injected Container Apps Environment, **nine** container apps (eureka/gateway/auth always-on min 1; user/doctor/queue/notification scale-to-zero min 0 with HTTP rules; redis:7-alpine + rabbitmq:3-management with TCP ingress + TCP scale rules), a Standard_B1s MySQL VM (static private IP 10.0.2.10, **no public IP**, NSG allowing :3306 **only** from 10.0.1.0/24, cloud-init installs MySQL 8 + `careq_db` + `careq` user), and a Free-tier Static Web App; `provision.sh` deploys it, prints live URLs, the SWA deployment token, and the GitHub secrets list. **Recurring deploy**: `deploy` + `deploy-frontend` jobs added to `cd-develop.yml`/`cd-release.yml` (OIDC `azure/login@v2`, no client secret; `az containerapp update` rolls images + secrets; frontend built with the live gateway FQDN baked in and uploaded via `azure/static-web-apps-deploy` with `skip_app_build`). **App changes**: `application-azure.yml` per Eureka client registers with `CONTAINER_APP_HOSTNAME` + port 80 so inter-service traffic flows through the Envoy proxy (what makes HTTP scale-to-zero actually wake), `CorsConfig` origins now env-driven (`CORS_ALLOWED_ORIGINS` → live SWA origin), Dockerfiles accept `JAVA_OPTS`, `seed-data.sh` accepts `API_BASE` override, new `scripts/day15-azure-smoke.mjs` runs the full patient journey against live Azure URLs. Docs: `10_DEPLOYMENT.md` §4 (architecture, cost policy, cold-start, teardown), README live banner + status. Renumbered from the pasted "Day 14" prompt — Day 14 in this repo is already the CI/CD pipeline, so this is filed as Day 15 (same precedent as Day 14). User runs the one-time provisioning and git steps themselves; the recurring deploy runs via GitHub Actions.
+
+## Full Prompt Text
+
+```
+# CareQ — Day 14 Prompt (Cloud Deployment: Azure Container Apps, Static Web Apps, MySQL)
+
+> Save as the next entry in `docs/11_PROMPTS.md`.
+> Paste everything below the `---` into Freebuff exactly as-is.
+> Assumes: Day 13's CI/CD pipeline working (images build and push to GHCR on merge), Azure credentials already set up — Resource Group `careq-rg`, App Registration with federated OIDC credentials, Contributor role assigned, and `AZURE_CLIENT_ID` / `AZURE_TENANT_ID` / `AZURE_SUBSCRIPTION_ID` already in GitHub repo secrets.
+> You run any one-time Azure CLI provisioning commands yourself in Cloud Shell (same pattern as the credential setup) — Freebuff generates the scripts/templates and explains each command, but doesn't execute interactive cloud provisioning for you. The recurring deploy workflow, once written, runs automatically via GitHub Actions from then on.
+
+---
+
+## ROLE
+
+You are acting as a **Cloud/DevOps Engineer** deploying CareQ to Azure for the first time. This splits into two distinct kinds of work: (1) one-time infrastructure provisioning (Container Apps Environment, MySQL VM, Static Web App resource) that you run once, and (2) a recurring deployment workflow added to the existing CI/CD pipeline that runs automatically on every future push. Be explicit in your output about which parts are one-time and which are ongoing.
+
+## PROJECT CONTEXT (recap)
+
+- **Services to deploy:** `eureka-server`, `api-gateway`, `auth-service`, `user-service`, `doctor-service`, `queue-service`, `notification-service` (if merged), plus `redis` and `rabbitmq` (if that feature is merged) as self-hosted containers, plus the React frontend
+- **Resource Group:** `careq-rg` (already exists)
+- **Existing CI/CD (Day 13):** builds, tests, and pushes images to `ghcr.io` on merge to `develop`/`main` — today extends this with an actual deploy step
+- **Azure credentials:** already configured for OIDC (no client secret) — `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` are in GitHub secrets
+
+## HONEST COST REALITY — state this in your output, don't hide it
+
+Running every service always-on 24/7 (min replicas ≥ 1) risks exceeding Azure Container Apps' recurring free monthly grant once Redis/RabbitMQ are added as extra containers. Default to: **`eureka-server`, `api-gateway`, `auth-service` kept always-warm (min replicas 1)** since they're on every critical path; **`user-service`, `doctor-service`, `queue-service`, `notification-service`, `redis`, `rabbitmq` allowed to scale to zero (min replicas 0)** and cold-start on demand — this keeps cost minimal while staying genuinely usable for a demo/interview. Document this trade-off clearly, and add a note in `docs/10_DEPLOYMENT.md` about monitoring actual usage in Azure Cost Management, since the $200 trial credit is a 30-day buffer, not a permanent solution.
+
+## TODAY'S DELIVERABLES
+
+### 0. Create today's Issue first
+Create `Day 14: Cloud Deployment (Azure)` as a GitHub Issue, checklist from below, labeled `day-14`, `infra`. Add to the Project board under `In Progress`. Reference with `Closes #<issue number>` in today's PR.
+
+### 1. One-time infrastructure provisioning script (Bicep preferred, or a documented `az cli` script if simpler)
+Output as a runnable script/template plus the exact `az` commands to apply it. This is what I run once in Cloud Shell, not something GitHub Actions runs repeatedly. Must provision:
+- A **Container Apps Environment** (with a Log Analytics workspace for logging) in `careq-rg`
+- Seven (or however many exist) **Container App** definitions — one per backend service — with the min/max replica settings from the cost section above, correct internal networking so they can reach each other and Eureka
+- `redis` and `rabbitmq` as additional Container Apps using their public images (`redis:alpine`, `rabbitmq:3-management`) — clearly document that their storage is ephemeral (data lost on restart) as a known limitation of this free-tier approach, not a bug
+- A small **MySQL VM** (`Standard_B1s`, the 12-months-free size) with MySQL installed via cloud-init, firewalled to only accept connections from the Container Apps Environment's subnet, not the open internet
+- A **Static Web App** resource for the frontend, and instructions for retrieving its deployment token (needed as a 4th GitHub secret, `AZURE_STATIC_WEB_APPS_API_TOKEN`)
+
+### 2. Extend the CI/CD pipeline with a deploy job
+Modify `cd-develop.yml` and `cd-release.yml` from Day 13 to add a `deploy` job that runs after images are successfully pushed:
+- `azure/login@v2` action, authenticating via OIDC using the three existing secrets (no client secret)
+- For each backend service: `az containerapp update` to point it at the freshly-built image tag from this run
+- For the frontend: build with the correct API base URL (pointing at the Gateway Container App's FQDN) baked in at build time, then deploy via the `azure/static-web-apps-deploy` action using `AZURE_STATIC_WEB_APPS_API_TOKEN`
+- This job should only run on `develop` and `main`, never on plain PRs (deployment isn't something every PR should trigger)
+
+### 3. Secrets and environment configuration for each Container App
+- Use `az containerapp secret set` (or the Bicep equivalent) so each service gets its required environment variables (JWT signing secret, MySQL connection string pointing at the VM, `GROQ_API_KEY`, RabbitMQ/Redis connection strings) as Container Apps secrets, sourced from GitHub secrets at deploy time — never hardcoded in the Bicep template or workflow file
+- List every new GitHub secret this requires beyond the three already set up, and remind me to add them before the workflow will succeed
+
+### 4. Final validation — actually deploy and check it live
+- Run the one-time provisioning script yourself would be my job, but Freebuff should output the exact steps and expected outcomes I should see (resource created, VM reachable, etc.)
+- After the first deploy workflow run: report the live Gateway URL and Static Web App URL
+- Run the same smoke test used in Day 11/12 (signup → login → browse doctors → join queue → confirm AI triage/wait prediction) but **against the live Azure URLs**, not localhost
+- Confirm cold-start behavior on a scaled-to-zero service is acceptable (note the delay observed)
+
+### 5. Documentation
+- `docs/10_DEPLOYMENT.md` — full Azure section: architecture diagram (which services always-on vs scale-to-zero), how to redeploy, how to check costs in Azure Cost Management, how to tear everything down (`az group delete --name careq-rg`) if needed
+- `README.md` — add the live demo URL, replace the "Run with Docker" section's implied "that's the only way to run this" framing with "also deployed live at: ..."
+
+**Explicitly OUT of scope today:**
+- A custom domain name (using Azure's default `*.azurecontainerapps.io` / `*.azurestaticapps.net` URLs is fine for now)
+- Auto-scaling tuning beyond the simple min/max replica defaults above
+- Multi-region deployment
+
+## OUTPUT FORMAT
+
+Same labeled-file-block format as previous days for any file changed or created. Clearly separate "run once in Cloud Shell" content from "committed to the repo, runs via GitHub Actions" content.
+
+---
+
+## GIT WORKFLOW (you run this yourself — Freebuff guides, doesn't execute)
+
+1. **Pull `develop` first:**
+   ```
+   git checkout develop
+   git pull origin develop
+   ```
+2. **Branch off it:**
+   ```
+   git checkout -b feature/cloud-deployment
+   ```
+3. First, run the one-time provisioning (Deliverable 1) yourself in Cloud Shell, following Freebuff's step-by-step output — confirm each resource is created before moving on.
+4. Then build the CI/CD workflow changes (Deliverable 2-3), commit in small increments:
+   - `feat: add Bicep template for Container Apps Environment and services`
+   - `feat: add MySQL VM provisioning script`
+   - `feat: add Static Web App resource provisioning`
+   - `feat: add deploy job to CI/CD pipeline using OIDC`
+   - `feat: configure Container App secrets from GitHub secrets`
+   - `docs: document Azure deployment architecture and teardown process`
+5. **Push, yourself:**
+   ```
+   git push origin feature/cloud-deployment
+   ```
+6. **Open a Pull Request** `feature/cloud-deployment → develop` yourself. Title: `Day 14: Cloud Deployment (Azure)`. Include `Closes #<issue number>`. Note in the description the always-on vs scale-to-zero decisions and the live URLs once confirmed working.
+7. Watch the deploy job actually run in the Actions tab after merge — confirm it succeeds and the live URLs respond correctly, not just that the workflow file looks right.
+8. **Merge into `develop` yourself** once the live smoke test passes.
+
+**Definition of Done:**
+- [ ] Today's Issue created, added to board, closed via PR
+- [ ] Container Apps Environment, all services, MySQL VM, and Static Web App provisioned successfully
+- [ ] Deploy job added to CI/CD, runs automatically on `develop`/`main` push, authenticates via OIDC (no stored secret)
+- [ ] All required secrets documented and added
+- [ ] Live smoke test (signup → login → browse → join queue → AI triage/wait prediction) passes against the real Azure URLs
+- [ ] Cold-start behavior on scaled-to-zero services checked and documented
+- [ ] `docs/10_DEPLOYMENT.md` and `README.md` updated with live URLs and teardown instructions
+- [ ] Pushed to `feature/cloud-deployment`, PR opened and self-reviewed, merged into `develop`
+
+## HARD CONSTRAINTS
+
+- Never hardcode secrets in Bicep templates or workflow files — Container Apps secrets and GitHub secrets only
+- Firewall the MySQL VM to the Container Apps subnet only, never open to the public internet
+- State the always-on vs scale-to-zero assumption per service clearly before generating the provisioning script
+- Be explicit and honest about the ephemeral-storage limitation of self-hosted Redis/RabbitMQ — don't gloss over it
+
+## VERIFICATION CHECKLIST (append at the end of your output)
+
+1. Confirm today's Issue/board/PR linkage
+2. List every new GitHub secret required beyond the three already configured
+3. Confirm the live smoke test results against the real Azure URLs, including any cold-start delay observed
+4. Confirm the MySQL VM firewall is correctly scoped, not open to the public internet
+5. Output the live Gateway URL and Static Web App URL
+6. Output the exact `git` command sequence, with explanations, for me to run
+```

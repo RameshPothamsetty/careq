@@ -1,0 +1,14 @@
+# Day 15 — Azure profile (SPRING_PROFILES_ACTIVE=azure on Azure Container Apps).
+#
+# On ACA the services register with their Container Apps FQDN (injected by the
+# platform as CONTAINER_APP_HOSTNAME) and port 80, instead of their pod IP.
+# Why: inter-service traffic then flows through the environment's Envoy proxy,
+# whose HTTP request counting drives the scale rules — which is what makes
+# HTTP scale-to-zero actually work (a request through the proxy wakes a
+# scaled-to-zero app; a direct pod-IP call would bypass the proxy and never
+# trigger a scale-up). Locally this profile is never active, so Docker/local
+# dev keeps the original IP-based registration (prefer-ip-address: true).
+eureka:
+  instance:
+    hostname: ${CONTAINER_APP_HOSTNAME}
+    non-secure-port: 80
