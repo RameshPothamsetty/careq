@@ -75,10 +75,10 @@ async function main() {
   for (const [name, path] of healthRoutes) {
     // Scale-to-zero services can 503 on the first hit — retry briefly.
     let r;
-    for (let attempt = 1; attempt <= 5; attempt++) {
+    for (let attempt = 1; attempt <= 8; attempt++) {
       r = await fetch(GATEWAY + path);
       if (r.status !== 503) break;
-      console.log(`  (cold start: ${name} waking up — attempt ${attempt}/5)`);
+      console.log(`  (cold start: ${name} waking up — attempt ${attempt}/8)`);
       await sleep(15000);
     }
     record(`Gateway routes ${name}`, r.status === 200, `GET ${path} -> ${r.status}`);
@@ -112,14 +112,14 @@ async function main() {
 
   // Cold-start aware join: 503s are expected while Eureka/Feign/scale-up settle.
   let join;
-  for (let attempt = 1; attempt <= 8; attempt++) {
+  for (let attempt = 1; attempt <= 10; attempt++) {
     join = await api('POST', '/api/queue/join', {
       token: patientToken,
       body: { doctorCatalogEntryId: available.id, patientName: 'Azure Smoke Patient', symptomText: 'persistent headache with blurred vision' },
     });
     if (join.status !== 503 && join.status !== 502) break;
-    if (attempt < 8) {
-      console.log(`  (cold start: join ${join.status}, retrying in 15s — attempt ${attempt}/8)`);
+    if (attempt < 10) {
+      console.log(`  (cold start: join ${join.status}, retrying in 15s — attempt ${attempt}/10)`);
       await sleep(15000);
     }
   }

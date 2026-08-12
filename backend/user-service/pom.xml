@@ -52,6 +52,14 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Day 15: Azure Blob Storage (free 5 GB tier) for profile pictures.
+             Active ONLY when AZURE_STORAGE_CONNECTION_STRING is set (Azure
+             Container Apps); local/Docker dev keeps the local-disk uploads. -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>12.25.1</version>
+        </dependency>
     </dependencies>
 
     <!-- Day 11: explicit Boot repackage so `mvn package` produces the

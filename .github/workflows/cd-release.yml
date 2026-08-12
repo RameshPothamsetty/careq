@@ -291,6 +291,7 @@ jobs:
                 "mysql-password=${{ secrets.MYSQL_PASSWORD }}" \
                 "rabbitmq-user=${{ secrets.RABBITMQ_USERNAME }}" \
                 "rabbitmq-pass=${{ secrets.RABBITMQ_PASSWORD }}" \
+                "storage-connection-string=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
                 $GROQ_SECRET \
                 $GHCR_SECRET \
                 "${REGISTRY_ARGS[@]}"

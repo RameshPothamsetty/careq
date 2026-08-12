@@ -25,11 +25,12 @@
 // and calls the gateway cross-origin (gateway CORS allows
 // https://careq-frontend.vercel.app). See docs/10_DEPLOYMENT.md §4.
 //
-// COST POLICY: free-tier-first. The MySQL Flexible Server is FREE for 12
-// months (replacing the old paid VM) and the frontend is FREE on Vercel.
-// eureka / gateway / auth stay always-warm because they sit on every
-// request path; the rest scale to zero and cold-start on demand. Redis +
-// RabbitMQ use TCP scale rules so they wake on the first connection.
+// COST POLICY: fully free. The MySQL Flexible Server is FREE for 12
+// months, the frontend is FREE on Vercel, and EVERY container app scales
+// to zero — the whole backend rides the Container Apps monthly free grant
+// (~$0/month). Profile pictures go to Azure Blob Storage (5 GB free for
+// 12 months). Redis + RabbitMQ use TCP scale rules so they wake on the
+// first connection.
 //
 // SECRETS: this template contains ONLY placeholders. Every secret value is
 // injected at deploy time by the GitHub Actions deploy job
@@ -53,6 +54,8 @@ param ghcrOwner string = 'rameshpothamsetty'
 param mysqlAdminUser string = 'careqadmin'
 @description('Name of the MySQL Flexible Server.')
 param mysqlServerName string = 'careq-mysql'
+@description('Name of the Azure Storage account for profile pictures (free tier: 5 GB LRS hot). Globally unique, lowercase alphanumeric.')
+param storageAccountName string = 'carequploads'
 @description('Image tag deployed at provisioning time (overwritten by the CD deploy job on every push).')
 param imageTag string = 'develop-latest'
 @description('GHCR username for image pulls. Leave EMPTY to pull the (public) ghcr.io packages anonymously. If set, you MUST also set the GHCR_PAT GitHub secret (fine-grained PAT, packages:read) — the deploy job wires it in. Set both or neither.')
@@ -164,6 +167,38 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Azure Blob Storage (free tier: 5 GB LRS hot) for profile pictures.
+// Public-read container so <img> tags can load them directly; the app
+// uploads via the account connection string (a GitHub secret injected by
+// the deploy job). Free for 12 months.
+// ─────────────────────────────────────────────────────────────────────
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageAccountName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: true
+    accessTier: 'Hot'
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'careq-uploads'
+  properties: {
+    publicAccess: 'Container'
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Log Analytics + Container Apps Environment (consumption-only, external)
 // ─────────────────────────────────────────────────────────────────────
 resource logWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
@@ -207,6 +242,7 @@ var placeholderSecrets = [
   { name: 'rabbitmq-user', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-pass', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'ghcr-pat', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'storage-connection-string', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
 ]
 
 // Private FQDN of the Flexible Server — resolved inside the VNet through
@@ -214,8 +250,11 @@ var placeholderSecrets = [
 var mysqlFqdn = '${mysqlServer.name}.private.mysql.database.azure.com'
 
 // Shared env wiring for every MySQL-backed service.
+// NOTE: ACA resolves services by APP NAME inside the environment
+// (careq-eureka-server / careq-redis / careq-rabbitmq) — the Docker-compose
+// aliases (eureka-server, redis, rabbitmq) do NOT resolve here.
 var mysqlEnv = [
-  { name: 'EUREKA_URI', value: 'http://eureka-server/eureka/' }
+  { name: 'EUREKA_URI', value: 'http://careq-eureka-server/eureka/' }
   { name: 'SPRING_PROFILES_ACTIVE', value: 'azure' }
   { name: 'JAVA_OPTS', value: '-Xmx384m -XX:MaxMetaspaceSize=192m' }
   { name: 'MYSQL_HOST', value: mysqlFqdn }
@@ -225,7 +264,8 @@ var mysqlEnv = [
 ]
 
 // ─────────────────────────────────────────────────────────────────────
-// 1. eureka-server — always on (min 1). Every other service registers here.
+// 1. eureka-server — scale-to-zero (wakes on internal traffic). Every
+//    other service registers here; the HTTP scale rule wakes it on demand.
 // ─────────────────────────────────────────────────────────────────────
 resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'careq-eureka-server'
@@ -276,15 +316,26 @@ resource eurekaApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 1
+        rules: [
+          {
+            name: 'http-scale'
+            http: {
+              metadata: {
+                concurrentRequests: '20'
+              }
+            }
+          }
+        ]
       }
     }
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 2. api-gateway — always on, the ONLY externally reachable service
+// 2. api-gateway — the ONLY externally reachable service (scale-to-zero
+//    on HTTP traffic; wakes on the first request from Vercel)
 //    (Vercel → https://careq-api-gateway.<env>...azurecontainerapps.io)
 // ─────────────────────────────────────────────────────────────────────
 resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
@@ -322,7 +373,7 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             memory: '1.0Gi'
           }
           env: [
-            { name: 'EUREKA_URI', value: 'http://eureka-server/eureka/' }
+            { name: 'EUREKA_URI', value: 'http://careq-eureka-server/eureka/' }
             { name: 'SPRING_PROFILES_ACTIVE', value: 'azure' }
             { name: 'JAVA_OPTS', value: '-Xmx384m -XX:MaxMetaspaceSize=192m' }
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
@@ -355,7 +406,7 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 3
         rules: [
           {
@@ -373,7 +424,7 @@ resource apiGatewayApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// 3. auth-service — always on (every request path starts with login/JWT).
+// 3. auth-service — scale-to-zero (every request path starts with login/JWT).
 // ─────────────────────────────────────────────────────────────────────
 resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
   name: 'careq-auth-service'
@@ -427,7 +478,7 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: 0
         maxReplicas: 3
         rules: [
           {
@@ -478,7 +529,11 @@ resource userServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             cpu: '0.25'
             memory: '1.0Gi'
           }
-          env: mysqlEnv
+          env: concat(mysqlEnv, [
+            // Profile pictures land in Azure Blob Storage on Azure; the
+            // deploy job injects the account connection string as a secret.
+            { name: 'AZURE_STORAGE_CONNECTION_STRING', secretRef: 'storage-connection-string' }
+          ])
           probes: [
             {
               type: 'liveness'
@@ -543,7 +598,7 @@ resource doctorServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
-            { name: 'REDIS_HOST', value: 'redis' }
+            { name: 'REDIS_HOST', value: 'careq-redis' }
             { name: 'REDIS_PORT', value: '6379' }
           ])
           probes: [
@@ -611,7 +666,7 @@ resource queueServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           }
           env: concat(mysqlEnv, [
             { name: 'GROQ_API_KEY', secretRef: 'groq-api-key' }
-            { name: 'RABBITMQ_HOST', value: 'rabbitmq' }
+            { name: 'RABBITMQ_HOST', value: 'careq-rabbitmq' }
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
@@ -680,7 +735,7 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
-            { name: 'RABBITMQ_HOST', value: 'rabbitmq' }
+            { name: 'RABBITMQ_HOST', value: 'careq-rabbitmq' }
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
@@ -856,4 +911,5 @@ output gatewayFqdn string = apiGatewayApp.properties.configuration.ingress.fqdn
 output eurekaFqdn string = eurekaApp.properties.configuration.ingress.fqdn
 output mysqlFqdn string = mysqlFqdn
 output mysqlServerName string = mysqlServer.name
+output storageAccountName string = storageAccount.name
 output caeName string = cae.name

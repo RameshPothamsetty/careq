@@ -38,6 +38,7 @@ GHCR_OWNER="${GHCR_OWNER:-rameshpothamsetty}"
 IMAGE_TAG="${IMAGE_TAG:-develop-latest}"
 MYSQL_SERVER_NAME="${MYSQL_SERVER_NAME:-careq-mysql}"
 MYSQL_ADMIN_USER="${MYSQL_ADMIN_USER:-careqadmin}"
+STORAGE_ACCOUNT_NAME="${STORAGE_ACCOUNT_NAME:-carequploads}"
 
 # Required secrets — generate them ONCE here, reuse the SAME values later
 # when you add them to GitHub secrets.
@@ -142,6 +143,7 @@ az deployment group create \
       mysqlPassword="$MYSQL_PASSWORD" \
       mysqlAdminUser="$MYSQL_ADMIN_USER" \
       mysqlServerName="$MYSQL_SERVER_NAME" \
+      storageAccountName="$STORAGE_ACCOUNT_NAME" \
       ghcrOwner="$GHCR_OWNER" \
       imageTag="$IMAGE_TAG" \
   --name careq-day15-provision
@@ -204,24 +206,29 @@ echo ""
 # unset (default) and omit GHCR_PAT.
 
 # To use private GHCR packages, add to the deployment command above:
-#   ghcrUsername='<github-username>'
+#   ghcrUsername='<github-username>'echo "▶ Fetching the Blob Storage connection string (profile pictures)..."
+    STORAGE_CONNECTION_STRING=$(az storage account show-connection-string \
+      --name "$STORAGE_ACCOUNT_NAME" \
+      --resource-group "$RESOURCE_GROUP" \
+      --query connectionString -o tsv)
 
-echo "============================================================"
-echo "  GITHUB SECRETS — add ALL of these to the repo before the"
-echo "  deploy workflow will succeed (Settings → Secrets → Actions):"
-echo "============================================================"
-echo "  Already present (OIDC):"
-echo "    AZURE_CLIENT_ID         (from App Registration)"
-echo "    AZURE_TENANT_ID"
-echo "    AZURE_SUBSCRIPTION_ID"
-echo ""
-echo "  New — add these now:"
-echo "    JWT_SECRET                      = $JWT_SECRET"
-echo "    MYSQL_PASSWORD                  = $MYSQL_PASSWORD"
-echo "    RABBITMQ_USERNAME               = $RABBITMQ_USERNAME"
-echo "    RABBITMQ_PASSWORD               = $RABBITMQ_PASSWORD"
-echo "    GROQ_API_KEY                    = <your groq key — optional, triage falls back to NORMAL without it>"
-echo "    GHCR_PAT                        = <optional — fine-grained PAT, packages:read, ONLY if your ghcr packages are private>"
+    echo "============================================================"
+    echo "  GITHUB SECRETS — add ALL of these to the repo before the"
+    echo "  deploy workflow will succeed (Settings → Secrets → Actions):"
+    echo "============================================================"
+    echo "  Already present (OIDC):"
+    echo "    AZURE_CLIENT_ID         (from App Registration)"
+    echo "    AZURE_TENANT_ID"
+    echo "    AZURE_SUBSCRIPTION_ID"
+    echo ""
+    echo "  New — add these now:"
+    echo "    JWT_SECRET                      = $JWT_SECRET"
+    echo "    MYSQL_PASSWORD                  = $MYSQL_PASSWORD"
+    echo "    RABBITMQ_USERNAME               = $RABBITMQ_USERNAME"
+    echo "    RABBITMQ_PASSWORD               = $RABBITMQ_PASSWORD"
+    echo "    AZURE_STORAGE_CONNECTION_STRING = $STORAGE_CONNECTION_STRING"
+    echo "    GROQ_API_KEY                    = <your groq key — optional, triage falls back to NORMAL without it>"
+    echo "    GHCR_PAT                        = <optional — fine-grained PAT, packages:read, ONLY if your ghcr packages are private>"
 echo ""echo "  Vercel (create ONCE at https://vercel.com):"
     echo "    VERCEL_TOKEN                    = Account Settings → Tokens → Create"
     echo "    VERCEL_ORG_ID                   = orgId in frontend/.vercel/project.json after \`npx vercel link\`"

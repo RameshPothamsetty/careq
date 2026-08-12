@@ -285,7 +285,7 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Vercel frontend + free-tier MySQL Flexible Server; ephemeral Redis/RabbitMQ storage and ephemeral profile pictures are the documented trade-offs). Still on the Phase 2 roadmap: **actual email/SMS/push delivery** (notifications remain in-app only today). Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–13 for the design decisions.
+Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Vercel frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures; ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). Still on the Phase 2 roadmap: **actual email/SMS/push delivery** (notifications remain in-app only today). Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–13 for the design decisions.
 
 ## Git Branching Strategy
 

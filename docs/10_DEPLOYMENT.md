@@ -191,8 +191,8 @@ Internet ──▶ Vercel (careq-frontend.vercel.app)   [free Hobby plan, always
    ▼                       ▼   ▼
  careq-eureka-server  careq-rabbitmq (tcp :5672, min 0)  ── careq.events ──┐
  (min 1)                  │  careq.notifications queue ─────────────────────┘
-   │                       │
-   ▼                       ▼
+   │                       │          ┌─ Azure Blob Storage (5 GB free)
+   ▼                       ▼          │   careq-uploads: profile pictures
  Azure Database for MySQL Flexible Server (careq-mysql, Standard_B1ms)
  (private access, no public endpoint, 32 GB — FREE for 12 months)
 ```
@@ -201,15 +201,13 @@ All nine container apps live in one VNet-injected Container Apps Environment
 (`careq-env`, consumption-only, `careq-vnet` 10.0.0.0/16): `apps-subnet`
 10.0.1.0/24 (delegated `Microsoft.App/environments`) and `mysql-subnet`
 10.0.3.0/24 (delegated `Microsoft.DBforMySQL/flexibleServers`, private DNS
-zone `private.mysql.database.azure.com`).
-
-**Always-on vs scale-to-zero (cost policy — read this):**
+zone `private.mysql.database.azure.com`).**Scale-to-zero everywhere (cost policy — read this):**
 
 | App | min / max | Why |
 |-----|-----------|-----|
-| careq-eureka-server | 1 / 1 | registry — every service depends on it |
-| careq-api-gateway | 1 / 3 | every request enters here |
-| careq-auth-service | 1 / 3 | login/JWT sits on every session start |
+| careq-eureka-server | 0 / 1 | registry — HTTP rule wakes it on internal traffic |
+| careq-api-gateway | 0 / 3 | every request enters here — HTTP rule wakes it |
+| careq-auth-service | 0 / 3 | login/JWT — HTTP rule wakes it |
 | careq-user-service | 0 / 3 | scale-to-zero, HTTP rule |
 | careq-doctor-service | 0 / 3 | scale-to-zero, HTTP rule |
 | careq-queue-service | 0 / 3 | scale-to-zero, HTTP rule |
@@ -217,18 +215,18 @@ zone `private.mysql.database.azure.com`).
 | careq-redis | 0 / 1 | TCP rule — wakes on first connection |
 | careq-rabbitmq | 0 / 1 | TCP rule — wakes on first connection |
 
-**Honest cost reality (free-tier driven).** The frontend is **free forever**
+**Honest cost reality (fully free).** The frontend is **free forever**
 (Vercel Hobby). The database is **free for 12 months** (MySQL Flexible Server
 Burstable B1ms + 32 GB + 750 hrs/month — enough for 24/7; no HA, no geo
-backup, which is exactly what the free tier requires). The only real cost is
-the **three always-on Java apps**: consumption billing is per-second, and the
-Container Apps free grant (180k vCPU-seconds/mo) covers roughly one week of a
-single 0.25-vCPU app — the three warm apps run about **$60–75/mo** total.
-Within the **$200 / 30-day trial credit** that's covered for a full month of
-interview demos; the scale-to-zero services, Redis, RabbitMQ, DB and frontend
-bill **$0** when idle. Set a **budget alert** in Azure Cost Management
-(50%/90% on `careq-rg`) and **tear down after interviews**
-(`az group delete --name careq-rg --yes --no-wait`) — then total spend is $0.
+backup, which is exactly what the free tier requires). Profile pictures live
+in **Blob Storage (5 GB free for 12 months)**. And because **every** container
+app scales to zero, the backend rides the Container Apps monthly free grant
+(180k vCPU-seconds + 360k GiB-seconds + 2M requests) — a few hours of demo
+use per day stays well inside it, so the whole stack runs at **~$0/month**
+(sample math: 3 apps × 0.25 vCPU × 2 hrs/day × 30 days = 45 of the free
+50 vCPU-hours). The only residual is cold starts (below). Still set a
+**budget alert** in Azure Cost Management (50%/90% on `careq-rg`) and
+**tear down after interviews** (`az group delete --name careq-rg --yes --no-wait`).
 
 ### 4.2 Cold-start & scale-to-zero behavior (measured on the Day 15 checklist)
 
@@ -238,9 +236,11 @@ bill **$0** when idle. Set a **budget alert** in Azure Cost Management
   environment's Envoy proxy, whose request counting drives the HTTP scale rules.
 - **Observed delay: <placeholder — fill in from the first live run>.** Expect the
   first request after ~5 min idle to take 10–60 s extra (or 503 on the very first
-  hit while Eureka leases expire — the smoke script retries and reports it).
-- If a demo must never feel cold, flip `minReplicas: 0 → 1` for the service in
-  question in `infra/azure/main.bicep` and redeploy — costs roughly $20/mo each.
+  hit while Eureka leases expire — the smoke script retries and reports it). With
+  **all** apps now scaling to zero, the first hit of a demo can wake several
+  services in sequence (gateway → auth → service → eureka). Warm up once
+  (~1–2 min) before an interview demo, or flip `minReplicas: 0 → 1` for a
+  service in `infra/azure/main.bicep` if it must never feel cold.
 
 ### 4.3 Known limitations (deliberate, not bugs)
 
@@ -249,10 +249,10 @@ bill **$0** when idle. Set a **budget alert** in Azure Cost Management
   fail-open cache (a few extra DB reads after wake-up); RabbitMQ's durable queue
   is re-declared idempotently on boot, and queue-service's publisher is
   non-blocking by design — a broker outage logs a warning, never fails a join.
-- **User profile pictures are ephemeral on Azure** — the local `uploads-data`
-  volume doesn't exist in Container Apps. Pics persist for the app's lifetime and
-  are lost on redeploy. Follow-up: mount Azure Files or switch user-service to
-  Azure Blob Storage (out of scope today).
+- **User profile pictures persist via Azure Blob Storage** (free 5 GB tier,
+  public-read `careq-uploads` container). Uploads survive redeploys and scale
+  downs. Trade-off: the container is public-read (fine for a demo; use SAS
+  tokens or a private container + signed URLs before any production use).
 - **No custom domains** — Vercel's default `*.vercel.app` and Azure's default
   `*.azurecontainerapps.io` URLs are used (explicitly out of scope today).
 - **MySQL free tier is 750 hours/month and lasts 12 months** — a single
@@ -317,6 +317,7 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
 | `VERCEL_PROJECT_ID` | frontend deploy | `projectId` in the same `frontend/.vercel/project.json` |
+| `AZURE_STORAGE_CONNECTION_STRING` | user-service profile pictures | `az storage account show-connection-string -n <account> -g careq-rg --query connectionString -o tsv` (printed by `provision.sh`) |
 
 > The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
 > moved to Vercel (Day 15 revision).
