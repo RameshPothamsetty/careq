@@ -286,12 +286,14 @@ interface PaginatedResponse<T> {
 /**
  * Cold-start tolerance (Day 15 Azure): every container app scales to zero, so
  * the first request after idle can return 502/503 with an EMPTY body while
- * the app wakes up (see docs/10_DEPLOYMENT.md §4.2). Retry briefly, mirroring
- * scripts/day15-azure-smoke.mjs, instead of surfacing a cryptic parse error.
+ * the app wakes up. Measured cold start is 10-60s (docs/10_DEPLOYMENT.md
+ * §4.2), so retry for roughly that long — mirroring scripts/day15-azure-smoke.mjs
+ * — instead of surfacing a cryptic parse error. Attempts wait 8s each, so the
+ * window is ~56s of retrying plus the request time itself.
  */
 const COLD_START_STATUSES = [502, 503];
-const COLD_START_MAX_ATTEMPTS = 4;
-const COLD_START_RETRY_DELAY_MS = 4000;
+const COLD_START_MAX_ATTEMPTS = 8;
+const COLD_START_RETRY_DELAY_MS = 8000;
 
 async function request<T>(
   endpoint: string,
