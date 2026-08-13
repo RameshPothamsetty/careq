@@ -347,7 +347,14 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Bake the gateway URL into the build directly. Relying on the Vercel
+          # project env made pipeline deploys produce bundles with relative /api
+          # calls (Vercel answers POST /api with 405 -> frontend "warming up"
+          # error). The FQDN is stable (docs 10_DEPLOYMENT.md §4.5) and is also
+          # hardcoded above for gateway CORS. Vite exposes VITE_* vars from the
+          # shell, so this works for `vercel build` regardless of project env.
+          VITE_API_BASE_URL: https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io
         run: |
           npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          VITE_API_BASE_URL="$VITE_API_BASE_URL" npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
           npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
