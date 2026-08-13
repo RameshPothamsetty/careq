@@ -169,17 +169,23 @@ Only the built-in `GITHUB_TOKEN` is required (the workflows request `packages: w
 
 ## 4. Azure Deployment (Day 15) — Vercel frontend + Azure backend, free-tier
 
-**Version:** 1.3 (Day 15 — Azure Container Apps + **Vercel** frontend + **Azure Database for MySQL Flexible Server** free tier)
+**Version:** 1.4 (Day 15 — Azure Container Apps + **Vercel** frontend + **Azure Database for MySQL Flexible Server** free tier; live-run fixes 2026-08-13)
 
-Live at **<GATEWAY_URL>** (backend gateway) / **https://careq-frontend.vercel.app** (frontend on Vercel) once the first deploy run completes (filled in on the Day 15 checklist).
+**Live URLs (verified working end-to-end):**
+
+- Frontend (Vercel): `https://careq-frontend-eta.vercel.app`
+- Backend gateway (Azure): `https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io`
+
+(§ 4.7 shows how to re-fetch the gateway FQDN dynamically; § 4.8 explains why the
+frontend URL carries the `-eta` suffix.)
 
 ### 4.1 Target architecture
 
 ```
-Internet ──▶ Vercel (careq-frontend.vercel.app)   [free Hobby plan, always-on CDN]
+Internet ──▶ Vercel (careq-frontend-eta.vercel.app)   [free Hobby plan, always-on CDN]
                 │  HTTPS, CORS-enabled
                 ▼
-        careq-api-gateway  ── external HTTPS ingress (always-on, min 1)   ◀── the only public backend
+        careq-api-gateway  ── external HTTPS ingress (wakes on traffic, min 0)   ◀── the only public backend
                 │  routes via Eureka (FQDN registration)
    ┌────────────┼──────────────┬──────────────┬─────────────────┐
    ▼            ▼              ▼              ▼                 ▼
@@ -235,7 +241,10 @@ interviews** (`az group delete --name careq-rg-south --yes --no-wait`).
   services register with `CONTAINER_APP_HOSTNAME` + port 80 on Azure (see the
   `application-azure.yml` profile): inter-service traffic flows through the
   environment's Envoy proxy, whose request counting drives the HTTP scale rules.
-- **Observed delay: <placeholder — fill in from the first live run>.** Expect the
+- **Observed delay: ~6–8 s for a single gateway container to start (measured from
+  live container logs); a fully cold chain (gateway → eureka → auth → MySQL) on
+  the very first request after idle took 10–60 s+, long enough that the frontend
+  now retries 502/503/504 + dropped connections for ~56 s (see § 4.8).** Expect the
   first request after ~5 min idle to take 10–60 s extra (or 503 on the very first
   hit while Eureka leases expire — the smoke script retries and reports it). With
   **all** apps now scaling to zero, the first hit of a demo can wake several
@@ -286,10 +295,15 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 
 > **Frontend is NOT provisioned here** — it deploys to Vercel (free). After
 > provisioning, create the Vercel project once:
-> `cd frontend && npx vercel link && npx vercel env add VITE_API_BASE_URL production`
+> `cd frontend && npx vercel link --project careq-frontend && npx vercel env add VITE_API_BASE_URL production`
 > (value = `https://<gateway-fqdn>`), then copy `orgId` / `projectId` from
 > `frontend/.vercel/project.json` into the `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`
 > GitHub secrets.
+>
+> **Note (v1.4):** the CD pipeline now bakes `VITE_API_BASE_URL` into the build
+> itself (see § 4.6), so the project env var is only needed for manual
+> `npx vercel --prod` deploys — relying on the project env alone silently
+> shipped a bundle with relative `/api` calls (see § 4.8, issue 4).
 >
 > **Region capacity:** the free-tier MySQL SKU (Standard_B1ms) is
 > capacity-restricted in some regions right now. `provision.sh` probes the
@@ -333,19 +347,22 @@ run after images pass the full-stack smoke, on every **branch** push to
 2. `az containerapp update` per service — new image (`ghcr.io/<owner>/careq-<svc>:<sha|main>`)
    + all secrets (GitHub secrets → Container App secrets; `secretref:` env vars pick
    them up automatically — no app restart needed beyond the revision roll).
-3. Gateway CORS env pointed at `https://careq-frontend.vercel.app`.
+3. Gateway CORS env pointed at `https://careq-frontend-eta.vercel.app` (the
+   real Vercel project's URL — see § 4.8 for why it is not the `careq-frontend`
+   project).
 4. Frontend: `deploy-frontend` runs the **Vercel CLI** in `frontend/`
-   (`vercel pull` → `vercel build` → `vercel deploy --prebuilt --prod`).
-   `VITE_API_BASE_URL` is set **once** in the Vercel project's production env
-   (the gateway FQDN is stable), so no DNS lookup or URL baking is needed in
-   the pipeline.
+   (`vercel pull` → `vercel build` → `vercel deploy --prebuilt --prod`), with
+   `VITE_API_BASE_URL` **passed to `vercel build` directly** (hardcoded in the
+   workflow — the gateway FQDN is stable). Baking it in guarantees the bundle
+   always calls the gateway; relying on the Vercel project env alone shipped a
+   bundle with relative `/api` calls (see § 4.8, issue 4).
 
 ### 4.7 Verify a deployment
 
 ```bash
 # URLs
 GATEWAY_URL="https://$(az containerapp show -n careq-api-gateway -g careq-rg-south --query properties.configuration.ingress.fqdn -o tsv)"
-FRONTEND_URL="https://careq-frontend.vercel.app"
+FRONTEND_URL="https://careq-frontend-eta.vercel.app"
 
 # Seed the live DB (once):
 API_BASE="$GATEWAY_URL" bash scripts/seed-data.sh
@@ -360,7 +377,29 @@ az containerapp logs show -n careq-queue-service -g careq-rg-south --type consol
 az containerapp exec -n careq-eureka-server -g careq-rg-south --command curl -s http://localhost:8761
 ```
 
-### 4.8 Teardown
+### 4.8 Live-run fixes (verified on the first real deployment, 2026-08-13)
+
+The first real deployment exposed five issues that were fixed and verified
+end-to-end (live smoke test 15/15 — a fresh patient journey through the real
+URLs: signup → login → browse doctors → join queue → AI triage → status):
+
+| # | Symptom | Root cause | Fix |
+|---|---------|-----------|-----|
+| 1 | Signup crashed with `Failed to execute 'json' on 'Response': Unexpected end of JSON input` | `frontend/src/services/api.ts` called `response.json()` unconditionally; cold-start 502/503 responses have an **empty body** | Defensive body parsing (empty body → readable message) + retry 502/503/504 **and** dropped connections for ~56 s (`COLD_START_MAX_ATTEMPTS=8`, 8 s apart) |
+| 2 | Browser got 403 on every API call while curl worked | Gateway read `@Value("${app.cors.allowed-origins}")` but Spring maps env var `CORS_ALLOWED_ORIGINS` to `cors.allowed-origins` — the value never reached the app, so the localhost defaults were used | `application.yml` now maps the env var explicitly; verified preflight from the real origin → 200 + `access-control-allow-origin` on both preflight **and** actual responses |
+| 3 | `careq-frontend.vercel.app` served a **Next.js** app (not this repo) | That domain belongs to a different/older Vercel project; this repo's app lives in the `careq-frontend` project | Use `https://careq-frontend-eta.vercel.app`; workflows' CORS updated to match |
+| 4 | Signup failed after deploys — frontend showed "Service is warming up" | Pipeline-deployed bundles had **no gateway URL baked in**: relative `/api` calls hit Vercel, which answers POST with **405 + empty body** → frontend showed the warm-up message (my curl checks passed because curl ignores that) | `VITE_API_BASE_URL` is now passed to `vercel build` in `cd-develop.yml` / `cd-release.yml` (was set only in the Vercel project env, which the pipeline's `vercel pull` didn't reliably deliver) |
+| 5 | First request after ~5 min idle waits 10–60 s+ | All 9 container apps scale to zero by design (free-tier cost policy) | Frontend retries through the window (~56 s); for zero-latency demos flip `minReplicas: 0 → 1` on gateway + auth-service in `infra/azure/main.bicep` |
+
+> **Correct frontend verification** — check the actual JS bundle, not Vercel's
+> SPA fallback (a bare `curl .../assets/index-*.js` hits the fallback HTML):
+>
+> ```bash
+> BUNDLE=$(curl -s https://careq-frontend-eta.vercel.app/ | grep -oE 'src="[^"]*\.js[^"]*"' | head -1 | grep -oE 'index-[^"]+\.js')
+> curl -s "https://careq-frontend-eta.vercel.app/assets/$BUNDLE" | grep -c "salmonforest-402be170"   # expect: 1
+> ```
+
+### 4.9 Teardown
 
 Delete EVERYTHING (all apps, environment, Flexible Server, VNet, logs):
 
