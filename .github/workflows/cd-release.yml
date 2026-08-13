@@ -330,8 +330,8 @@ jobs:
           az containerapp update \
             --name careq-api-gateway \
             --resource-group careq-rg-south \
-            --set-env-vars "CORS_ALLOWED_ORIGINS=https://careq-frontend.vercel.app"
-          echo "Gateway CORS allowed origin -> https://careq-frontend.vercel.app"
+            --set-env-vars "CORS_ALLOWED_ORIGINS=https://careq-frontend-eta.vercel.app"
+          echo "Gateway CORS allowed origin -> https://careq-frontend-eta.vercel.app"
 
   # ── Frontend to Vercel (Day 15) ────────────────────────────────────
   # Builds the SPA and ships it to Vercel (free Hobby plan) via the Vercel
