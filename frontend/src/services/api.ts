@@ -285,15 +285,26 @@ interface PaginatedResponse<T> {
 
 /**
  * Cold-start tolerance (Day 15 Azure): every container app scales to zero, so
- * the first request after idle can return 502/503 with an EMPTY body while
- * the app wakes up. Measured cold start is 10-60s (docs/10_DEPLOYMENT.md
- * §4.2), so retry for roughly that long — mirroring scripts/day15-azure-smoke.mjs
- * — instead of surfacing a cryptic parse error. Attempts wait 8s each, so the
- * window is ~56s of retrying plus the request time itself.
+ * the first request after idle can return 502/503/504 with an EMPTY body while
+ * the app wakes up (measured 10-60s, docs/10_DEPLOYMENT.md §4.2), and a CD
+ * rollout briefly drops connections entirely (fetch rejects). Retry for that
+ * whole window — mirroring scripts/day15-azure-smoke.mjs — instead of
+ * surfacing a cryptic parse error. Attempts wait 8s each, so the window is
+ * ~56s of retrying plus the request time itself.
  */
-const COLD_START_STATUSES = [502, 503];
+const COLD_START_STATUSES = [502, 503, 504];
 const COLD_START_MAX_ATTEMPTS = 8;
 const COLD_START_RETRY_DELAY_MS = 8000;
+
+/**
+ * True if the failure is a transient scale-to-zero / rollout condition we
+ * should retry: a 502/503/504 status, OR a fetch that rejected without a
+ * response (connection dropped mid-rollout). Anything else (4xx, real 5xx
+ * with a body, auth failures) is returned as-is.
+ */
+function isTransientFailure(response: Response | null): boolean {
+  return response === null || COLD_START_STATUSES.includes(response.status);
+}
 
 async function request<T>(
   endpoint: string,
@@ -310,15 +321,22 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  let response: Response;
+  let response: Response | null = null;
   for (let attempt = 1; ; attempt++) {
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch {
+      // fetch rejected — connection dropped while a scale-to-zero app (or a
+      // CD rollout) was waking. Treat as transient and retry.
+      response = null;
+    }
 
-    // Retry cold-start 502/503s; give up on anything else immediately.
-    if (!COLD_START_STATUSES.includes(response.status) || attempt >= COLD_START_MAX_ATTEMPTS) {
+    // Retry cold-start 502/503/504s and dropped connections; give up on
+    // anything else immediately.
+    if (!isTransientFailure(response) || attempt >= COLD_START_MAX_ATTEMPTS) {
       break;
     }
     await new Promise((resolve) => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
@@ -327,7 +345,7 @@ async function request<T>(
   // Parse defensively: 502/503 cold-start responses (and any gateway error
   // page) can have an EMPTY body — response.json() would throw
   // "Unexpected end of JSON input". Fall back to a readable message instead.
-  const text = await response.text();
+  const text = response ? await response.text() : '';
   let data: Record<string, unknown> = {};
   if (text) {
     try {
@@ -337,7 +355,7 @@ async function request<T>(
     }
   }
 
-  if (!response.ok) {
+  if (!response || !response.ok) {
     // Day 9: backend error shape is now { message, error, validationErrors } (was { details }).
     const errorMessage =
       (data.message as string) ||
@@ -346,7 +364,7 @@ async function request<T>(
         ? 'An unexpected error occurred'
         : 'Service is warming up — please try again in a moment.');
     const error = new Error(errorMessage) as Error & { status: number; validationErrors: { field: string; message: string }[] };
-    error.status = response.status;
+    error.status = response?.status ?? 0;
     error.validationErrors = (data.validationErrors as { field: string; message: string }[]) || [];
     throw error;
   }
