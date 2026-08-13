@@ -283,6 +283,16 @@ interface PaginatedResponse<T> {
   empty: boolean;
 }
 
+/**
+ * Cold-start tolerance (Day 15 Azure): every container app scales to zero, so
+ * the first request after idle can return 502/503 with an EMPTY body while
+ * the app wakes up (see docs/10_DEPLOYMENT.md §4.2). Retry briefly, mirroring
+ * scripts/day15-azure-smoke.mjs, instead of surfacing a cryptic parse error.
+ */
+const COLD_START_STATUSES = [502, 503];
+const COLD_START_MAX_ATTEMPTS = 4;
+const COLD_START_RETRY_DELAY_MS = 4000;
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -298,24 +308,48 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  for (let attempt = 1; ; attempt++) {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
 
-  const data = await response.json();
+    // Retry cold-start 502/503s; give up on anything else immediately.
+    if (!COLD_START_STATUSES.includes(response.status) || attempt >= COLD_START_MAX_ATTEMPTS) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, COLD_START_RETRY_DELAY_MS));
+  }
+
+  // Parse defensively: 502/503 cold-start responses (and any gateway error
+  // page) can have an EMPTY body — response.json() would throw
+  // "Unexpected end of JSON input". Fall back to a readable message instead.
+  const text = await response.text();
+  let data: Record<string, unknown> = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {};
+    }
+  }
 
   if (!response.ok) {
     // Day 9: backend error shape is now { message, error, validationErrors } (was { details }).
     const errorMessage =
-      data.message || data.error || 'An unexpected error occurred';
+      (data.message as string) ||
+      (data.error as string) ||
+      (text
+        ? 'An unexpected error occurred'
+        : 'Service is warming up — please try again in a moment.');
     const error = new Error(errorMessage) as Error & { status: number; validationErrors: { field: string; message: string }[] };
     error.status = response.status;
-    error.validationErrors = data.validationErrors || [];
+    error.validationErrors = (data.validationErrors as { field: string; message: string }[]) || [];
     throw error;
   }
 
-  return data as T;
+  return data as unknown as T;
 }
 
 /** Auth-only API — session state owned by AuthContext. */
