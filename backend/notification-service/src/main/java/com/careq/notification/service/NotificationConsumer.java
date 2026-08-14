@@ -21,9 +21,12 @@ public class NotificationConsumer {
     private static final Logger log = LoggerFactory.getLogger(NotificationConsumer.class);
 
     private final NotificationEntryRepository repository;
+    private final WebPushDeliveryService webPushDeliveryService;
 
-    public NotificationConsumer(NotificationEntryRepository repository) {
+    public NotificationConsumer(NotificationEntryRepository repository,
+                                WebPushDeliveryService webPushDeliveryService) {
         this.repository = repository;
+        this.webPushDeliveryService = webPushDeliveryService;
     }
 
     @RabbitListener(queues = RabbitConfig.NOTIFICATION_QUEUE)
@@ -44,6 +47,11 @@ public class NotificationConsumer {
             // 255 chars — guard against a DataIntegrityViolation at the DB.
             repository.save(new NotificationEntry(event.getRecipientUserId(), event.getEventType(), truncate(message, 500)));
             log.debug("Persisted notification type={} for user {}", event.getEventType(), event.getRecipientUserId());
+
+            // Day 16: fire-and-forget Web Push. The in-app row is the source
+            // of truth; delivery is async, best-effort and never blocks this
+            // consumer (see WebPushDeliveryService for the fail-open contract).
+            webPushDeliveryService.deliverAsync(event.getRecipientUserId(), event.getEventType(), message);
         } catch (Exception e) {
             // Never redeliver-loop on a poisoned message (Spring AMQP's default
             // is to requeue a throwing listener forever, blocking the queue).

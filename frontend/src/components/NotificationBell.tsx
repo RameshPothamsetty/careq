@@ -3,6 +3,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import type { TranslationKey } from '../i18n/translations';
+import { useWebPush } from '../hooks/useWebPush';
 import {
   useGetMyNotificationsQuery,
   useMarkNotificationReadMutation,
@@ -41,6 +42,9 @@ export default function NotificationBell() {
     pollingInterval: isPatient ? POLL_INTERVAL_MS : 0,
   });
   const [markNotificationRead] = useMarkNotificationReadMutation();
+
+  // Day 16: Web Push toggle — hooks must stay above the early return.
+  const webPush = useWebPush(!!isPatient);
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -132,6 +136,42 @@ export default function NotificationBell() {
               <CheckCheck className={`h-4 w-4 ${busy ? 'animate-pulse' : ''}`} />
             </button>
           </div>
+
+          {webPush.pushSupported && (
+            <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {t('header.pushNotifications')}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-400 dark:text-slate-500">
+                    {webPush.denied ? t('header.pushDenied') : t('header.pushHint')}
+                  </p>
+                  {webPush.error && (
+                    <p className="mt-0.5 text-[11px] text-red-500">{webPush.error}</p>
+                  )}
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={webPush.pushEnabled}
+                  aria-label={t('header.pushNotifications')}
+                  onClick={webPush.togglePush}
+                  disabled={webPush.busy}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                    webPush.pushEnabled
+                      ? 'bg-emerald-500'
+                      : 'bg-slate-300 dark:bg-slate-600'
+                  } ${webPush.busy ? 'cursor-wait opacity-60' : ''}`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                      webPush.pushEnabled ? 'left-[22px]' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="max-h-72 overflow-y-auto">
             {isLoading && items.length === 0 ? (

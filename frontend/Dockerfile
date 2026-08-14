@@ -12,6 +12,10 @@ COPY . .
 # works on any host/port. (The app code treats an empty value as "relative".)
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Day 16: Web Push — the VAPID public key baked into the bundle. Empty
+# (default) → the push toggle is hidden in the notification bell.
+ARG VITE_VAPID_PUBLIC_KEY=""
+ENV VITE_VAPID_PUBLIC_KEY=$VITE_VAPID_PUBLIC_KEY
 RUN npm run build
 
 FROM nginx:1.27-alpine

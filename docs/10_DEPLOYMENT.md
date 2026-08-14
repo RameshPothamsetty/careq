@@ -89,6 +89,8 @@ docker compose down -v                 # stop AND delete volumes (full reset)
 | `MYSQL_PASSWORD` | Yes¹ | mysql + all DB services | root password / datasource password (one shared DB `careq_db`) |
 | `JWT_SECRET` | Yes² | api-gateway + auth-service | must be identical in both; `openssl rand -base64 48` |
 | `GROQ_API_KEY` | No | queue-service | AI symptom triage; empty → fallback `NORMAL` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push (Day 16); generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
+| `VITE_VAPID_PUBLIC_KEY` | No | frontend build | = `VAPID_PUBLIC_KEY`; baked into the bundle (compose build arg / Vercel env) so the bell shows the push toggle — empty → toggle hidden |
 
 ¹ defaults to `root` if absent. ² defaults to a dev-only secret if absent — set a real one.
 
@@ -328,6 +330,7 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `MYSQL_PASSWORD` | all MySQL-backed services | **must equal** the `MYSQL_PASSWORD` used at provisioning (it is the Flexible Server admin password) |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** (Day 16) — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
 | `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
@@ -336,6 +339,13 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 
 > The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
 > moved to Vercel (Day 15 revision).
+
+> **Day 16 — Web Push on the live site:** after adding the two VAPID secrets,
+> also set `VITE_VAPID_PUBLIC_KEY` (= the same public key) in the Vercel
+> project's **production** env (`npx vercel env add VITE_VAPID_PUBLIC_KEY production`)
+> and redeploy the frontend — without it the bell's push toggle is hidden.
+> Push requires HTTPS, which Vercel provides; browsers then show the native
+> permission prompt when a patient flips the toggle.
 
 ### 4.6 Recurring deployment (automatic, no manual steps)
 

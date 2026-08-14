@@ -47,3 +47,13 @@ eureka:
 # Pagination bound for GET /api/notifications/me (never trust the caller's size).
 notifications:
   max-page-size: 50
+
+# Day 16: Web Push (VAPID) delivery. Both keys are base64url strings from
+# `npx web-push generate-vapid-keys` (the public key is also baked into the
+# frontend build as VITE_VAPID_PUBLIC_KEY). Empty keys → delivery disabled
+# (logged once at startup); in-app notifications keep working regardless.
+push:
+  vapid:
+    public-key: ${VAPID_PUBLIC_KEY:}
+    private-key: ${VAPID_PRIVATE_KEY:}
+    subject: ${VAPID_SUBJECT:mailto:careq@example.com}

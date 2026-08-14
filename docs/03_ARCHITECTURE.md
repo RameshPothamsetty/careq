@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.8 (Day 13)  
-**Status:** Updated — Redis catalog caching (doctor-service), RabbitMQ event bus + persisted notification-service, notification bell upgrade, `/api/doctors/me` resolution
+**Version:** 1.9 (Day 16)  
+**Status:** Updated — Web Push (VAPID) delivery with per-user preferences (notification-service), on top of Day 13's Redis catalog caching + RabbitMQ event bus
 
 ---
 
@@ -74,7 +74,7 @@
 | **user-service** | Profile CRUD for all roles; lazy profile creation on first access; Admin-only user profile lookup | `user_profiles` | Yes |
 | **doctor-service** | Department CRUD, Doctor catalog management, public browsing with filters, availability toggle | `departments`, `doctor_catalog_entries` | Yes |
 | **queue-service** | Queue operations, AI wait-time prediction, AI symptom triage | `queue_entries` | Yes |
-| **notification-service** | Consumes RabbitMQ queue events, persists in-app notifications, serves them to the caller's bell | `notification_entries` | Yes |
+| **notification-service** | Consumes RabbitMQ queue events, persists in-app notifications, serves them to the caller's bell, and delivers Web Push (VAPID) to registered browsers | `notification_entries`, `push_subscriptions`, `notification_preferences` | Yes |
 
 ---
 
@@ -248,7 +248,8 @@ POST /api/queue/join (patient)
 | `src/services/rtk/userApi.ts` | user-service profile endpoints (`GET`/`PUT /api/users/me`, multipart picture upload) |
 | `src/services/rtk/doctorApi.ts` | doctor-service endpoints: department CRUD, doctor catalog browse/CRUD, availability toggle |
 | `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview, analytics summary |
-| `src/services/rtk/notificationApi.ts` | notification-service endpoints: paginated `GET /api/notifications/me` (polled by the bell) + `PUT /api/notifications/{id}/read` (Day 13) |
+| `src/services/rtk/notificationApi.ts` | notification-service endpoints: paginated `GET /api/notifications/me` (polled by the bell) + `PUT /api/notifications/{id}/read` (Day 13); delivery preferences + push subscription endpoints (Day 16) |
+| `src/hooks/useWebPush.ts` | Day 16: Web Push lifecycle — permission prompt → SW registration → `pushManager.subscribe(VAPID)` → backend subscription + preference calls; drives the bell toggle |
 | `src/hooks/useQueueNotifications.ts` | Isolated hook watching the my-status polling; emits derived notification events on tracked transitions |
 | `src/context/NotificationContext.tsx` | Day 13: slimmed to the real-time TOAST layer only (the bell now reads persisted notifications from notification-service) |
 
@@ -342,3 +343,35 @@ careq.events (durable topic exchange)  ─▶ careq.notifications (durable queue
 **Resilience:** a custom `CacheErrorHandler` logs and swallows every Redis failure — if Redis is briefly unreachable, reads fall through to the database and evictions are skipped; the catalog never 500s because the cache layer is down. Keys are namespaced `careq:doctorCatalog::…` / `careq:departments::…` for direct inspection with `redis-cli KEYS careq:*`.
 
 **Also Day 13:** `GET /api/doctors/me` resolves the calling doctor's own catalog entry by header identity. The doctor dashboard and queue page now use it instead of scanning the whole paginated catalog (which silently broke once the catalog outgrew one page, and was the root cause of the misleading "no catalog entry — ask an admin" dead-end); the Admin doctor form gained a DOCTOR-account picker so user IDs are selected, never hand-typed.
+
+---
+
+## 14. Web Push Delivery (Day 16) — VAPID + per-user preferences
+
+**Decision:** the Phase 2 roadmap item "real delivery" is implemented as **browser Web Push via VAPID** — the only channel that is truly free at scale (the browser's own push service, FCM/APNs/Mozilla, does the heavy lifting; no third-party account or API key is required, only a VAPID keypair). Email/SMS remain future channels: the preference + delivery architecture below is channel-agnostic by design (a per-user `webPushEnabled` flag and a registry of destinations), so adding e.g. a Resend email transport later means adding a transport class and a flag — not re-architecting.
+
+### Topology
+
+```
+SPA (patient browser)                 notification-service (backend)
+─────────────────────                 ────────────────────────────────
+bell toggle:  permission →            GET/PUT /api/notifications/preferences
+  register /sw.js                     POST/DELETE /api/notifications/push/subscriptions
+  pushManager.subscribe(VAPID pub) ─▶ push_subscriptions (endpoint + keys)
+        │                                                        ▲
+        │  encrypted payload {type, message}                     │
+        │◀──────────────────── WebPushDeliveryService ───────────┘
+        │                     (@Async, on every queue event)
+        ▼
+  service worker → OS notification ("It's your turn!", …)
+```
+
+### Design decisions
+
+- **Delivery is fire-and-forget and fail-open (hard rule, matching Day 13's non-blocking contract):** the RabbitMQ consumer persists the in-app `NotificationEntry` FIRST (the source of truth), then calls `WebPushDeliveryService.deliverAsync` on a dedicated `webPushExecutor` thread pool. Delivery never blocks the consumer's ack and never propagates failures — a slow push service, a DB hiccup, or missing VAPID keys only log. The same philosophy as an empty `GROQ_API_KEY`: **no keys → delivery silently disabled, everything else keeps working.**
+- **No recipient-resolution step needed:** unlike email/SMS, a push destination IS the browser's subscription — the SPA registers it (keyed by the gateway's `X-User-Id`) at enable time, so the async consumer only reads its own tables. No cross-service Feign calls on the delivery path.
+- **Per-user preferences:** `notification_preferences` (one row per user, upsert). A missing row means defaults ON — an existing patient who never opened settings still receives pushes once they grant the browser permission. The preference is the user's opt-out; the browser permission is the separate OS-level opt-in — **both must be true**. The bell toggle reflects the EFFECTIVE state (preference AND a live subscription), so it never claims "on" when only half the setup exists.
+- **Subscription lifecycle:** upsert by endpoint (a re-subscribe, or a session switch on a shared browser, re-assigns the row — delivery never goes to the wrong person). Dead endpoints are self-cleaned during delivery: a 404/410 from the push service deletes the row so we stop paying for it.
+- **VAPID keys are env-driven:** `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (base64url, from `scripts/generate-vapid-keys.sh`) with `VAPID_SUBJECT` (mailto). The PUBLIC key is ALSO baked into the frontend build as `VITE_VAPID_PUBLIC_KEY` (same pattern as `VITE_API_BASE_URL`); without it the bell toggle is hidden entirely. The payload is the same `{type, message}` pair the in-app bell shows; the service worker maps `type` → title (queue.called is sent with `Urgency: high` so it can break through Do-Not-Disturb).
+- **Security:** `web-push` 5.1.1's transitive BouncyCastle (jdk15on 1.61, known CVEs) and httpclient are explicitly overridden with `bcprov/bcpkix-jdk18on 1.78.1` and `httpclient 4.5.14` in `notification-service/pom.xml`. The VAPID private key never leaves the backend.
+- **Browser support caveat:** push requires a secure context (HTTPS — or localhost in dev) and the user's permission; iOS Safari supports it only from 16.4+. The feature degrades gracefully: unsupported browsers simply don't show the toggle.

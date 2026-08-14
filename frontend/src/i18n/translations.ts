@@ -86,6 +86,10 @@ export const en = {
   'header.mAgo': '{m}m ago',
   'header.hAgo': '{h}h ago',
   'header.dAgo': '{d}d ago',
+  // Day 16: Web Push toggle.
+  'header.pushNotifications': 'Push notifications',
+  'header.pushHint': 'Get alerts even when CareQ is closed',
+  'header.pushDenied': 'Blocked in browser settings — enable it there',
 
   // ── real-time toasts (client-derived, Day 7b layer) ──────────────
   'toast.queueJoined': 'Queue joined',
@@ -319,6 +323,9 @@ const hi: Record<TranslationKey, string> = {
   'header.mAgo': '{m} मिनट पहले',
   'header.hAgo': '{h} घंटे पहले',
   'header.dAgo': '{d} दिन पहले',
+  'header.pushNotifications': 'पुश सूचनाएं',
+  'header.pushHint': 'CareQ बंद होने पर भी अलर्ट पाएं',
+  'header.pushDenied': 'ब्राउज़र सेटिंग्स में ब्लॉक है — वहाँ से चालू करें',
   'toast.queueJoined': 'कतार में शामिल हुए',
   'toast.joinedMessage':
     'आप {doctor} की कतार में शामिल हुए — स्थिति #{position}।',
@@ -539,6 +546,9 @@ const te: Record<TranslationKey, string> = {
   'header.mAgo': '{m} నిమి క్రితం',
   'header.hAgo': '{h} గం క్రితం',
   'header.dAgo': '{d} రోజుల క్రితం',
+  'header.pushNotifications': 'పుష్ నోటిఫికేషన్లు',
+  'header.pushHint': 'CareQ మూసివేసినా అలర్ట్లు పొందండి',
+  'header.pushDenied': 'బ్రౌజర్ సెట్టింగ్స్లో బ్లాక్ చేయబడింది — అక్కడ నుంచి ఆన్ చేయండి',
   'toast.queueJoined': 'క్యూలో చేరారు',
   'toast.joinedMessage':
     'మీరు {doctor} క్యూలో చేరారు — స్థానం #{position}.',

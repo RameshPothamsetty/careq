@@ -1084,6 +1084,86 @@ PUT /api/notifications/{id}/read
 
 **Error Responses:** `403` (not the recipient and not admin), `404` (notification not found).
 
+### 22. My Delivery Preferences (Day 16 — Web Push)
+
+```
+GET /api/notifications/preferences
+```
+
+**Auth:** Any authenticated role.
+
+**Description:** Returns the caller's delivery preferences. `webPushEnabled` defaults to `true` when no preference row exists yet (missing row = all defaults on); delivery ALSO requires the OS-level browser permission + a registered subscription.
+
+**Success Response (200):**
+```json
+{ "webPushEnabled": true }
+```
+
+**Error Responses:** `400` (missing identity header).
+
+### 23. Update My Delivery Preferences
+
+```
+PUT /api/notifications/preferences
+```
+
+**Auth:** Any authenticated role.
+
+**Request Body:**
+```json
+{ "webPushEnabled": false }
+```
+
+**Description:** Upserts the caller's preference row. `webPushEnabled` is the user's opt-out switch (the browser permission is tracked by the browser itself).
+
+**Success Response (200):** The updated `{ "webPushEnabled": ... }`.
+
+**Error Responses:** `400` (missing `webPushEnabled`, or missing identity header).
+
+### 24. Register a Push Subscription
+
+```
+POST /api/notifications/push/subscriptions
+```
+
+**Auth:** Any authenticated role (the SPA calls this after the user grants the Notification permission).
+
+**Request Body** (the browser's `PushSubscriptionJSON` — Web Push spec shape):
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+  "keys": {
+    "p256dh": "BOH8nTQA5iZhl23+NCzGG9prvOZ5...",
+    "auth": "TRlY/7yQzvqcLpgHQTxiU5fVzAAvAw/cdSh5kLFLNqg="
+  }
+}
+```
+
+**Description:** Registers (or re-registers, upsert by endpoint) the browser subscription for the calling user. Re-registering the same endpoint — e.g. after a session switch on a shared device — re-assigns the row to the caller so delivery never goes to the wrong person.
+
+**Success Response (201):** empty body.
+
+**Error Responses:** `400` (validation: missing `endpoint` / `keys.p256dh` / `keys.auth`, or missing identity header).
+
+### 25. Remove a Push Subscription
+
+```
+DELETE /api/notifications/push/subscriptions?endpoint=<url-encoded>
+```
+
+**Auth:** Any authenticated role.
+
+**Query Parameters:**
+| Name | Type | Description |
+|------|------|-------------|
+| endpoint | string (required) | The push endpoint to remove |
+
+**Description:** Removes the caller's subscription for the given endpoint (called on unsubscribe). Idempotent — removing a nonexistent endpoint is a no-op. Dead endpoints are also self-cleaned during delivery when the push service answers 404/410.
+
+**Success Response (204):** empty body.
+
+**Error Responses:** `400` (missing identity header).
+
 ---
 
 ## Status Codes Summary

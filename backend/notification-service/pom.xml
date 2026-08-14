@@ -63,6 +63,30 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!-- Day 16: Web Push (VAPID) delivery — nl.martijndwars is the standard
+             Java Web Push library. It pulls in OLD BouncyCastle jdk15on and
+             httpclient 4.5.x transitively (known CVEs), so the BC + httpclient
+             versions are overridden explicitly below (nearest-wins in Maven). -->
+        <dependency>
+            <groupId>nl.martijndwars</groupId>
+            <artifactId>web-push</artifactId>
+            <version>5.1.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
+        </dependency>
     </dependencies>
 
     <!-- Day 11: explicit Boot repackage so `mvn package` produces the

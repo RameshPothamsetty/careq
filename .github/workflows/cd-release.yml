@@ -274,6 +274,12 @@ jobs:
           if [[ -n "${{ secrets.GROQ_API_KEY }}" ]]; then
             GROQ_SECRET="groq-api-key=${{ secrets.GROQ_API_KEY }}"
           fi
+          # VAPID keys (Day 16) are ALSO optional — Web Push is disabled
+          # without them, so only pass them when BOTH GitHub secrets exist.
+          VAPID_SECRET=""
+          if [[ -n "${{ secrets.VAPID_PUBLIC_KEY }}" && -n "${{ secrets.VAPID_PRIVATE_KEY }}" ]]; then
+            VAPID_SECRET="vapid-public-key=${{ secrets.VAPID_PUBLIC_KEY }} vapid-private-key=${{ secrets.VAPID_PRIVATE_KEY }}"
+          fi
           GHCR_SECRET=""
           REGISTRY_ARGS=()
           if [[ -n "${{ secrets.GHCR_PAT }}" ]]; then
@@ -297,6 +303,7 @@ jobs:
                 "rabbitmq-pass=${{ secrets.RABBITMQ_PASSWORD }}" \
                 "storage-connection-string=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
                 $GROQ_SECRET \
+                $VAPID_SECRET \
                 $GHCR_SECRET
             # 2) Roll the image forward (+ optional GHCR registry credentials).
             az containerapp update \

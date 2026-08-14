@@ -1,7 +1,11 @@
-# CareQ — Database Schema (Day 13)
+# CareQ — Database Schema (Day 16)
 
-**Version:** 1.7 (Day 13)  
+**Version:** 1.8 (Day 16)  
 **Database:** MySQL 8.x
+
+> **Day 16 schema additions** (applied automatically by Hibernate `ddl-auto: update`):
+> - `push_subscriptions` — Web Push registrations, one row per browser/device (owned by notification-service). See § 9 below.
+> - `notification_preferences` — per-user delivery preferences, one row per user (owned by notification-service). See § 10 below.
 
 > **Day 13 schema addition** (applied automatically by Hibernate `ddl-auto: update`):
 > - `notification_entries` — persisted in-app notifications, one row per consumed RabbitMQ queue event (owned by notification-service). See § 8 below.
@@ -215,6 +219,46 @@ CREATE TABLE notification_entries (
     INDEX idx_notification_recipient (recipient_user_id),
     INDEX idx_notification_created (created_at)
 ) ENGINE=InnoDB;
+
+-- ============================================================
+-- 9. push_subscriptions — Web Push registrations (Day 16)
+--     Owned by notification-service. One row per browser/device,
+--     written by POST /api/notifications/push/subscriptions and
+--     deleted when the user unsubscribes or the push service
+--     reports the endpoint dead (HTTP 404/410 — the consumer
+--     self-cleans during delivery). endpoint is unique: the same
+--     browser re-subscribing (or another user on a shared device)
+--     upserts the row instead of duplicating it.
+-- ============================================================
+CREATE TABLE push_subscriptions (
+    id                  BIGINT        AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id   CHAR(36)      NOT NULL,          -- users.id (plain ref)
+    endpoint            VARCHAR(1000) NOT NULL,          -- push service URL (FCM/APNs/Mozilla)
+    p256dh              VARCHAR(255)  NOT NULL,          -- base64url client public key
+    auth                VARCHAR(255)  NOT NULL,          -- base64url auth secret
+    created_at          TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_push_endpoint (endpoint),
+    INDEX idx_push_recipient (recipient_user_id)
+) ENGINE=InnoDB;
+
+-- ============================================================
+-- 10. notification_preferences — Per-user delivery prefs (Day 16)
+--     Owned by notification-service. One row per user (upsert by
+--     PUT /api/notifications/preferences). A MISSING row means
+--     "all defaults on" — web_push_enabled defaults to TRUE, so an
+--     existing patient who never opened settings still receives
+--     pushes once they grant the browser permission. The preference
+--     is the user's opt-out switch; the browser permission is the
+--     separate OS-level opt-in (both must be true for delivery).
+-- ============================================================
+CREATE TABLE notification_preferences (
+    id                  BIGINT   AUTO_INCREMENT PRIMARY KEY,
+    recipient_user_id   CHAR(36) NOT NULL,               -- users.id (plain ref)
+    web_push_enabled    BOOLEAN  NOT NULL DEFAULT TRUE,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_pref_recipient (recipient_user_id)
+) ENGINE=InnoDB;
 ```
 
 ---
@@ -231,3 +275,5 @@ CREATE TABLE notification_entries (
 | doctor_catalog_entries | doctor-service | id (BIGINT) | user_id (plain ref) | Day 4 — Catalog data separate from user_profiles |
 | queue_entries | queue-service | id (BIGINT) | patient_id, doctor_catalog_entry_id (plain refs) | Day 5 — AI triage + wait-time prediction; doctor consultation data NOT duplicated (fetched via Feign) |
 | notification_entries | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 13 — persisted in-app notifications, written by the RabbitMQ consumer |
+| push_subscriptions | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 16 — Web Push registrations, one per browser/device; self-cleaned on 404/410 during delivery |
+| notification_preferences | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 16 — per-user delivery prefs; missing row = defaults on |

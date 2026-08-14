@@ -680,3 +680,77 @@ Same labeled-file-block format as previous days for any file changed or created.
 5. Output the live Gateway URL and Static Web App URL
 6. Output the exact `git` command sequence, with explanations, for me to run
 ```
+
+---
+
+## Day 16: Web Push Notifications (VAPID) + per-user delivery preferences
+
+> Fulfills the last remaining Phase 2 delivery item — **browser Web Push**, the
+> one channel that is genuinely free at scale (the browser's own push service
+> does the delivery; only a self-generated VAPID keypair is needed, no
+> third-party account). Email/SMS were researched (gravity index surfaced Knock,
+> Resend, Brevo, Twilio) and deliberately deferred: the preference + destination
+> architecture is channel-agnostic, so they are additive later.
+
+**Prompt:** CareQ — Day 16 Prompt (Web Push Notifications + per-user preferences)
+
+**Date Executed:** 2026-08-14
+
+**Branch:** `feature/web-push-notifications`
+
+**Summary:** Added real delivery to the Day 13 notification system. **Backend (notification-service)**: two new tables (`push_subscriptions` — one row per browser/device, unique endpoint; `notification_preferences` — per-user opt-out, missing row = defaults on), four new endpoints under the existing `/api/notifications/**` gateway route (`GET/PUT /api/notifications/preferences`, `POST/DELETE /api/notifications/push/subscriptions`), and an async `WebPushDeliveryService` (`@Async` on a dedicated `webPushExecutor` pool) that the RabbitMQ consumer fires AFTER persisting the in-app row — **fail-open by contract**: missing VAPID keys, DB hiccups, or push-service failures only log, never block or requeue. Delivery honors the per-user opt-out, sends `queue.called` with `Urgency: high`, and self-cleans dead endpoints on 404/410. VAPID keys are env-driven (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`); `nl.martijndwars:web-push:5.1.1` with BouncyCastle + httpclient overridden to patched versions (jdk18on 1.78.1 / 4.5.14). **Frontend**: `public/sw.js` service worker (push → OS notification with type→title mapping; click → focus/navigate to /queue), a `useWebPush` hook (permission → SW register → `pushManager.subscribe(VAPID)` → backend calls; effective-state toggle), a push toggle in the notification bell, i18n in en/hi/te, `VITE_VAPID_PUBLIC_KEY` baked at build (toggle hidden without it). **Ops**: `scripts/generate-vapid-keys.sh` helper; `.env.example`, docker-compose (notification-service env + frontend build arg), Azure `main.bicep` (vapid secrets + env), both CD workflows (optional VAPID secrets via `az containerapp secret set`), `provision.sh` secrets list, Vercel `VITE_VAPID_PUBLIC_KEY` env documented. **Tests**: 29/29 notification-service tests (consumer now asserts the push dispatch; new `PushPreferenceServiceTest` + `WebPushDeliveryServiceTest` cover gating, opt-out, 404/410 cleanup, fail-open) and 23/23 frontend tests; `tsc --noEmit` clean. Docs: architecture §14, API contract §22–25, database §9–10, README status/roadmap, deployment env vars, this archive. **Explicitly deferred**: email and SMS transports (channel-agnostic design ready), per-event-type preference granularity.
+
+## Full Prompt Text
+
+```
+# CareQ — Day 16 Prompt (Web Push Notifications + per-user preferences)
+
+> Save as the next entry in docs/11_PROMPTS.md.
+> Assumes: Day 13 notification-service (RabbitMQ consumer → persisted in-app
+> notifications) and Day 15 live deployment are both complete.
+
+## ROLE
+
+Senior Full Stack Engineer adding the last Phase 2 delivery item: real,
+server-driven notification delivery on top of the existing persisted in-app
+notifications. Choose ONE channel that is free at scale and honest about cost:
+**browser Web Push via VAPID** (no third-party account — the browser's own
+push service does delivery). Research email/SMS providers but DO NOT integrate
+them today; state clearly that the architecture is channel-agnostic so they
+are additive later.
+
+## DELIVERABLES
+
+1. notification-service: `push_subscriptions` + `notification_preferences`
+   tables; `GET/PUT /api/notifications/preferences`, `POST/DELETE
+   /api/notifications/push/subscriptions`; async fire-and-forget VAPID delivery
+   wired into the existing consumer AFTER in-app persistence. FAIL-OPEN
+   contract: no VAPID keys → disabled with a log, never an error; delivery
+   never blocks the consumer or requeues; dead endpoints (404/410) deleted.
+2. Frontend: service worker (push + notificationclick), bell toggle with the
+   permission flow, effective-state semantics, VITE_VAPID_PUBLIC_KEY baked at
+   build (feature hidden when absent), i18n en/hi/te.
+3. Ops: key-generation script, .env.example, docker-compose, Azure Bicep +
+   CD workflow secrets (optional, both-or-neither), Vercel env documented.
+4. Tests: backend unit tests (opt-out, no-subscription, dead-endpoint cleanup,
+   fail-open) + frontend typecheck/vitest. Run them.
+5. Docs: 03_ARCHITECTURE (§14), 05_API_CONTRACT, 04_DATABASE, README
+   status/roadmap, 10_DEPLOYMENT env vars.
+
+## HARD CONSTRAINTS
+
+- Delivery must never break the in-app flow (persist first, deliver async).
+- VAPID private key is backend-only; never bake it into the frontend.
+- Per-user preference defaults ON (missing row = defaults); the browser
+  permission is the separate OS-level opt-in — both must hold for delivery.
+- Keep the codebase's conventions: header-trust identity, env-driven config,
+  plain DTOs, Day-style comments.
+
+## VERIFICATION CHECKLIST
+
+1. Backend: `mvn -pl notification-service test` green.
+2. Frontend: `tsc --noEmit` + `npm test` green.
+3. Push disabled gracefully when VAPID keys are absent (startup log).
+4. Docs updated; secret names consistent across bicep/workflows/provision.sh.
+5. Output the exact git command sequence for the feature branch + PR.
+```

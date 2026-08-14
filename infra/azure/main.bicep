@@ -249,6 +249,8 @@ var placeholderSecrets = [
   { name: 'jwt-secret', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'mysql-password', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'groq-api-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'vapid-public-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'vapid-private-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-user', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-pass', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'ghcr-pat', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
@@ -784,6 +786,12 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
+            // Day 16: Web Push (VAPID). Optional — empty keys disable push
+            // delivery (in-app notifications keep working); the deploy job
+            // only sets these secrets when the GitHub secrets exist.
+            { name: 'VAPID_PUBLIC_KEY', secretRef: 'vapid-public-key' }
+            { name: 'VAPID_PRIVATE_KEY', secretRef: 'vapid-private-key' }
+            { name: 'VAPID_SUBJECT', value: 'mailto:careq@example.com' }
             { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-notification-service' }
           ])
           probes: [

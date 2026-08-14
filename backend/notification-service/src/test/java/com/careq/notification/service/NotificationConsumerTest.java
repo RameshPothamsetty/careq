@@ -30,11 +30,14 @@ class NotificationConsumerTest {
     @Mock
     private NotificationEntryRepository repository;
 
+    @Mock
+    private WebPushDeliveryService webPushDeliveryService;
+
     private NotificationConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new NotificationConsumer(repository);
+        consumer = new NotificationConsumer(repository, webPushDeliveryService);
     }
 
     @Test
@@ -90,10 +93,20 @@ class NotificationConsumerTest {
     }
 
     @Test
+    void onQueueEvent_Persisted_AlsoFiresWebPush() {
+        consumer.onQueueEvent(event("queue.called", null, "NORMAL"));
+
+        NotificationEntry saved = captureSaved();
+        verify(webPushDeliveryService).deliverAsync(
+                PATIENT, "queue.called", saved.getMessage());
+    }
+
+    @Test
     void onQueueEvent_UnknownType_IsDropped() {
         consumer.onQueueEvent(event("queue.unknown", 1, "NORMAL"));
 
         verify(repository, never()).save(any(NotificationEntry.class));
+        verify(webPushDeliveryService, never()).deliverAsync(any(), any(), any());
     }
 
     @Test
@@ -104,6 +117,7 @@ class NotificationConsumerTest {
         consumer.onQueueEvent(event);
 
         verify(repository, never()).save(any(NotificationEntry.class));
+        verify(webPushDeliveryService, never()).deliverAsync(any(), any(), any());
     }
 
     private QueueEventDto event(String type, Integer position, String triage) {

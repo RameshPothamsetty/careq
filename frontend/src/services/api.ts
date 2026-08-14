@@ -271,6 +271,26 @@ interface NotificationPage extends PaginatedResponse<NotificationItem> {
   unreadCount: number;
 }
 
+// ---- Web Push + delivery preferences (Day 16) ----
+
+/** Per-user delivery preferences (GET/PUT /api/notifications/preferences). */
+interface NotificationPreferences {
+  /** User's opt-out switch; delivery ALSO requires the browser permission. */
+  webPushEnabled: boolean;
+}
+
+/**
+ * Browser PushSubscription JSON as sent to POST /api/notifications/push/subscriptions
+ * (the Web Push spec shape: endpoint + p256dh/auth keys).
+ */
+interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+
 /** Server-side page wrapper (Spring Data Page JSON). */
 interface PaginatedResponse<T> {
   content: T[];
@@ -419,5 +439,7 @@ export type {
   DoctorAnalyticsSummary,
   NotificationItem,
   NotificationPage,
+  NotificationPreferences,
+  PushSubscriptionPayload,
   PaginatedResponse,
 };
