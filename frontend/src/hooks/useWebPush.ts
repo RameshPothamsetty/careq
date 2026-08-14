@@ -23,15 +23,29 @@ import type { PushSubscriptionPayload } from '../services/api';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-/** True when this browser can do Web Push AND the build has a VAPID key baked in. */
+/**
+ * True when this browser can do Web Push AND the build has a VAPID key baked
+ * in that actually decodes. A malformed key (bad base64url) must hide the
+ * toggle rather than crash the bell with an atob error at subscribe time.
+ */
 export function isPushSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
     typeof Notification !== 'undefined' &&
-    Boolean(VAPID_PUBLIC_KEY)
+    typeof VAPID_PUBLIC_KEY === 'string' &&
+    tryDecodeVapidKey(VAPID_PUBLIC_KEY) !== null
   );
+}
+
+/** Safe decode — returns null instead of throwing on malformed input. */
+function tryDecodeVapidKey(key: string): Uint8Array<ArrayBuffer> | null {
+  try {
+    return urlBase64ToUint8Array(key);
+  } catch {
+    return null;
+  }
 }
 
 export interface WebPushState {
@@ -132,12 +146,16 @@ async function enablePush(
   const registration = await navigator.serviceWorker.register('/sw.js');
 
   // 3. Subscribe — reuse an existing subscription if the browser already has one.
+  const applicationServerKey = tryDecodeVapidKey(VAPID_PUBLIC_KEY!);
+  if (!applicationServerKey) {
+    throw new Error('Push is not available in this build (invalid VAPID key)');
+  }
   let subscription = await registration.pushManager.getSubscription();
   if (!subscription) {
     try {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!),
+        applicationServerKey,
       });
     } catch (e) {
       // Some browsers throw InvalidStateError when a (hidden) subscription

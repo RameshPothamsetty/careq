@@ -379,7 +379,13 @@ jobs:
           # hardcoded above for gateway CORS. Vite exposes VITE_* vars from the
           # shell, so this works for `vercel build` regardless of project env.
           VITE_API_BASE_URL: https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io
+          # Day 16 Web Push: the VAPID PUBLIC key must reach the bundle, but the
+          # Vercel project env var is typed "Sensitive", which `vercel pull` does
+          # NOT write to .env files for local builds. Bake it here — the key is
+          # public by design (it ships in the client bundle), so hardcoding is
+          # safe. Keep in sync with cd-develop.yml + VAPID_PUBLIC_KEY secret.
+          VITE_VAPID_PUBLIC_KEY: BCgXBkWxVRHvUn1jezYYecEc9F1cJAXWGvAY34bPnsyAH498ylZtgl1eSbmSU8i03EEyPtcBRzOq7TJ407woHN8
         run: |
           npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          VITE_API_BASE_URL="$VITE_API_BASE_URL" npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+          VITE_API_BASE_URL="$VITE_API_BASE_URL" VITE_VAPID_PUBLIC_KEY="$VITE_VAPID_PUBLIC_KEY" npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
           npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
