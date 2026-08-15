@@ -333,7 +333,7 @@ jobs:
             if [[ "$svc" == "auth-service" ]]; then
               # Verification is ON only when a SendGrid key exists (both-or-neither).
               if [[ -n "${{ secrets.SENDGRID_API_KEY }}" ]]; then
-                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=true" "APP_FRONTEND_BASE_URL=https://careq-frontend-eta.vercel.app" "APP_MAIL_FROM=careq@careq.com")
+                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=true" "APP_FRONTEND_BASE_URL=https://careq-frontend-eta.vercel.app" "APP_MAIL_FROM=careq@careq.com" "SENDGRID_API_KEY=secretref:sendgrid-api-key")
               else
                 EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=false")
               fi
