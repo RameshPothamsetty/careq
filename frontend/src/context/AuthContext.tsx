@@ -16,7 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  /** Day 17: returns the raw response so pages can branch on verificationRequired. */
+  /** Returns the raw response so pages can branch on verificationRequired. */
   signup: (fullName: string, email: string, password: string, role: string) => Promise<AuthResponse>;
   logout: () => void;
 }

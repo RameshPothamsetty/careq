@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 
 /**
- * Day 13 — the JSON payload published by queue-service onto the
+ * the JSON payload published by queue-service onto the
  * {@code careq.events} topic exchange after each queue state transition.
  *
  * <p>Deliberately small and self-contained: the recipient, the transition type

@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Day 17 — a 403 EMAIL_NOT_VERIFIED switches the card to a "verify your
+  // A 403 EMAIL_NOT_VERIFIED switches the card to a "verify your
   // email" prompt with a resend button instead of a generic error.
   const [verifyPrompt, setVerifyPrompt] = useState(false);
   const [resendMsg, setResendMsg] = useState('');

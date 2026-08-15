@@ -2,7 +2,7 @@ import { test, expect, type Page, type APIRequestContext } from '@playwright/tes
 import { login, ADMIN_EMAIL, ADMIN_PASSWORD } from './helpers';
 
 /**
- * Day 7b verification: Admin analytics dashboard renders real charts, and
+ * Verification: Admin analytics dashboard renders real charts, and
  * client-side notifications fire on a REAL status transition (patient
  * joined → doctor calls next → toast + bell appear on the patient session).
  *

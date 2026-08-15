@@ -1,8 +1,8 @@
 {
 	"info": {
-		"_postman_id": "c0ffee00-cafe-4a11-9e00-careq-day9-0001",
+		"_postman_id": "c0ffee00-cafe-4a11-9e00-careq-collection-0001",
 		"name": "CareQ API",
-		"description": "Complete CareQ API collection (Day 9). Import this together with CareQ.postman_environment.json. Run Auth Service > Login once to capture the JWT into {{authToken}}; every other request then authenticates automatically.\n\nBase URL: {{baseUrl}} (default http://localhost:8080 — the API Gateway).",
+		"description": "Complete CareQ API collection. Import this together with CareQ.postman_environment.json. Run Auth Service > Login once to capture the JWT into {{authToken}}; every other request then authenticates automatically.\n\nBase URL: {{baseUrl}} (default http://localhost:8080 — the API Gateway).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "careq"
 	},

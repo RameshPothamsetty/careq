@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Day 13 — RabbitMQ consuming configuration for notification-service.
+ * RabbitMQ consuming configuration for notification-service.
  *
  * <p><b>Topology (mirror of queue-service's publisher side):</b>
  * <pre>

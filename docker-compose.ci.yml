@@ -1,4 +1,4 @@
-# CareQ — CI/CD smoke override (Day 14)
+# CareQ — CI/CD smoke override
 #
 # Used ONLY by the CD workflows' docker-smoke job. Pins every application
 # service to the GHCR image the pipeline just built & pushed, so the smoke

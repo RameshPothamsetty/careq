@@ -7,7 +7,7 @@ import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
 
 /**
- * VerifyEmailPage (Day 17) — the link target in the verification email
+ * VerifyEmailPage — the link target in the verification email
  * (?token=...). Calls GET /api/auth/verify once on mount and shows the
  * outcome: verified → sign in, invalid/expired → guidance.
  */

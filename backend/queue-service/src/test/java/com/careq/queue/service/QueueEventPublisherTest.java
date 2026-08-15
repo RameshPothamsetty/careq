@@ -20,7 +20,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 /**
- * Day 13 — the non-blocking publish contract. A RabbitMQ outage (connect
+ * the non-blocking publish contract. A RabbitMQ outage (connect
  * refused, broker down) must be logged and swallowed by the publisher, never
  * propagated into the queue flow that called it.
  *

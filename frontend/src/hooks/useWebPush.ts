@@ -8,7 +8,7 @@ import {
 import type { PushSubscriptionPayload } from '../services/api';
 
 /**
- * Day 16 — Web Push subscription lifecycle for the notification bell toggle.
+ * Web Push subscription lifecycle for the notification bell toggle.
  *
  * Flow:
  *   enable  → Notification.requestPermission() → register /sw.js →

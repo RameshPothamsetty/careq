@@ -33,7 +33,7 @@ export default function PatientDoctorBrowser() {
   const departments = allDepartments?.filter((d) => d.isActive) ?? [];
 
   // RTK Query refetches automatically whenever a filter changes. The doctor
-  // listing is server-side paginated since Day 7a — the browse screen pulls a
+  // listing is server-side paginated — the browse screen pulls a
   // generous page (50) so the card grid still feels like a full list, and uses
   // totalElements for the "Total Doctors" stat.
   const {

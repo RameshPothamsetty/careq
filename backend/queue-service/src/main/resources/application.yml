@@ -6,7 +6,7 @@ spring:
     name: queue-service
   datasource:
     # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
-    # Day 17 — MYSQL_CONN_PARAMS is overridden by the CD pipeline to
+    # MYSQL_CONN_PARAMS is overridden by the CD pipeline to
     # sslMode=REQUIRED... so Azure talks TLS to the DB. Local default stays
     # plain (fast, zero-config docker-compose).
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?${MYSQL_CONN_PARAMS:useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
@@ -21,7 +21,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-  # Day 13: RabbitMQ — queue-service PUBLISHES post-decision notification
+  # RabbitMQ — queue-service PUBLISHES post-decision notification
   # events to the careq.events topic exchange (consumed by notification-service).
   # Publishing failures are caught and logged, never propagated: a patient
   # joining/called/completed must never fail because a notification couldn't
@@ -63,7 +63,7 @@ queue:
   delay-threshold-minutes: 30
   max-doctors-to-load: 1000
 
-# Day 17 — production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
+# Production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
 # hide Swagger/OpenAPI from the public internet.
 springdoc:
   api-docs:

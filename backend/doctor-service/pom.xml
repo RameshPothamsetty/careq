@@ -28,7 +28,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
-        <!-- Day 13: Redis caching for the read-heavy doctor/department catalog -->
+        <!-- Redis caching for the read-heavy doctor/department catalog -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
@@ -46,7 +46,7 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- Day 9: OpenAPI / Swagger UI -->
+        <!-- OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -56,14 +56,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Day 11: actuator health endpoint used by Docker HEALTHCHECK -->
+        <!-- Actuator health endpoint used by Docker HEALTHCHECK -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 
-    <!-- Day 11: explicit Boot repackage so `mvn package` produces the
+    <!-- Explicit Boot repackage so `mvn package` produces the
          executable fat jar the Docker images run. -->
     <build>
         <plugins>

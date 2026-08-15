@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * Day 9: OpenAPI documentation configuration for auth-service.
+ * OpenAPI documentation configuration for auth-service.
  *
  * The {@code servers} entry is deliberately the relative URL "/" so that
  * whichever host serves the Swagger UI (the API Gateway at :8080 when the

@@ -58,7 +58,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        <!-- Day 9: OpenAPI / Swagger UI -->
+        <!-- OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -73,20 +73,20 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Day 10: H2 in-memory DB for @SpringBootTest integration tests (no MySQL needed) -->
+        <!-- H2 in-memory DB for @SpringBootTest integration tests (no MySQL needed) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Day 11: actuator health endpoint used by Docker HEALTHCHECK -->
+        <!-- Actuator health endpoint used by Docker HEALTHCHECK -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 
-    <!-- Day 11: explicit Boot repackage so `mvn package` produces the
+    <!-- Explicit Boot repackage so `mvn package` produces the
          executable fat jar the Docker images run. -->
     <build>
         <plugins>

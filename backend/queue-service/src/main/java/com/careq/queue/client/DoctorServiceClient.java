@@ -24,7 +24,7 @@ public interface DoctorServiceClient {
     DoctorCatalogResponseDto getDoctorById(@PathVariable("id") Long id);
 
     /**
-     * GET /api/doctors is paginated since Day 7a — the caller asks for a page
+     * GET /api/doctors is paginated the caller asks for a page
      * and reads {@code .content}. A single page with a large size is used for
      * the Admin overview because it needs every doctor in the catalog.
      */

@@ -1,4 +1,4 @@
-# Day 15 — Azure profile (SPRING_PROFILES_ACTIVE=azure on Azure Container Apps).
+# Azure profile (SPRING_PROFILES_ACTIVE=azure on Azure Container Apps).
 #
 # On ACA the services register with their Container Apps FQDN (injected by the
 # platform as CONTAINER_APP_HOSTNAME) and port 80, instead of their pod IP.

@@ -36,7 +36,7 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
                                             @Param("statuses") List<QueueStatus> statuses,
                                             Pageable pageable);
 
-    // ── Analytics (Day 7b) — native MySQL aggregation, never row-by-row in Java ──
+    // ── Analytics  — native MySQL aggregation, never row-by-row in Java ──
 
     /** Patients handled per day = queue entries completed that day. */
     @Query(value = "SELECT DATE_FORMAT(completed_at, '%Y-%m-%d') AS day, COUNT(*) AS cnt " +

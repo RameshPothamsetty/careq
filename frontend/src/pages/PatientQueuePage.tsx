@@ -234,7 +234,7 @@ function JoinFlow({
     try {
       const result = await autoAssign({
         symptomText: symptomText.trim(),
-        // Captured so the doctor's live queue can show real patient names (Day 7a).
+        // Captured so the doctor's live queue can show real patient names.
         patientName: user?.fullName || undefined,
       }).unwrap();
       const entry = result.entry;
@@ -262,7 +262,7 @@ function JoinFlow({
       const entry = await joinQueue({
         doctorCatalogEntryId: Number(targetDoctor),
         symptomText: symptomText.trim(),
-        // Captured so the doctor's live queue can show real patient names (Day 7a).
+        // Captured so the doctor's live queue can show real patient names.
         patientName: user?.fullName || undefined,
       }).unwrap();
       setSuccess(t('queue.joinSuccess'));

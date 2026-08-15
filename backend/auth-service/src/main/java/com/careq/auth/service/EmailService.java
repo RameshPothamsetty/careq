@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Transactional email via the SendGrid v3 REST API (Day 17). Used for the
+ * Transactional email via the SendGrid v3 REST API . Used for the
  * verification email and password-reset links.
  *
- * <p>FAIL-OPEN BY DESIGN (same contract as the Day 16 web-push delivery):
+ * <p>FAIL-OPEN BY DESIGN (same contract as the web-push delivery):
  * when {@code app.mail.sendgrid-api-key} is not configured the service logs
  * a warning and skips sending — the auth flow still works, it just skips
  * the email step (accounts stay unverified, resend is available). A failed

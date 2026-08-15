@@ -59,7 +59,7 @@ export default function AdminDoctorManager() {
     search: searchQuery || undefined,
   });
   const { data: departments } = useGetDepartmentsQuery();
-  // Day 13: doctor accounts available to link (admin user directory). Lets the
+  // Doctor accounts available to link (admin user directory). Lets the
   // admin pick a real DOCTOR account instead of hand-typing a UUID — a typo
   // here was the #1 cause of the "no catalog entry for your account" dead-end
   // doctors hit on their dashboard/queue pages.
@@ -269,7 +269,7 @@ export default function AdminDoctorManager() {
                   />
                 </div>
                 <div>
-                  {/* Day 13: pick the account from the real DOCTOR user list —
+                  {/* Pick the account from the real DOCTOR user list —
                       fills the User ID below and prevents UUID typos (the #1
                       cause of the doctor dashboard/queue "no catalog entry"
                       dead-end). Hidden while editing (User ID is immutable). */}

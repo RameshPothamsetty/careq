@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * Day 16 — a browser Web Push subscription (one row per device/browser).
+ * a browser Web Push subscription (one row per device/browser).
  * Registered by the SPA via {@code POST /api/notifications/push/subscriptions}
  * after the user grants the Notification permission; the delivery engine reads
  * these rows to send the encrypted push payload when a queue event arrives.

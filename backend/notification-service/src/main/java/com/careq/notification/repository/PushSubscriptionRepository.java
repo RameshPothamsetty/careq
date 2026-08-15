@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Day 16 — Web Push subscriptions, keyed by endpoint (unique per browser/device).
+ * Web Push subscriptions, keyed by endpoint (unique per browser/device).
  */
 public interface PushSubscriptionRepository extends JpaRepository<PushSubscription, Long> {
 

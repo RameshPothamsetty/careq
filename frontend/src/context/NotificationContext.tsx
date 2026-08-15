@@ -11,7 +11,7 @@ import { useQueueNotifications, type QueueNotificationEvent } from '../hooks/use
 import { useAuth } from './AuthContext';
 
 /**
- * Immediate-feedback toast layer (Day 7b), kept after the Day 13 upgrade.
+ * Immediate-feedback toast layer, kept after the persisted-notifications upgrade.
  *
  * The BELL now shows real persisted notifications from notification-service;
  * this context's only remaining job is the real-time, auto-dismissing TOAST

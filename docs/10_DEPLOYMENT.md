@@ -1,6 +1,6 @@
 # CareQ — Deployment Documentation
 
-**Version:** 1.0 (Day 11 — Docker Containerization)
+**Version:** 1.0 — Docker Containerization
 
 This document covers running the full CareQ stack with Docker Compose. The
 manual local (non-Docker) setup remains in the README and is fully supported —
@@ -9,7 +9,7 @@ relearning.
 
 ---
 
-## 1. Docker Setup (Day 11)
+## 1. Docker Setup
 
 ### 1.1 Prerequisites
 
@@ -64,7 +64,7 @@ with named catalog entries, and heals orphaned entries (idempotent).
 ### 1.5 Smoke test
 
 ```bash
-node scripts/day11-smoke-test.mjs
+node scripts/docker-smoke-test.mjs
 ```
 
 Checks, in order: frontend serves the SPA, all 5 services registered in
@@ -89,14 +89,14 @@ docker compose down -v                 # stop AND delete volumes (full reset)
 | `MYSQL_PASSWORD` | Yes¹ | mysql + all DB services | root password / datasource password (one shared DB `careq_db`) |
 | `JWT_SECRET` | Yes² | api-gateway + auth-service | must be identical in both; `openssl rand -base64 48` |
 | `GROQ_API_KEY` | No | queue-service | AI symptom triage; empty → fallback `NORMAL` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push (Day 16); generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push; generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
 | `VITE_VAPID_PUBLIC_KEY` | No | frontend build | = `VAPID_PUBLIC_KEY`; baked into the bundle (compose build arg / Vercel env) so the bell shows the push toggle — empty → toggle hidden |
-| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset (Day 17); https://app.sendgrid.com/settings/api_keys + verify a single sender for `APP_MAIL_FROM`. Empty → verification stays OFF |
+| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset; https://app.sendgrid.com/settings/api_keys + verify a single sender for `APP_MAIL_FROM`. Empty → verification stays OFF |
 | `APP_MAIL_FROM` / `APP_FRONTEND_BASE_URL` / `AUTH_EMAIL_VERIFICATION_ENABLED` | No¹ | auth-service | sender + email-link base URL + verification gate. ¹SendGrid key and `AUTH_EMAIL_VERIFICATION_ENABLED=true` are both-or-neither |
 
 ¹ defaults to `root` if absent. ² defaults to a dev-only secret if absent — set a real one.
 
-### 1.8 Validation results (Day 11, executed against the Dockerized stack)
+### 1.8 Validation results (executed against the Dockerized stack)
 
 Validated on Docker Desktop (Docker 29.6.2, Compose v5.3.1) on Windows:
 
@@ -115,7 +115,7 @@ One issue found and fixed during validation: the frontend healthcheck used `loca
 
 ### 1.9 How the pieces fit
 
-- **Multi-stage Dockerfiles** — Maven build stage → slim `eclipse-temurin:17-jre` runtime; final images run as a non-root user and carry a `HEALTHCHECK` on `/actuator/health` (actuator added to every service in Day 11).
+- **Multi-stage Dockerfiles** — Maven build stage → slim `eclipse-temurin:17-jre` runtime; final images run as a non-root user and carry a `HEALTHCHECK` on `/actuator/health` (actuator enabled on every service).
 - **Frontend / API resolution** — the bundle is built with an empty `VITE_API_BASE_URL`, so it issues relative `/api` calls; the Nginx container reverse-proxies `/api` to the `api-gateway` service (SPA fallback for React Router). No gateway URL is baked into the bundle — trade-off: the image is coupled to Nginx, so serving the build elsewhere requires rebuilding or an equivalent proxy.
 - **Configuration** — every service reads `EUREKA_URI` / `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_USER` / `MYSQL_PASSWORD` / `JWT_SECRET` from the environment with localhost defaults, so the same application.yml works for local `mvn spring-boot:run` and Docker.
 
@@ -133,11 +133,11 @@ One issue found and fixed during validation: the frontend healthcheck used `loca
 
 ---
 
-## 3. CI/CD Pipeline (Day 14)
+## 3. CI/CD Pipeline
 
-**Version:** 1.1 (Day 14 — GitHub Actions)
+**Version:** 1.1 — GitHub Actions
 
-Three GitHub Actions workflows automate build, test, containerization and registry push. Nothing deploys to a live environment yet — Day 15 adds the actual deployment step.
+Three GitHub Actions workflows automate build, test, containerization and registry push. The live deployment step (Azure Container Apps + Vercel) is described in § 4.
 
 ### 3.1 Workflows
 
@@ -171,9 +171,9 @@ Only the built-in `GITHUB_TOKEN` is required (the workflows request `packages: w
 
 ---
 
-## 4. Azure Deployment (Day 15) — Vercel frontend + Azure backend, free-tier
+## 4. Azure Deployment — Vercel frontend + Azure backend, free-tier
 
-**Version:** 1.4 (Day 15 — Azure Container Apps + **Vercel** frontend + **Azure Database for MySQL Flexible Server** free tier; live-run fixes 2026-08-13)
+**Version:** 1.4 — Azure Container Apps + **Vercel** frontend + **Azure Database for MySQL Flexible Server** free tier; live-run fixes 2026-08-13
 
 **Live URLs (verified working end-to-end):**
 
@@ -239,7 +239,7 @@ the $200 trial credit for the interview window). Set a **budget alert** in
 Azure Cost Management (50%/90% on `careq-rg-south`) and **tear down after
 interviews** (`az group delete --name careq-rg-south --yes --no-wait`).
 
-### 4.2 Cold-start & scale-to-zero behavior (measured on the Day 15 checklist)
+### 4.2 Cold-start & scale-to-zero behavior (measured on the live-run checklist)
 
 - A scale-to-zero service wakes **on traffic through its app FQDN** — that's why
   services register with `CONTAINER_APP_HOSTNAME` + port 80 on Azure (see the
@@ -332,8 +332,8 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `MYSQL_PASSWORD` | all MySQL-backed services | **must equal** the `MYSQL_PASSWORD` used at provisioning (it is the Flexible Server admin password) |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** (Day 16) — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
-| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** (Day 17) — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `APP_MAIL_FROM` (defaults `careq@careq.com` on Azure — change it to your verified sender!) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
+| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `APP_MAIL_FROM` (defaults `careq@careq.com` on Azure — change it to your verified sender!) |
 | `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
@@ -341,9 +341,9 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `AZURE_STORAGE_CONNECTION_STRING` | user-service profile pictures | `az storage account show-connection-string -n <account> -g careq-rg-south --query connectionString -o tsv` (printed by `provision.sh`) |
 
 > The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
-> moved to Vercel (Day 15 revision).
+> moved to Vercel.
 
-> **Day 17 — launch hardening on the live site:**
+> **Launch hardening on the live site:**
 > 1. Add `SENDGRID_API_KEY` to GitHub secrets (both-or-neither contract: the
 >    pipeline then sets `AUTH_EMAIL_VERIFICATION_ENABLED=true` on Azure).
 > 2. **Existing accounts stay verified** (no rows in the new `auth_tokens`
@@ -354,14 +354,14 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 >    on every service; it stays on for local dev.
 > 4. **MySQL TLS:** the pipeline sets `MYSQL_CONN_PARAMS=sslMode=REQUIRED…` on
 >    all DB services; the bicep sets `requireSecureTransport: true`. After a
->    Day-17 deploy is confirmed healthy, flip the live server with
+>    deploy is confirmed healthy, flip the live server with
 >    `az mysql flexible-server update -g careq-rg-south -n careq-mysql --require-secure-transport Enabled`
 >    (never before — plain connections would be refused).
 > 5. **Monitoring/backups:** see `docs/12_MONITORING.md` — uptime workflow
 >    (GitHub issue on failure), Log Analytics queries, MySQL point-in-time
 >    restore runbook.
 
-> **Day 16 — Web Push on the live site:** after adding the two VAPID secrets,
+> **Web Push on the live site:** after adding the two VAPID secrets,
 > also set `VITE_VAPID_PUBLIC_KEY` (= the same public key) in the Vercel
 > project's **production** env (`npx vercel env add VITE_VAPID_PUBLIC_KEY production`)
 > and redeploy the frontend — without it the bell's push toggle is hidden.
@@ -399,7 +399,7 @@ FRONTEND_URL="https://careq-frontend-eta.vercel.app"
 API_BASE="$GATEWAY_URL" bash scripts/seed-data.sh
 
 # Full smoke against the live URLs (signup → login → browse → join → AI triage → status):
-API_BASE="$GATEWAY_URL" FRONTEND_BASE="$FRONTEND_URL" node scripts/day15-azure-smoke.mjs
+API_BASE="$GATEWAY_URL" FRONTEND_BASE="$FRONTEND_URL" node scripts/azure-smoke.mjs
 
 # Logs (one app):
 az containerapp logs show -n careq-queue-service -g careq-rg-south --type console

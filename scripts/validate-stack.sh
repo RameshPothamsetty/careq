@@ -1,6 +1,6 @@
 #!/bin/bash
 # ================================================================
-# CareQ — Day 13 validation (Redis caching + RabbitMQ notifications)
+# CareQ — stack validation (Redis caching + RabbitMQ notifications)
 # Run AFTER: docker compose up -d  (all 11 containers healthy)
 #
 # Verifies, for real:
@@ -21,7 +21,7 @@ SUFFIX="$(date +%s%N)"
 JSON='Content-Type: application/json'
 
 echo "=========================================="
-echo "  CareQ — Day 13 Validation"
+echo "  CareQ — Stack Validation"
 echo "=========================================="
 echo ""
 
@@ -128,5 +128,5 @@ echo "   unreadCount after marking one read: ${UNREAD2}"
 
 echo ""
 echo "=========================================="
-echo "  ✅ Day 13 validation PASSED"
+echo "  ✅ Stack validation PASSED"
 echo "=========================================="

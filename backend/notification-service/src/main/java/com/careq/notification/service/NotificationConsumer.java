@@ -10,7 +10,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 /**
- * Day 13 — consumes queue events from the {@code careq.events} topic exchange
+ * consumes queue events from the {@code careq.events} topic exchange
  * (bound via {@code queue.*}) and persists one {@link NotificationEntry} per
  * event. The message copy lives here so queue-service stays lean and the
  * wording is owned by the notification layer.
@@ -48,7 +48,7 @@ public class NotificationConsumer {
             repository.save(new NotificationEntry(event.getRecipientUserId(), event.getEventType(), truncate(message, 500)));
             log.debug("Persisted notification type={} for user {}", event.getEventType(), event.getRecipientUserId());
 
-            // Day 16: fire-and-forget Web Push. The in-app row is the source
+            // fire-and-forget Web Push. The in-app row is the source
             // of truth; delivery is async, best-effort and never blocks this
             // consumer (see WebPushDeliveryService for the fail-open contract).
             webPushDeliveryService.deliverAsync(event.getRecipientUserId(), event.getEventType(), message);

@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Per-doctor analytics summary (dashboard upgrade, documented Day 9).
+ * Per-doctor analytics summary (dashboard upgrade).
  *
  * Aggregated server-side from the {@code queue_entries} table for one
  * doctor's catalog entry. "Today" figures are scalars over the current

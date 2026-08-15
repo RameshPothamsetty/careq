@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * Centralizes the admin role checks that were previously inlined in the
- * controller (code review finding, Day 7a). A mismatch throws
+ * controller (code review finding). A mismatch throws
  * {@link UnauthorizedException} (403), handled globally.
  */
 public final class RoleGuard {

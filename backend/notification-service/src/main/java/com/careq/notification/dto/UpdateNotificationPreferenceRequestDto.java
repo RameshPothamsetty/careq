@@ -3,7 +3,7 @@ package com.careq.notification.dto;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * Day 16 — update payload for {@code PUT /api/notifications/preferences}.
+ * update payload for {@code PUT /api/notifications/preferences}.
  * The flag is required (a missing value is a client bug, not a no-op).
  */
 public class UpdateNotificationPreferenceRequestDto {

@@ -20,14 +20,14 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
         </dependency>
-        <!-- Day 11: actuator health endpoint used by Docker HEALTHCHECK -->
+        <!-- Actuator health endpoint used by Docker HEALTHCHECK -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 
-    <!-- Day 11: explicit Boot repackage so `mvn package` produces the
+    <!-- Explicit Boot repackage so `mvn package` produces the
          executable fat jar the Docker images run. -->
     <build>
         <plugins>

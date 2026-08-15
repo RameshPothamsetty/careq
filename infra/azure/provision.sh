@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =====================================================================
-# CareQ — Day 15 ONE-TIME Azure provisioning (run yourself)
+# CareQ — ONE-TIME Azure provisioning (run yourself)
 #
 #   Run this ONCE. Everything after it is recurring and automated by the
 #   GitHub Actions deploy job on every push to develop/main.
@@ -163,7 +163,7 @@ az deployment group create \
       storageAccountName="$STORAGE_ACCOUNT_NAME" \
       ghcrOwner="$GHCR_OWNER" \
       imageTag="$IMAGE_TAG" \
-  --name careq-day15-provision
+  --name careq-azure-provision
 
 echo ""
 echo "▶ Waiting for the MySQL server to be Ready (can take a few minutes)..."
@@ -198,12 +198,12 @@ echo ""
 echo "▶ Deployment outputs:"
 GATEWAY_FQDN=$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
-  --name careq-day15-provision \
+  --name careq-azure-provision \
   --query "properties.outputs.gatewayFqdn.value" \
   --output tsv)
 MYSQL_FQDN=$(az deployment group show \
   --resource-group "$RESOURCE_GROUP" \
-  --name careq-day15-provision \
+  --name careq-azure-provision \
   --query "properties.outputs.mysqlFqdn.value" \
   --output tsv)
 
@@ -249,7 +249,7 @@ echo "▶ Fetching the Blob Storage connection string (profile pictures)..."
     echo "    GROQ_API_KEY                    = <your groq key — optional, triage falls back to NORMAL without it>"
     echo "    VAPID_PUBLIC_KEY                = <optional — Web Push; run scripts/generate-vapid-keys.sh>"
     echo "    VAPID_PRIVATE_KEY               = <optional — Web Push; same script>"
-    echo "    SENDGRID_API_KEY                = <Day 17 — optional but both-or-neither with email verification; https://app.sendgrid.com/settings/api_keys>"
+    echo "    SENDGRID_API_KEY                = <optional but both-or-neither with email verification; https://app.sendgrid.com/settings/api_keys>"
     echo "    GHCR_PAT                        = <optional — fine-grained PAT, packages:read, ONLY if your ghcr packages are private>"
 echo ""
     echo "  Vercel (create ONCE at https://vercel.com):"
@@ -277,6 +277,6 @@ echo "     the images and the deploy-frontend job ships the SPA to Vercel."
 echo "  4. Seed + smoke the live deployment:"
 echo "       API_BASE=\"https://$GATEWAY_FQDN\" bash scripts/seed-data.sh"
 echo "       API_BASE=\"https://$GATEWAY_FQDN\" FRONTEND_BASE=\"https://careq-frontend.vercel.app\" \\"
-echo "         node scripts/day15-azure-smoke.mjs"
+echo "         node scripts/azure-smoke.mjs"
 echo "  5. Watch cost: Azure Cost Management (budget alert recommended)."
 echo "     Teardown when done:  az group delete -n $RESOURCE_GROUP --yes --no-wait"

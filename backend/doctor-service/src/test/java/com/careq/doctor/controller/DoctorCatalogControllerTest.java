@@ -31,8 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Standalone MockMvc tests for {@link DoctorCatalogController} (Day 4 plan,
- * built Day 10). Identity headers are simulated directly — the gateway is
+ * Standalone MockMvc tests for {@link DoctorCatalogController} . Identity headers are simulated directly — the gateway is
  * what normally injects them after JWT validation.
  */
 @ExtendWith(MockitoExtension.class)

@@ -10,7 +10,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * Day 17 — access-log audit trail at the edge.
+ * access-log audit trail at the edge.
  *
  * <p>Every request that reaches the gateway is logged to the {@code ACCESS}
  * logger as a single-line record: method, path, status, duration, caller IP

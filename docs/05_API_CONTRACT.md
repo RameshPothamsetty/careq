@@ -1,6 +1,6 @@
 # CareQ — API Contract
 
-**Version:** 1.9 (Day 13)
+**Version:** 1.9
 **Status:** Added notification-service endpoints (`/api/notifications`), `GET /api/doctors/me`, health probe for notification-service
 
 ---
@@ -13,12 +13,12 @@ The API Gateway validates the JWT and forwards these headers to downstream servi
 |--------|-------------|-------|
 | `X-User-Id` | `sub` | Always present on authenticated routes |
 | `X-User-Role` | `role` | Always present on authenticated routes |
-| `X-User-Name` | `fullName` | Added Day 7a — present on tokens issued after Day 7a |
-| `X-User-Email` | `email` | Added Day 7a |
+| `X-User-Name` | `fullName` | Added with the name-plumbing feature — present on all current tokens |
+| `X-User-Email` | `email` | Identity header |
 
 ---
 
-## Shared Error Response Shape (standardized Day 9)
+## Shared Error Response Shape
 
 Every CareQ service returns errors in this exact shape (enforced by each service's `GlobalExceptionHandler`):
 
@@ -39,14 +39,14 @@ Every CareQ service returns errors in this exact shape (enforced by each service
 | `status` | int | HTTP status code |
 | `error` | string | Short HTTP status reason phrase |
 | `message` | string | Human-readable error message |
-| `path` | string | Request path that produced the error (added Day 9) |
+| `path` | string | Request path that produced the error |
 | `validationErrors` | array \| null | Field-level failures (`{ field, message }` pairs); present only on 400 validation errors (replaces the pre-Day-9 `details` list) |
 
-> **Day 9 consistency fixes:** all 400 validation errors use `validationErrors`; all 404s use "Not Found"; all duplicate resources use **409 Conflict** (doctor catalog duplicate was previously 400).
+> **Consistency rules:** all 400 validation errors use `validationErrors`; all 404s use "Not Found"; all duplicate resources use **409 Conflict**.
 
 ---
 
-## User Endpoints (`/api/users`) — Day 3 + Day 7a + Day 9 docs
+## User Endpoints (`/api/users`)
 
 ### 0. My Profile (own profile, lazy-created)
 
@@ -102,7 +102,7 @@ GET /api/users/{id}
 
 **Error Responses:** `403` (non-admin), `404` (no profile for that user).
 
-### 0a. List Users (Admin only) — NEW Day 7a
+### 0a. List Users (Admin only)
 
 ```
 GET /api/users
@@ -361,7 +361,7 @@ DELETE /api/departments/{id}
 
 ---
 
-### 6. List All Doctors (Public/Patient) — paginated since Day 7a
+### 6. List All Doctors (Public/Patient)
 
 ```
 GET /api/doctors
@@ -505,7 +505,7 @@ POST /api/doctors
 }
 ```
 
-**Error Response (409) — Duplicate userId** *(Day 9 fix: duplicates now return 409 Conflict consistently across services, not 400):*
+**Error Response (409) — Duplicate userId** *(duplicates return 409 Conflict consistently across services):*
 ```json
 {
   "timestamp": "2026-07-30T10:00:00",
@@ -620,7 +620,7 @@ PUT /api/doctors/me/availability
 
 ---
 
-### 11b. Get My Catalog Entry (Doctor) — NEW Day 13
+### 11b. Get My Catalog Entry (Doctor)
 
 ```
 GET /api/doctors/me
@@ -638,7 +638,7 @@ GET /api/doctors/me
 
 ---
 
-## Queue Endpoints (`/api/queue`) — Day 5
+## Queue Endpoints (`/api/queue`)
 
 All queue endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway.
 
@@ -672,7 +672,7 @@ POST /api/queue/join
 |-------|------|
 | doctorCatalogEntryId | Required, must reference an existing doctor catalog entry |
 | symptomText | Required, max 2000 characters |
-| patientName | Optional, max 255 characters — sent by the frontend from the auth session so the doctor's queue shows real names (Day 7a) |
+| patientName | Optional, max 255 characters — sent by the frontend from the auth session so the doctor's queue shows real names |
 
 **Behavior:**
 - Calls the Groq LLM (model `llama-3.1-8b-instant`) for AI triage. On any AI failure, falls back to `NORMAL` — a broken AI call never blocks a real patient.
@@ -747,7 +747,7 @@ GET /api/queue/my-status
 
 ---
 
-### 13b. My Visit History (Patient) — post-7b dashboard pass, documented Day 9
+### 13b. My Visit History (Patient)
 
 ```
 GET /api/queue/my-history?limit=10
@@ -779,7 +779,7 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
 **Query Parameters (optional):**
 | Name | Type | Description |
 |------|------|-------------|
-| search | String | Case-insensitive substring match on patient name (Day 7a). Positions reported remain the patient's REAL queue position — the search only narrows which rows are returned. |
+| search | String | Case-insensitive substring match on patient name. Positions reported remain the patient's REAL queue position — the search only narrows which rows are returned. |
 
 **Description:** Returns that doctor's live queue (WAITING + IN_PROGRESS entries), ordered by effective triage level then FIFO by `joinedAt`. Each entry includes a derived `position` (1 = next to be seen) and `predictedWaitMinutes`.
 
@@ -813,7 +813,7 @@ GET /api/queue/doctor/{doctorCatalogEntryId}
 
 ---
 
-### 14b. Per-Doctor Analytics (Doctor/Admin) — post-7b dashboard pass, documented Day 9
+### 14b. Per-Doctor Analytics (Doctor/Admin)
 
 ```
 GET /api/queue/doctor/{doctorCatalogEntryId}/analytics
@@ -893,7 +893,7 @@ PUT /api/queue/{id}/call-next
 
 ---
 
-### 16b. Cancel Queue Entry (Patient/Admin) — post-7b dashboard pass, documented Day 9
+### 16b. Cancel Queue Entry (Patient/Admin)
 
 ```
 PUT /api/queue/{id}/cancel
@@ -967,7 +967,7 @@ GET /api/queue/live
 
 ---
 
-### 19. Analytics Summary (Admin) — Day 7b
+### 19. Analytics Summary (Admin)
 
 ```
 GET /api/queue/analytics/summary
@@ -1018,7 +1018,7 @@ GET /api/queue/analytics/summary
 
 ---
 
-## Notification Endpoints (`/api/notifications`) — Day 13
+## Notification Endpoints (`/api/notifications`)
 
 All endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway — the same header-trust pattern as every other service. Notifications are written by the RabbitMQ consumer (one row per `queue.joined` / `queue.triaged` / `queue.called` / `queue.completed` event published by queue-service).
 
@@ -1084,7 +1084,7 @@ PUT /api/notifications/{id}/read
 
 **Error Responses:** `403` (not the recipient and not admin), `404` (notification not found).
 
-### 22. My Delivery Preferences (Day 16 — Web Push)
+### 22. My Delivery Preferences (Web Push)
 
 ```
 GET /api/notifications/preferences
@@ -1166,10 +1166,10 @@ DELETE /api/notifications/push/subscriptions?endpoint=<url-encoded>
 
 ---
 
-## Auth Endpoints (`/api/auth`) — Day 2, extended Day 17
+## Auth Endpoints (`/api/auth`)
 
 Public (no Bearer token). Error responses use the shared shape plus an
-optional `code` field (Day 17) for machine-readable branching.
+optional `code` field for machine-readable branching.
 
 ### `POST /api/auth/signup` — register
 
@@ -1177,7 +1177,7 @@ Body: `{ "fullName", "email", "password", "role" }` → `201`.
 
 | Mode | Response |
 |---|---|
-| Verification **off** (local dev) | `AuthResponse` with a real `token` — the session is created immediately, as before Day 17 |
+| Verification **off** (local dev) | `AuthResponse` with a real `token` — the session is created immediately |
 | Verification **on** (production) | `token: null`, `verificationRequired: true`, `message` explains the email was sent — the account is locked until verified |
 
 `409` duplicate email · `400` validation · `429` `RATE_LIMITED` (10/hour/IP).
@@ -1211,7 +1211,7 @@ accounts only. `429` `RATE_LIMITED` (3/hour/email).
 Body: `{ "token", "newPassword" }` → `200` + message. `400` `INVALID_TOKEN`
 (unknown / expired / already used). Invalidates the reset token (one-time).
 
-### Day 17 error codes
+### Error codes
 
 | `code` | HTTP | Meaning |
 |---|---|---|
@@ -1253,10 +1253,10 @@ All return `200` with `{ "service": "<name>", "status": "UP", "timestamp": <epoc
 
 ---
 
-## Interactive Documentation (Day 9)
+## Interactive Documentation
 
 - **Centralized Swagger UI:** `http://localhost:8080/swagger-ui.html` — the gateway aggregates every service's OpenAPI docs (`/v3/api-docs/{service}`). Click **Authorize** and paste a JWT to test authenticated endpoints directly.
 - **Per-service UI:** `http://localhost:808X/swagger-ui.html` on each service port.
 - **Postman collection:** `postman/CareQ.postman_collection.json` + `postman/CareQ.postman_environment.json` — import both; the Login request auto-captures the JWT into `{{authToken}}`.
 
-> **Note (Day 17):** Swagger UI is open in local dev, but **production deploys set `SPRINGDOC_ENABLED=false`** (CD workflow) which switches off both `/v3/api-docs/**` and `/swagger-ui/**` on every service and the gateway. The gateway still whitelists those paths so a local demo keeps working.
+> **Note:** Swagger UI is open in local dev, but **production deploys set `SPRINGDOC_ENABLED=false`** (CD workflow) which switches off both `/v3/api-docs/**` and `/swagger-ui/**` on every service and the gateway. The gateway still whitelists those paths so a local demo keeps working.

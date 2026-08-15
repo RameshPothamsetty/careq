@@ -3,7 +3,7 @@ package com.careq.queue.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Response for GET /api/queue/my-status (Day 9: fully documented).
+ * Response for GET /api/queue/my-status (fully documented).
  * active=false means the patient is not currently in any queue.
  */
 @Schema(description = "The calling patient's current queue status.")

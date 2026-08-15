@@ -36,7 +36,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Day 16 — delivery rules: preference opt-out is honored, missing keys /
+ * delivery rules: preference opt-out is honored, missing keys /
  * subscriptions short-circuit, dead subscriptions (404/410) are deleted, and
  * every failure is swallowed (fail-open contract — delivery must never throw).
  */

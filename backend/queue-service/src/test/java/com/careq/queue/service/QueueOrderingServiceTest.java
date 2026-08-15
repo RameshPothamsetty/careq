@@ -11,7 +11,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for queue ordering and wait-time calculation (Day 5).
+ * Unit tests for queue ordering and wait-time calculation .
  */
 class QueueOrderingServiceTest {
 

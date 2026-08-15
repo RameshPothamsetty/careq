@@ -9,7 +9,7 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Minimal in-memory fixed-window rate limiter (Day 17 — brute-force /
+ * Minimal in-memory fixed-window rate limiter (brute-force /
  * abuse protection on the public auth endpoints).
  *
  * <p>{@code tryAcquire(key, max, window)} returns true while the caller is

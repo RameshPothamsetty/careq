@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Day 17 — uptime check for the live CareQ deployment.
+ * Uptime check for the live CareQ deployment.
  *
  * Runs every 15 minutes from .github/workflows/uptime-check.yml. Pings the
  * gateway health endpoint and the Vercel frontend. On failure it opens a

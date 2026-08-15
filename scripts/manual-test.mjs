@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Day 10 — Manual testing checklist runner (executed against the LIVE stack).
+ * Manual testing checklist runner (executed against the LIVE stack).
  * Runs the three role journeys (Patient / Doctor / Admin) + error paths via
  * the API Gateway (http://localhost:8080) and prints PASS/FAIL per check.
  */
@@ -34,7 +34,7 @@ const emailA = `manual.a.${ts}@careq.com`;
 const emailB = `manual.b.${ts}@careq.com`;
 
 console.log('==================================================');
-console.log(` CareQ Day 10 — Manual Testing (${new Date().toISOString()})`);
+console.log(` CareQ — Manual Testing (${new Date().toISOString()})`);
 console.log(` Gateway: ${BASE}`);
 console.log('==================================================\n');
 
@@ -214,5 +214,5 @@ console.log('\n==================================================');
 console.log(` RESULT: ${ok} passed / ${fail} failed / ${results.length} total`);
 console.log('==================================================');
 const fs = await import('node:fs');
-fs.writeFileSync('/tmp/manual-day10-results.json', JSON.stringify({ date: new Date().toISOString(), ok, fail, results }, null, 2));
+fs.writeFileSync('/tmp/manual-test-results.json', JSON.stringify({ date: new Date().toISOString(), ok, fail, results }, null, 2));
 process.exit(fail === 0 ? 0 : 1);

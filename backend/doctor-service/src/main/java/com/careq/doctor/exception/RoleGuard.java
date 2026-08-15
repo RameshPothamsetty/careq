@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * Centralizes the role checks that were previously inlined in every
- * controller endpoint (code review finding, Day 7a). Controllers stay thin —
+ * controller endpoint (code review finding). Controllers stay thin —
  * a role mismatch throws {@link ForbiddenException} (403), handled globally.
  */
 public final class RoleGuard {

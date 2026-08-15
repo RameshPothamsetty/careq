@@ -18,7 +18,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 /**
- * Unit tests for the AI fallback-to-NORMAL behavior (Day 5).
+ * Unit tests for the AI fallback-to-NORMAL behavior .
  * The AI client is mocked to simulate both success and failure.
  */
 @ExtendWith(MockitoExtension.class)

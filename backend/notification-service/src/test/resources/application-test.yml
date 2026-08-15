@@ -1,4 +1,4 @@
-# Day 13: test profile for @SpringBootTest integration tests.
+# Test profile for @SpringBootTest integration tests.
 # H2 in MySQL mode (no MySQL server needed). The RabbitMQ listener container
 # is switched OFF so the suite never attempts a real broker connection — the
 # consumer logic itself is covered by direct unit tests.

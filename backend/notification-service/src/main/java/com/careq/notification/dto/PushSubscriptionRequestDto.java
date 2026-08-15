@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Day 16 — the browser's {@code PushSubscriptionJSON} as sent by
+ * the browser's {@code PushSubscriptionJSON} as sent by
  * {@code POST /api/notifications/push/subscriptions}. Field names mirror the
  * Web Push spec's subscription JSON exactly:
  *

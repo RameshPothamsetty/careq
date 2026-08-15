@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Day 11 — Dockerized-stack smoke test.
+ * Dockerized-stack smoke test.
  *
  * Runs against the `docker compose` stack via the published host ports
  * (identical to local dev): gateway :8080, eureka :8761, frontend :3030.
@@ -41,7 +41,7 @@ async function api(method, path, { token, body } = {}) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
-  console.log('CareQ — Day 11 Docker smoke test\n');
+  console.log('CareQ — Docker smoke test\n');
 
   // 1. Frontend serves the SPA on :3030.
   const fe = await fetch(FRONTEND + '/');

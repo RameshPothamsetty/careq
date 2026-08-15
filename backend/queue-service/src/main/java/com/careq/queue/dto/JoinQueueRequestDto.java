@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * Request body for POST /api/queue/join (Day 9: fully documented).
+ * Request body for POST /api/queue/join (fully documented).
  */
 @Schema(description = "Join-queue request payload.")
 public class JoinQueueRequestDto {

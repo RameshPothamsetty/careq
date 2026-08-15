@@ -1,4 +1,4 @@
-# CareQ — CD: develop images (Day 14)
+# CareQ — CD: develop images
 #
 # Runs on every push to `develop` (i.e. after a PR merge):
 #   1. Same test gate as CI — never push an image that hasn't passed tests
@@ -7,19 +7,19 @@
 #   3. Full-stack smoke against the PUSHED images (pulled from GHCR via a
 #      compose override — no rebuild in the smoke runner)
 #
-# Images are only pushed here — actual deployment is Day 15's scope.
+# Images are pushed here, then deployed (see the deploy jobs below).
 name: CD · develop images
 
 on:
   push:
     branches: [develop]
-  # Manual deploy from the Actions tab (Day 15).
+  # Manual deploy from the Actions tab.
   workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
-  id-token: write  # Day 15: OIDC federation for Azure deploy
+  id-token: write  # OIDC federation for Azure deploy
 
 concurrency:
   group: cd-develop
@@ -201,7 +201,7 @@ jobs:
             | grep -q '"token"' && echo "login OK"
           echo "── Smoke test passed ──"
 
-  # ── Deploy to Azure (Day 15) ───────────────────────────────────────
+  # ── Deploy to Azure ───────────────────────────────────────────────
   # Runs AFTER the pushed images pass the full-stack smoke. Authenticates
   # to Azure via OIDC (no client secret), rolls every Container App forward
   # to the freshly-pushed image + secrets, then ships the SPA to Vercel.
@@ -255,13 +255,13 @@ jobs:
           if [[ -n "${{ secrets.GROQ_API_KEY }}" ]]; then
             GROQ_SECRET="groq-api-key=${{ secrets.GROQ_API_KEY }}"
           fi
-          # VAPID keys (Day 16) are ALSO optional — Web Push is disabled
+          # VAPID keys are ALSO optional — Web Push is disabled
           # without them, so only pass them when BOTH GitHub secrets exist.
           VAPID_SECRET=""
           if [[ -n "${{ secrets.VAPID_PUBLIC_KEY }}" && -n "${{ secrets.VAPID_PRIVATE_KEY }}" ]]; then
             VAPID_SECRET="vapid-public-key=${{ secrets.VAPID_PUBLIC_KEY }} vapid-private-key=${{ secrets.VAPID_PRIVATE_KEY }}"
           fi
-          # Day 17: SENDGRID_API_KEY is optional but both-or-neither with
+          # SENDGRID_API_KEY is optional but both-or-neither with
           # email verification — without a key, verification is turned OFF in
           # the env step below so signups never get stuck unverified.
           SENDGRID_SECRET=""
@@ -317,7 +317,7 @@ jobs:
             --min-replicas 1 \
             --max-replicas 1
 
-      - name: "Set per-service environment (Day 17: Swagger off, MySQL TLS, auth mail)"
+      - name: "Set per-service environment (Swagger off, MySQL TLS, auth mail)"
         shell: bash
         run: |
           set -euo pipefail
@@ -350,7 +350,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Day 15: the frontend lives on Vercel — its production origin is
+          # The frontend lives on Vercel — its production origin is
           # deterministic, so no DNS lookup is needed.
           # The Vercel project's real production URL (project careq-frontend in
           # team java-fullstack-projects resolves to careq-frontend-eta.vercel.app).
@@ -360,7 +360,7 @@ jobs:
             --set-env-vars "CORS_ALLOWED_ORIGINS=https://careq-frontend-eta.vercel.app"
           echo "Gateway CORS allowed origin -> https://careq-frontend-eta.vercel.app"
 
-  # ── Frontend to Vercel (Day 15) ────────────────────────────────────
+  # ── Frontend to Vercel ────────────────────────────────────────────
   # Builds the SPA and ships it to Vercel (free Hobby plan) via the Vercel
   # CLI. VITE_API_BASE_URL is set ONCE in the Vercel project's production
   # env (the gateway FQDN is stable) — `vercel pull` fetches it and
@@ -398,7 +398,7 @@ jobs:
           # hardcoded above for gateway CORS. Vite exposes VITE_* vars from the
           # shell, so this works for `vercel build` regardless of project env.
           VITE_API_BASE_URL: https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io
-          # Day 16 Web Push: same story — the VAPID PUBLIC key must reach the
+          # Web Push: same story — the VAPID PUBLIC key must reach the
           # bundle, but the Vercel project env var is typed "Sensitive", which
           # `vercel pull` does NOT write to .env files for local builds, so the
           # pipeline bundle would ship without it (toggle hidden). Bake it here.

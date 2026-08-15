@@ -21,7 +21,7 @@ import type {
  *
  * Polling is configured per-screen via the pollingInterval option on the
  * hooks (live queue screens poll every 10s) — RTK Query replaces the
- * hand-rolled setInterval calls from Day 5.
+ * hand-rolled setInterval calls.
  */
 export const queueApi = createApi({
   reducerPath: 'queueApi',

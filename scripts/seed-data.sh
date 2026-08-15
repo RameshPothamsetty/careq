@@ -4,7 +4,7 @@
 # Run this AFTER all microservices are running (eureka, auth, user, doctor)
 # Usage: bash scripts/seed-data.sh
 #
-# BUG-2 fix (Day 10 follow-up): this script is now idempotent across DB
+# BUG-2 fix: this script is now idempotent across DB
 # resets. Re-running it (or running it after an auth-DB reset) will:
 #   1. reuse existing accounts (signup fails -> login to recover the userId),
 #   2. skip catalog entries that already exist for a seed doctor's userId,
@@ -12,7 +12,7 @@
 #      seed doctor (leftovers from a previous auth DB).
 # ================================================================
 
-# Day 15: overridable so the same script seeds the LIVE Azure deployment:
+# Overridable so the same script seeds the LIVE Azure deployment:
 #   API_BASE="https://<gateway-fqdn>" bash scripts/seed-data.sh
 API_BASE="${API_BASE:-http://localhost:8080}"
 
@@ -34,7 +34,7 @@ signup_user() {
     -H "Content-Type: application/json" \
     -d "{\"fullName\":\"$name\",\"email\":\"$email\",\"password\":\"$password\",\"role\":\"$role\"}")
 
-  # Day 17 — with email verification enabled, a SUCCESSFUL signup returns
+  # With email verification enabled, a SUCCESSFUL signup returns
   # { message, verificationRequired: true } and NO token (the account can't
   # log in until the emailed link is clicked). Detect that case explicitly so
   # we don't mistake success for an error.
@@ -132,7 +132,7 @@ echo "--------------------------------------------------"
 
 ADMIN_RESP=$(signup_user "Admin CareQ" "admin@careq.com" "admin123" "ADMIN")
 PATIENT_RESP=$(signup_user "John Patient" "john@careq.com" "password123" "PATIENT")
-# Day 17 — dedicated smoke-test patient (used by scripts/day15-azure-smoke.mjs).
+# Dedicated smoke-test patient (used by scripts/azure-smoke.mjs).
 SMOKE_PATIENT_RESP=$(signup_user "Smoke Patient" "patient.smoke@careq.com" "password123" "PATIENT")
 
 echo "✅ Admin ready: admin@careq.com / admin123"

@@ -22,7 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link DepartmentServiceImpl} (Day 4 plan, built Day 10).
+ * Unit tests for {@link DepartmentServiceImpl} .
  */
 @ExtendWith(MockitoExtension.class)
 class DepartmentServiceImplTest {

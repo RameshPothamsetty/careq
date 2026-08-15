@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Day 17 — one-time token lifecycle: issue stores only a SHA-256 hash,
+ * one-time token lifecycle: issue stores only a SHA-256 hash,
  * consume works exactly once, expiry/purpose mismatches are rejected.
  */
 @ExtendWith(MockitoExtension.class)

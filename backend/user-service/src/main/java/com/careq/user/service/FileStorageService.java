@@ -23,7 +23,7 @@ import java.util.UUID;
 /**
  * Profile-picture storage.
  *
- * Day 15: dual-mode. Locally and in Docker (no AZURE_STORAGE_CONNECTION_STRING)
+ * dual-mode. Locally and in Docker (no AZURE_STORAGE_CONNECTION_STRING)
  * pictures are stored on disk under {@code app.upload.profile-pictures-dir}
  * and served by GET /api/users/profile-pictures/{filename}. On Azure the
  * deploy job injects the storage account connection string, so uploads go to

@@ -1,6 +1,6 @@
 name: uptime-check
 
-# Day 17 — free-tier monitoring: every 15 minutes, ping the live gateway +
+# Free-tier monitoring: every 15 minutes, ping the live gateway +
 # frontend. On failure, scripts/uptime-check.mjs opens a GitHub issue
 # ("⚠️ CareQ uptime") which lands in your GitHub notifications; it closes
 # itself when the next check passes. See docs/12_MONITORING.md.

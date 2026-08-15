@@ -17,7 +17,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 
 /**
- * Issues and consumes one-time email tokens (Day 17).
+ * Issues and consumes one-time email tokens .
  *
  * <p>The raw token (32 random bytes, Base64URL) is only ever returned to
  * the caller for inclusion in the email link; the database stores its

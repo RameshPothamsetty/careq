@@ -45,7 +45,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 /**
- * Service-layer tests for the queue module (Day 5).
+ * Service-layer tests for the queue module .
  * doctor-service is simulated by mocking the Feign client; the AI triage
  * service is also mocked so failure paths can be asserted directly.
  */
@@ -366,7 +366,7 @@ class QueueServiceImplTest {
                 .isInstanceOf(InvalidQueueStateException.class);
     }
 
-    // ── Analytics (Day 7b) ────────────────────────────────────────
+    // ── Analytics  ────────────────────────────────────────
 
     @Test
     void getAnalyticsSummary_EmptyData_ReturnsZeroFilledSevenDayWindow() {

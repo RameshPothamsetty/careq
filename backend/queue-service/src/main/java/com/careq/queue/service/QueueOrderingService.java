@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 /**
  * Pure queue logic: effective ordering and wait-time prediction.
  *
- * Ordering rule (Day 5):
+ * Ordering rule :
  *   1. Sort primarily by effective triage level: EMERGENCY > HIGH > NORMAL > FOLLOW_UP
  *   2. Within the same level, FIFO by joinedAt
  *

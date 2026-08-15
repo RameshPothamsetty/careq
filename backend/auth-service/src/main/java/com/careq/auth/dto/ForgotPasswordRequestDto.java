@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Request a password-reset link (Day 17).")
+@Schema(description = "Request a password-reset link .")
 public class ForgotPasswordRequestDto {
 
     @Schema(description = "Account email", example = "john@careq.com", requiredMode = Schema.RequiredMode.REQUIRED)

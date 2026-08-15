@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from './helpers';
 
 /**
- * Day 6 admin happy-path regression suite. Exercises the screens migrated to
+ * Admin happy-path regression suite. Exercises the screens migrated to
  * RTK Query: department CRUD (create → rename → delete), the doctor catalog
  * list, and the live queue overview.
  *

@@ -26,13 +26,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Day 17: verification/reset endpoints are reached from email
+                // verification/reset endpoints are reached from email
                 // links without a JWT, so they must stay public like signup/login.
                 .requestMatchers("/api/auth/signup", "/api/auth/login", "/api/auth/verify",
                         "/api/auth/resend-verification", "/api/auth/forgot-password",
                         "/api/auth/reset-password", "/api/auth/health").permitAll()
                 .requestMatchers("/api/auth/**").authenticated()
-                // Day 9: Swagger UI + OpenAPI docs are public in this dev/demo setup
+                // Swagger UI + OpenAPI docs are public in this dev/demo setup
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webjars/**").permitAll()
                 .anyRequest().permitAll()
             )

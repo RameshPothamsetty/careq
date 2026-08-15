@@ -26,8 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Standalone MockMvc tests for {@link DepartmentController} (Day 4 plan,
- * built Day 10). The X-User-Role header is simulated directly — the gateway
+ * Standalone MockMvc tests for {@link DepartmentController} . The X-User-Role header is simulated directly — the gateway
  * is what normally injects it after JWT validation.
  */
 @ExtendWith(MockitoExtension.class)

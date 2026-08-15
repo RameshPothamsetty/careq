@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Department endpoints (Day 9: fully documented with OpenAPI).
+ * Department endpoints (fully documented with OpenAPI).
  */
 @Tag(name = "Departments", description = "Hospital department catalog. Listing is open to any authenticated role; " +
         "create/update/delete require ADMIN.")

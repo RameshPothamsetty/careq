@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDateTime;
 
 /**
- * Day 13 — the JSON payload consumed from the {@code careq.events} topic
+ * the JSON payload consumed from the {@code careq.events} topic
  * exchange. Field names mirror queue-service's {@code QueueEventDto} exactly
  * (this codebase has no shared module — the JSON contract is the field names).
  *

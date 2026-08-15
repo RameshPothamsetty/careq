@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@EnableScheduling // Day 17: RateLimiter bucket sweep
+@EnableScheduling // RateLimiter bucket sweep
 public class AuthServiceApplication {
 
     public static void main(String[] args) {

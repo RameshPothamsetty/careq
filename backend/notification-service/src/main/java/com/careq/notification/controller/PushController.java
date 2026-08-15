@@ -26,14 +26,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Day 16 — Web Push subscriptions + per-user delivery preferences.
+ * Web Push subscriptions + per-user delivery preferences.
  *
  * <p>Identity (X-User-Id) comes from the API Gateway after JWT validation, the
  * same header-based trust pattern as every other CareQ endpoint. All four
  * routes sit under the existing {@code /api/notifications/**} gateway route,
  * so no gateway change was needed.
  */
-@Tag(name = "Notification Delivery", description = "Web Push subscriptions and per-user delivery preferences (Day 16).")
+@Tag(name = "Notification Delivery", description = "Web Push subscriptions and per-user delivery preferences .")
 @RestController
 @RequestMapping("/api/notifications")
 public class PushController {

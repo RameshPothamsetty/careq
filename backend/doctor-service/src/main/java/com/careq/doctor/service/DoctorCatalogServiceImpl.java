@@ -47,7 +47,7 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
 
     @Override
     @Transactional(readOnly = true)
-    // Day 13: cached in Redis (60s TTL, keyed by every filter/pagination param).
+    // cached in Redis (60s TTL, keyed by every filter/pagination param).
     // Live availability is deliberately part of this cache — a doctor going
     // offline is still reflected within 60s, and the queue join path always
     // re-reads availability uncached via getDoctorById (never blocked by this).

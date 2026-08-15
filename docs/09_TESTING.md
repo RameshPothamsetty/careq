@@ -1,11 +1,11 @@
 # CareQ — Testing Documentation
 
-**Version:** 1.10 (Day 10 — Final Test Report + bug-fix follow-up)  
-**Status:** Complete — the full Day 10 testing pass is delivered: **104 backend tests** (auth 14, user 13, doctor 38, queue 39) + **23 frontend component tests**, 2 critical integration flows, a Newman API run (31/31), and a manually executed role-journey checklist (**38/38 — both Day 10 bugs BUG-1 and BUG-2 are now FIXED**).
+**Version:** 1.10  
+**Status:** Complete — the full testing pass is delivered: **104 backend tests** (auth 14, user 13, doctor 38, queue 39) + **23 frontend component tests**, 2 critical integration flows, a Newman API run (31/31), and a manually executed role-journey checklist (**38/38 — both bugs BUG-1 and BUG-2 are now FIXED**).
 
 ---
 
-## 1. Auth Service Unit Tests (Day 2 — built Day 10)
+## 1. Auth Service Unit Tests
 
 `AuthServiceImplTest` — **6 tests**, JUnit 5 + Mockito. `JwtServiceTest` — **4 tests** against a real JWT secret (no mocking, so the round-trip is genuinely verified). All passing.
 
@@ -22,7 +22,7 @@
 
 ---
 
-## 2. JwtService Unit Tests (Day 2 — built Day 10)
+## 2. JwtService Unit Tests
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -33,7 +33,7 @@
 
 ---
 
-## 3. User Service Unit Tests (Day 3 — built Day 10)
+## 3. User Service Unit Tests
 
 ### Test Class: `UserProfileServiceImplTest` (8 tests, all passing)
 
@@ -43,7 +43,7 @@ These tests use JUnit 5 with Mockito to test the service layer in isolation.
 |------|-------------|-----------------|
 | `getOrCreateProfile_WhenNotExists_CreatesAndReturnsProfile` | First call for a userId with no existing profile | Creates a new `UserProfile` with default empty fields, returns it |
 | `getOrCreateProfile_WhenExists_ReturnsExistingProfile` | Subsequent call for an existing userId | Returns existing profile without creating a new one |
-| `getOrCreateProfile_BackfillsMissingNameAndEmail` | Profile from before Day 7a (no name/email stored) | Name/email backfilled from JWT claims and saved |
+| `getOrCreateProfile_BackfillsMissingNameAndEmail` | Profile without stored name/email (legacy row) | Name/email backfilled from JWT claims and saved |
 | `updateProfile_WhenExists_UpdatesFieldsAndReturns` | Valid update request for an existing profile | Fields are updated, non-null fields only, returns updated profile |
 | `updateProfile_WhenNotExists_ThrowsException` | Update for a userId with no profile | Throws `UserProfileNotFoundException` |
 | `updateProfile_PartialUpdate_OnlyUpdatesNonNullFields` | Update with only some fields set | Only the provided fields are changed, others remain intact |
@@ -78,7 +78,7 @@ private static final String TEST_ADDRESS = "123 Main St";
 
 ---
 
-## 4. Doctor Service Unit Tests (Day 4 — built Day 10)
+## 4. Doctor Service Unit Tests
 
 > **Note:** `spring-boot-starter-test` had to be added to `doctor-service/pom.xml` (it was missing — the only service without it).
 
@@ -112,13 +112,13 @@ These tests verify the doctor catalog service logic including filters and availa
 | `getDoctorById_WhenNotExists_ShouldThrowException` | Invalid doctor ID | Throws `DoctorCatalogNotFoundException` |
 | `createDoctor_WithUniqueUserId_ShouldCreate` | Valid request with unique userId | Creates and returns entry |
 | `createDoctor_WithDuplicateUserId_ShouldThrowException` | Duplicate userId | Throws `DuplicateDoctorCatalogEntryException` |
-| `createDoctor_WithInvalidDepartment_ShouldThrowException` | Non-existent departmentId | Throws `DepartmentNotFoundException` *(Day 10 note: the doc originally said `IllegalArgumentException`; the real implementation throws `DepartmentNotFoundException`, so the test asserts the real behavior)* |
+| `createDoctor_WithInvalidDepartment_ShouldThrowException` | Non-existent departmentId | Throws `DepartmentNotFoundException` *(note: the doc originally said `IllegalArgumentException`; the real implementation throws `DepartmentNotFoundException`, so the test asserts the real behavior)* |
 | `updateDoctor_WhenExists_ShouldUpdate` | Valid update on existing entry | Updates and returns entry |
 | `deleteDoctor_WhenExists_ShouldDelete` | Delete existing entry | Deletes successfully |
 | `toggleAvailability_WhenExists_ShouldToggle` | Toggle availability for valid userId | Returns entry with flipped `isAvailable` |
 | `toggleAvailability_WhenNotExists_ShouldThrowException` | Toggle for userId with no catalog entry | Throws `DoctorCatalogNotFoundException` |
 
-### Test Class: `DataSeederTest` (2 tests, all passing — Day 10 follow-up, BUG-2b)
+### Test Class: `DataSeederTest` (2 tests, all passing — BUG-2b follow-up)
 
 | Test | Description | Expected Outcome |
 |------|-------------|-----------------|
@@ -159,9 +159,9 @@ Standalone MockMvc + `GlobalExceptionHandler`; identity headers simulated direct
 
 ---
 
-## 5. Queue Service Unit Tests (Day 5)
+## 5. Queue Service Unit Tests
 
-These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **33 unit tests, all passing** (Day 7a added the patient-name search test; Day 7b added three analytics tests; Day 10 added 5 integration tests — see section 6).
+These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking the Feign client; the AI client is mocked so failure paths are asserted directly. **33 unit tests, all passing** (the patient-name search test, three analytics tests, and 5 integration tests — see section 6 — were added in later passes).
 
 ### Test Class: `QueueOrderingServiceTest`
 
@@ -198,10 +198,10 @@ These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking t
 | `overrideTriage_AnotherDoctor_Throws` | Non-owner doctor tries | Throws `UnauthorizedAccessException` |
 | `callNext_ThenComplete_AdvancesAndFinishesEntry` | WAITING → IN_PROGRESS → COMPLETED | `calledAt`/`completedAt` set; completed entry has no position |
 | `complete_NotInProgress_Throws` | Complete on WAITING entry | Throws `InvalidQueueStateException` |
-| `getDoctorQueue_WithPatientNameSearch_FiltersRows` (Day 7a) | Search `"alice"` against a 2-patient queue | Only Alice returned; blank search returns all rows |
-| `getAnalyticsSummary_EmptyData_ReturnsZeroFilledSevenDayWindow` (Day 7b) | Empty `queue_entries` for the window | 7 zero-filled days, null avg waits, empty distribution — never crashes on sparse data |
-| `getAnalyticsSummary_PopulatedData_AggregatesAndMapsDepartments` (Day 7b) | Mocked per-day counts/waits + Feign catalog | Counts land on the right days; avg waits null on empty days; departments mapped & sorted desc |
-| `getAnalyticsSummary_DoctorServiceDown_DistributionDegradesToEmpty` (Day 7b) | Feign throws (doctor-service down) | Time series still return; only the department slice degrades to empty |
+| `getDoctorQueue_WithPatientNameSearch_FiltersRows` | Search `"alice"` against a 2-patient queue | Only Alice returned; blank search returns all rows |
+| `getAnalyticsSummary_EmptyData_ReturnsZeroFilledSevenDayWindow` | Empty `queue_entries` for the window | 7 zero-filled days, null avg waits, empty distribution — never crashes on sparse data |
+| `getAnalyticsSummary_PopulatedData_AggregatesAndMapsDepartments` | Mocked per-day counts/waits + Feign catalog | Counts land on the right days; avg waits null on empty days; departments mapped & sorted desc |
+| `getAnalyticsSummary_DoctorServiceDown_DistributionDegradesToEmpty` | Feign throws (doctor-service down) | Time series still return; only the department slice degrades to empty |
 
 ### Mock Setup
 
@@ -212,11 +212,11 @@ These tests use JUnit 5 with Mockito. `doctor-service` is simulated by mocking t
 
 ---
 
-## 6. Integration Tests (Day 10)
+## 6. Integration Tests
 
 Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
 
-**Choice: H2 (MySQL mode) instead of Testcontainers** — CareQ's JPA model is portable, the MySQL-native analytics queries are deliberately not exercised by these flows, and H2 keeps the suite runnable on any machine with zero Docker dependency. External calls (the Groq LLM and the doctor-service Feign catalog) are mocked at the bean layer per the Day 10 scope decision; the real controllers, services, transactions, JPA repositories and the real `AiTriageService` fallback wrapper all run.
+**Choice: H2 (MySQL mode) instead of Testcontainers** — CareQ's JPA model is portable, the MySQL-native analytics queries are deliberately not exercised by these flows, and H2 keeps the suite runnable on any machine with zero Docker dependency. External calls (the Groq LLM and the doctor-service Feign catalog) are mocked at the bean layer per the scope decision; the real controllers, services, transactions, JPA repositories and the real `AiTriageService` fallback wrapper all run.
 
 ### Flow A — auth round-trip (`AuthFlowIntegrationTest`, auth-service, 4 tests)
 
@@ -227,7 +227,7 @@ Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
 | `login_UnknownEmail_Returns401` | Unknown account → 401 |
 | `unknownRoute_Returns404WithSharedErrorShape` (BUG-1) | **Unmapped route → 404** with the shared error shape, not the catch-all's 500 |
 
-### Flow A1 — verification + reset journey (`AuthVerificationFlowIntegrationTest`, auth-service, Day 17)
+### Flow A1 — verification + reset journey (`AuthVerificationFlowIntegrationTest`, auth-service)
 
 With `app.auth.email-verification-enabled=true` flipped on via
 `@TestPropertySource`, the full HTTP round trip is exercised: signup → 201
@@ -237,7 +237,7 @@ actual `AuthTokenService`) → verify → reusing the token is rejected
 (`INVALID_TOKEN`, one-time) → login works → forgot-password → reset with a
 valid token → login with the new password → garbage reset token rejected.
 
-### Day 17 auth unit tests
+### Auth unit tests (verification + reset)
 
 | Test | What it proves |
 |------|----------------|
@@ -257,9 +257,9 @@ valid token → login with the new password → garbage reset token rejected.
 | `join_blankSymptomText_Returns400WithValidationErrors` | Bean validation → 400 + `validationErrors` |
 | `unknownRoute_Returns404WithSharedErrorShape` (BUG-1) | **Unmapped route → 404** with the shared error shape, not the catch-all's 500 |
 
-## 6.1 API Testing — Postman / Newman (Day 10, leveraging Day 9's collection)
+## 6.1 API Testing — Postman / Newman
 
-The full Day 9 Postman collection (31 requests across all 4 business services, auto-auth token script) was run against the live stack with Newman:
+The full Postman collection (31 requests across all 4 business services, auto-auth token script) was run against the live stack with Newman:
 
 | Metric | Result |
 |--------|--------|
@@ -270,7 +270,7 @@ The full Day 9 Postman collection (31 requests across all 4 business services, a
 
 Note: two queue-mutation requests (`cancel`/`complete` on entry id 1) returned 400/404 because that entry's state was consumed by an earlier run — expected for a stateful collection; the collection assertions still passed.
 
-## 6.2 UI Testing — Vitest + React Testing Library (Day 10)
+## 6.2 UI Testing — Vitest + React Testing Library
 
 **23 tests across 4 files, all passing** (`npm test`). This is a light, risk-prioritized pass — not full coverage (full Playwright E2E remains the existing `npm run test:e2e` suite).
 
@@ -283,9 +283,9 @@ Note: two queue-mutation requests (`cancel`/`complete` on entry id 1) returned 4
 
 > **Known environment note:** driving the real RTK Query `fetchBaseQuery` against a stubbed global `fetch` in jsdom is blocked by an undici/jsdom realm mismatch — RTK v2.12 constructs `new Request(...)` with jsdom's `AbortSignal`, which undici rejects (`Expected signal to be an instance of AbortSignal`). The hook-state test therefore mocks the hook at module level; this is documented here rather than silently worked around in production code.
 
-## 6.3 Manual Testing — executed against the live stack (Day 10)
+## 6.3 Manual Testing — executed against the live stack
 
-The checklist was **executed, not just written** — `scripts/day10-manual-test.mjs` drove every journey through the API Gateway against the running 6-service stack. **38 of 38 checks passed** (S3, the unknown-route check, passes after the BUG-1 fix).
+The checklist was **executed, not just written** — `scripts/manual-test.mjs` drove every journey through the API Gateway against the running 6-service stack. **38 of 38 checks passed** (S3, the unknown-route check, passes after the BUG-1 fix).
 
 | Journey | Checks | Result |
 |---------|--------|--------|
@@ -294,17 +294,17 @@ The checklist was **executed, not just written** — `scripts/day10-manual-test.
 | **Admin** (login → live overview → analytics → manage departments → manage users) | A1–A9 | ✅ all pass — incl. department CRUD (201/200/204), 7-day analytics window, admin-only user list, patient blocked 403 |
 | **Security / edge paths** | S1–S4 | ✅ 4/4 — invalid JWT 401 ✅, patient on admin endpoint 403 ✅, **unknown route returns 404** ✅ (BUG-1 fixed), departments browsable 200 ✅ |
 
-## 6.4 Bug List (Day 10)
+## 6.4 Bug List
 
 | # | Bug | Severity | Status |
 |---|-----|----------|--------|
 | BUG-1 | **Unmapped routes return HTTP 500 instead of 404.** Every service's `GlobalExceptionHandler` has `@ExceptionHandler(Exception.class)`, which intercepts Spring's `NoResourceFoundException` (thrown when no handler matches) and converts it to 500. Verified live: `GET /api/auth/nonexistent-path` → 500. | Low (no core flow hits unmapped routes) | ✅ **FIXED** — dedicated `NoResourceFoundException` handler → 404 with the shared error shape added to **all four** services' `GlobalExceptionHandler`; regression tests added to Flow A and Flow B (auth `unknownRoute_Returns404WithSharedErrorShape`, queue `unknownRoute_Returns404WithSharedErrorShape`). GitHub issue #8. |
 | BUG-2 | **`scripts/seed-data.sh` is not idempotent across DB resets.** (a) After an auth-DB reset, catalog entries point at deleted userIds and are never re-created (existing-user signups are skipped, so the catalog step no-ops) — orphaned entries. (b) doctor-service `DataSeeder` skips seeding when the departments table is non-empty, so a partially deleted table (observed: Cardiology missing) never heals. | Low (dev/demo tooling only; fresh installs correct) | ✅ **FIXED** — (a) `seed-data.sh` now falls back to **login** when a signup fails (recovering the current userId), **skips** catalog entries that already exist for a seed userId, and **deletes orphaned** catalog entries whose userId no longer matches a seed doctor; (b) `DataSeeder` now **heals missing departments** (creates only the missing defaults via `existsByName`) instead of skipping whenever the table is non-empty. GitHub issue #9. |
 
-### 6.4.1 Bug-Fix Verification (Day 10 follow-up)
+### 6.4.1 Bug-Fix Verification
 
 - **BUG-1:** `mvn test` passes with the new `unknownRoute_Returns404WithSharedErrorShape` tests in auth-service (Flow A) and queue-service (Flow B) — both assert 404 + the shared `path`/`status`/`error` shape.
-- **BUG-2a:** the manual checklist runner (`scripts/day10-manual-test.mjs`) S3 check now passes — **38/38**. The seed script reconciliation (login fallback + skip + orphan delete) supersedes the one-off `scripts/day10-resync-catalog.mjs`.
+- **BUG-2a:** the manual checklist runner (`scripts/manual-test.mjs`) S3 check now passes — **38/38**. The seed script reconciliation (login fallback + skip + orphan delete) supersedes the one-off `scripts/resync-catalog.mjs`.
 - **BUG-2b:** `DataSeeder` self-heals a partially deleted `departments` table on restart (verified by the idempotent `existsByName` guard); re-running `bash scripts/seed-data.sh` against a live stack is now a safe no-op for already-seeded data.
 
 ## 6.5 Explicitly Out of Scope (Phase 2 roadmap)
@@ -345,14 +345,14 @@ cd postman
 npx newman run CareQ.postman_collection.json -e CareQ.postman_environment.json
 
 # Manual testing checklist (against a running stack)
-node scripts/day10-manual-test.mjs
+node scripts/manual-test.mjs
 ```
 
 ---
 
 ## 8. Test Coverage Target
 
-- **Service layer:** ≥ 70% (ADF Section 9 requirement) — every service's core service classes are unit-tested
+- **Service layer:** ≥ 70% — every service's core service classes are unit-tested
 - **Controller layer:** ≥ 50% (unit MockMvc tests in user/doctor/queue + integration flows in auth/queue)
 - **Utility classes (JwtService):** ≥ 80%
 - **Highest-risk logic** (AI fallback, JWT validation, queue ordering, wait-time, Feign failure): explicitly and deeply tested

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Request a new verification email (Day 17).")
+@Schema(description = "Request a new verification email .")
 public class ResendVerificationRequestDto {
 
     @Schema(description = "Account email", example = "john@careq.com", requiredMode = Schema.RequiredMode.REQUIRED)

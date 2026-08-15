@@ -23,7 +23,7 @@ export default function SignupPage() {
   const [role, setRole] = useState('PATIENT');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Day 17 — after signup, production requires the verification email
+  // After signup, production requires the verification email
   // before any session exists, so the page switches to a "check your
   // inbox" screen instead of auto-navigating to the dashboard.
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);

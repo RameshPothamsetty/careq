@@ -1,4 +1,4 @@
-# 12 — Monitoring, Alerts & Backups (Day 17)
+# 12 — Monitoring, Alerts & Backups
 
 The live CareQ deployment runs on **free tiers** (Azure Container Apps free
 grant, Vercel Hobby, free-12-month MySQL). This page is the operational
@@ -32,11 +32,11 @@ curl -s https://careq-api-gateway.salmonforest-402be170.southindia.azurecontaine
 # Full patient-journey smoke (15 checks) — the strongest single signal
 API_BASE="https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io" \
 FRONTEND_BASE="https://careq-frontend-eta.vercel.app" \
-node scripts/day15-azure-smoke.mjs
+node scripts/azure-smoke.mjs
 ```
 
 > The smoke runs as the **seeded smoke patient** (`patient.smoke@careq.com`
-> / `password123`) because Day 17 email verification blocks fresh signups
+> / `password123`) because email verification blocks fresh signups
 > from logging in. If that account is ever missing, re-seed:
 > `API_BASE=<gateway> bash scripts/seed-data.sh`.
 
@@ -101,7 +101,7 @@ ContainerAppConsoleLogs
 - **Profile pictures** — live in Azure Blob Storage (`careq-uploads`),
   outside the DB. LRS redundancy within the region; no cross-region copy
   (free tier).
-- **Redis + RabbitMQ** — **NOT durable** (documented Day 15 trade-off):
+- **Redis + RabbitMQ** — **NOT durable** (documented trade-off):
   queue position data is in MySQL, but in-flight RabbitMQ messages and
   Redis tokens reset on restart. By design.
 
@@ -145,5 +145,5 @@ not built here to stay free.
 ---
 
 *See also: [`docs/10_DEPLOYMENT.md`](10_DEPLOYMENT.md) (deployment +
-Day 15 live-run fixes), [`docs/09_TESTING.md`](09_TESTING.md) (test
-strategy), and `scripts/day15-azure-smoke.mjs`.*
+live-run fixes), [`docs/09_TESTING.md`](09_TESTING.md) (test
+strategy), and `scripts/azure-smoke.mjs`.*

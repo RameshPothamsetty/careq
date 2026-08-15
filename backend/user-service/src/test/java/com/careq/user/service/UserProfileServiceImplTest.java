@@ -23,7 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link UserProfileServiceImpl} (Day 3 plan, built Day 10).
+ * Unit tests for {@link UserProfileServiceImpl} .
  */
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceImplTest {
@@ -95,7 +95,7 @@ class UserProfileServiceImplTest {
 
     @Test
     void getOrCreateProfile_BackfillsMissingNameAndEmail() {
-        // Profile created before Day 7a: only userId + role stored.
+        // Profile created before the name/email columns existed: only userId + role stored.
         UserProfile stale = new UserProfile(TEST_USER_ID, TEST_ROLE);
         when(userProfileRepository.findByUserId(TEST_USER_ID)).thenReturn(Optional.of(stale));
         when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(inv -> inv.getArgument(0));

@@ -6,7 +6,7 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      # Day 17 — security response headers on every proxied route (defense in
+      # Security response headers on every proxied route (defense in
       # depth on top of the Vercel/nginx frontend headers).
       default-filters:
         - AddResponseHeader=X-Content-Type-Options, nosniff
@@ -39,7 +39,7 @@ spring:
           predicates:
             - Path=/api/notifications/**
 
-        # ── Day 9: OpenAPI aggregation routes ───────────────────────
+        # ── OpenAPI aggregation routes ───────────────────────────────
         # Each downstream service's /v3/api-docs is exposed through the
         # gateway as /v3/api-docs/{service}, so one Swagger UI at
         # http://localhost:8080/swagger-ui.html can browse every service.
@@ -86,9 +86,9 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# ── Day 9: centralized Swagger UI ─────────────────────────────────
+# ── Centralized Swagger UI ───────────────────────────────────────
 # One browsable UI listing every business service's OpenAPI docs.
-# Day 17: SPRINGDOC_ENABLED=false (set by the CD workflow in production)
+# SPRINGDOC_ENABLED=false (set by the CD workflow in production)
 # switches BOTH the aggregated docs and the UI off entirely.
 springdoc:
   api-docs:
@@ -111,7 +111,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
   cors:
-    # Day 15 fix: Spring relaxed binding maps the CORS_ALLOWED_ORIGINS env var
+    # Spring relaxed binding maps the CORS_ALLOWED_ORIGINS env var
     # to `cors.allowed-origins` (no `app.` prefix), so the @Value in CorsConfig
     # reading ${app.cors.allowed-origins} silently fell back to the localhost
     # defaults on Azure — the Vercel origin was rejected with a 403 preflight

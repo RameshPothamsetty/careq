@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * Day 9: OpenAPI documentation configuration for user-service.
+ * OpenAPI documentation configuration for user-service.
  *
  * All endpoints (except the public profile-picture serving route, which is
  * whitelisted at the gateway) require a valid JWT — enforced by the API

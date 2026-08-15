@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Day 13 — persisted notification endpoints.
+ * persisted notification endpoints.
  * Identity (X-User-Id / X-User-Role) is provided by the API Gateway after JWT
  * validation, so no Bearer token is read inside this service — the same
  * header-based trust pattern as every other CareQ service.

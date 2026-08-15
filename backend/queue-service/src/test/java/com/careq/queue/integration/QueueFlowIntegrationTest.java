@@ -34,14 +34,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Day 10 — Flow B integration test (@SpringBootTest + MockMvc + H2).
+ * Flow B integration test (@SpringBootTest + MockMvc + H2).
  *
  * The full patient journey through the real queue stack (controller → service
  * → repository against H2): join → AI triage assigns a level → derived
  * position + predicted wait present → doctor calls next (IN_PROGRESS) →
  * doctor completes (COMPLETED) → the visit lands in the patient's history.
  *
- * Per the Day 10 scope decision, the EXTERNAL calls are mocked at this layer:
+ * Per the scope decision, the EXTERNAL calls are mocked at this layer:
  *  - {@link DoctorServiceClient} (Feign) — the doctor-service catalog,
  *  - {@link TriageAiClient} — the Groq LLM call.
  * The real AiTriageService wrapper (fallback-to-NORMAL) still runs on top of
@@ -76,7 +76,7 @@ class QueueFlowIntegrationTest {
     @MockBean
     private TriageAiClient triageAiClient;
 
-    // Day 13: the event publisher is mocked so the integration suite never
+    // the event publisher is mocked so the integration suite never
     // attempts a real RabbitMQ connection — the non-blocking publish path is
     // covered by the QueueServiceImpl unit tests.
     @MockBean

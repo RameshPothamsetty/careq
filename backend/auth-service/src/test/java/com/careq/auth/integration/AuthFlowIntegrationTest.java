@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Day 10 — Flow A integration test (@SpringBootTest + MockMvc + H2).
+ * Flow A integration test (@SpringBootTest + MockMvc + H2).
  *
  * Full HTTP round-trip through the real auth stack (SecurityConfig +
  * JwtAuthenticationFilter + JwtService + repository against H2):

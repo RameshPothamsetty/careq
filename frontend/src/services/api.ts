@@ -7,7 +7,7 @@
  * screens) plus login/signup, which remain session-state calls owned by
  * AuthContext.
  */
-// Day 11: an EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
+// An EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
 // proxy (localhost:3030) handles them in dev, and the Docker Nginx container
 // reverse-proxies /api to the api-gateway in production. No gateway URL is
 // baked into the bundle. (??, not ||, so an empty string stays "relative".)
@@ -32,7 +32,7 @@ interface AuthResponse {
   email: string;
   fullName: string;
   role: string;
-  // Day 17 — email verification. token is null when verification is required;
+  // Email verification. token is null when verification is required;
   // message / verificationRequired describe the signup outcome.
   message?: string;
   verificationRequired?: boolean;
@@ -100,7 +100,7 @@ interface AvailabilityRequest {
   isAvailable: boolean;
 }
 
-// ---- Queue types (Day 5) ----
+// ---- Queue types ----
 
 type TriageLevel = 'EMERGENCY' | 'HIGH' | 'NORMAL' | 'FOLLOW_UP';
 
@@ -221,7 +221,7 @@ interface LiveQueueOverview {
   doctors: DoctorQueueStats[];
 }
 
-// ---- Analytics types (Day 7b) ----
+// ---- Analytics types ----
 
 interface DailyPatientCount {
   date: string; // yyyy-MM-dd
@@ -253,7 +253,7 @@ interface DoctorAnalyticsSummary {
   avgWaitTimeTrend: DailyAvgWait[];
 }
 
-// ---- Notification types (Day 13 — persisted notifications) ----
+// ---- Notification types (persisted notifications) ----
 
 /** A persisted in-app notification (notification-service). */
 interface NotificationItem {
@@ -275,7 +275,7 @@ interface NotificationPage extends PaginatedResponse<NotificationItem> {
   unreadCount: number;
 }
 
-// ---- Web Push + delivery preferences (Day 16) ----
+// ---- Web Push + delivery preferences ----
 
 /** Per-user delivery preferences (GET/PUT /api/notifications/preferences). */
 interface NotificationPreferences {
@@ -308,11 +308,11 @@ interface PaginatedResponse<T> {
 }
 
 /**
- * Cold-start tolerance (Day 15 Azure): every container app scales to zero, so
+ * Cold-start tolerance (Azure): every container app scales to zero, so
  * the first request after idle can return 502/503/504 with an EMPTY body while
  * the app wakes up (measured 10-60s, docs/10_DEPLOYMENT.md §4.2), and a CD
  * rollout briefly drops connections entirely (fetch rejects). Retry for that
- * whole window — mirroring scripts/day15-azure-smoke.mjs — instead of
+ * whole window — mirroring scripts/azure-smoke.mjs — instead of
  * surfacing a cryptic parse error. Attempts wait 8s each, so the window is
  * ~56s of retrying plus the request time itself.
  */
@@ -380,8 +380,8 @@ async function request<T>(
   }
 
   if (!response || !response.ok) {
-    // Day 9: backend error shape is now { message, error, validationErrors } (was { details }).
-    // Day 17: an optional machine-readable `code` (EMAIL_NOT_VERIFIED, RATE_LIMITED,
+    // Backend error shape: { message, error, validationErrors }.
+    // An optional machine-readable `code` (EMAIL_NOT_VERIFIED, RATE_LIMITED,
     // INVALID_TOKEN) lets pages branch on the failure instead of parsing text.
     const errorMessage =
       (data.message as string) ||
@@ -413,7 +413,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  // Day 17 — email verification + password reset.
+  // Email verification + password reset.
   verifyEmail: (token: string) =>
     request<AuthResponse>(`/api/auth/verify?token=${encodeURIComponent(token)}`, {
       method: 'GET',

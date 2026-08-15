@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Central error handling (Day 9: every response uses the shared
+ * Central error handling (every response uses the shared
  * ErrorResponseDto shape with {@code timestamp / status / error / message /
  * path} and a {@code validationErrors} list on 400 validation failures).
  */

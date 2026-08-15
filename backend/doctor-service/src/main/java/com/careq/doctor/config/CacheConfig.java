@@ -17,7 +17,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import java.time.Duration;
 
 /**
- * Day 13 — Redis caching for the doctor/department catalog.
+ * Redis caching for the doctor/department catalog.
  *
  * <p><b>Scope boundary:</b> only the read-heavy, rarely-changing catalog
  * endpoints are cached ({@code GET /api/doctors} and {@code GET /api/departments})

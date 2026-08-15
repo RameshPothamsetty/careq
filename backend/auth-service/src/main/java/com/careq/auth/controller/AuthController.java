@@ -22,8 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Authentication endpoints (Day 9: fully documented with OpenAPI;
- * Day 17: email verification + password reset + rate limiting).
+ * Authentication endpoints (fully documented with OpenAPI;
+ * email verification + password reset + rate limiting).
  */
 @Tag(name = "Authentication", description = "Public registration and login endpoints — no Bearer token required.")
 @RestController

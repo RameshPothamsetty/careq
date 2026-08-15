@@ -40,7 +40,7 @@ export const userApi = createApi({
       invalidatesTags: ['Profile'],
     }),
 
-    // Admin-only paginated user list (Day 7a).
+    // Admin-only paginated user list.
     getUsers: builder.query<
       PaginatedResponse<UserProfileResponse>,
       { page?: number; size?: number; search?: string } | void

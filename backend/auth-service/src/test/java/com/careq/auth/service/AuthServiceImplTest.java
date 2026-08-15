@@ -32,8 +32,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link AuthServiceImpl} — signup/login (Day 2) extended on
- * Day 17 for email verification, password reset and rate limiting. The
+ * Unit tests for {@link AuthServiceImpl} — signup/login  extended on
+ * Covers email verification, password reset and rate limiting. The
  * service is constructed manually so the rate-limit config values are set
  * explicitly (Mockito's @InjectMocks would default them to 0 and block
  * every login).

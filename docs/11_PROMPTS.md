@@ -74,12 +74,12 @@ _Not archived — authentication module prompt._
 ## Full Prompt Text
 
 ```
-CareQ — Day 5 Prompt (Queue Module + AI: Wait-Time Prediction & Symptom Triage)
+CareQ — Queue Module + AI Prompt (Wait-Time Prediction & Symptom Triage)
 
-Save as the fifth entry in docs/11_PROMPTS.md. Paste everything below the --- into Freebuff exactly as-is. Assumes: Days 1-4 merged into develop (auth, user profiles, doctor/department catalog all working, avgConsultationTimeMinutes populated on doctor catalog entries).
+Save as the fifth entry in docs/11_PROMPTS.md. Paste everything below the --- into Freebuff exactly as-is. Assumes: the previous milestones merged into develop (auth, user profiles, doctor/department catalog all working, avgConsultationTimeMinutes populated on doctor catalog entries).
 
 ROLE
-You are acting as a Senior Software Architect and Full Stack Engineer continuing Day 5 of a 15-day project under the TrainingMug ADF v1.0 framework. Today is the core AI-differentiated module: queue-service. This is the most important day of the project — everything before it was infrastructure; this is where the product's actual value proposition gets built. Do not touch auth-service, user-service, or doctor-service — read from doctor-service only via the inter-service call described below, never modify it.
+You are acting as a Senior Software Architect and Full Stack Engineer continuing the CareQ build. This milestone is the core AI-differentiated module: queue-service. This is the most important day of the project — everything before it was infrastructure; this is where the product's actual value proposition gets built. Do not touch auth-service, user-service, or doctor-service — read from doctor-service only via the inter-service call described below, never modify it.
 
 PROJECT CONTEXT (recap)
 Project: CareQ — Intelligent Patient Flow Platform
@@ -95,7 +95,7 @@ DESIGN DECISIONS FOR TODAY — read before generating anything
 5. Wait-time prediction formula: predictedWaitMinutes = (number of patients ahead in effective queue order) × doctor's avgConsultationTimeMinutes, recalculated on every read of GET /api/queue/my-status — not cached statically.
 6. Polling only, no WebSockets today — React should poll GET /api/queue/my-status every ~10 seconds.
 
-TODAY'S DELIVERABLES (Day 5 — Queue Module + AI)
+THIS MILESTONE'S DELIVERABLES (Queue Module + AI)
 - QueueEntry entity: patientId, doctorCatalogEntryId, symptomText, aiSuggestedTriage, doctorOverrideTriage (nullable), status (WAITING / IN_PROGRESS / COMPLETED / CANCELLED), joinedAt, calledAt, completedAt
 - AiTriageService — wraps the LLM call, includes the fallback-to-NORMAL logic, isolated so it can be unit-tested with a mocked AI client
 - DoctorServiceClient — Feign client interface for calling doctor-service (fetch avgConsultationTimeMinutes, verify isAvailable)
@@ -109,11 +109,11 @@ Explicitly OUT of scope today: load balancing across doctors, WebSocket real-tim
 
 UI/UX QUALITY BAR — Tailwind CSS, calm healthcare palette (soft blues/teals + white), triage color-coded badges (EMERGENCY=red, HIGH=orange, NORMAL=blue/green, FOLLOW_UP=gray), live queue status screen must feel alive (large position + wait, last-updated indicator, pulse animation), every screen handles loading/empty/error/populated states, doctor view looks like a real clinical dashboard, admin overview uses summary cards, responsive by default, disabled-state styling during API calls, toast/inline confirmations.
 
-GIT WORKFLOW: pull develop → branch feature/queue-service → build only today's scope → test locally (including the AI-failure fallback path) → commit in small increments → push → open PR (feature/queue-service → develop) titled "Day 5: Queue Module + AI (Wait-Time Prediction & Symptom Triage)" → self-review the diff against the Definition of Done → merge only after review.
+GIT WORKFLOW: pull develop → branch feature/queue-service → build only this milestone's scope → test locally (including the AI-failure fallback path) → commit in small increments → push → open PR (feature/queue-service → develop) titled "Queue Module + AI (Wait-Time Prediction & Symptom Triage)" → self-review the diff against the Definition of Done → merge only after review.
 
 HARD CONSTRAINTS: ADF Section 8 (no business logic in controllers, DTOs only, no hardcoded values), state all assumptions before generating code, read GROQ_API_KEY strictly from environment configuration (application.yml referencing ${GROQ_API_KEY}), do not implement anything from the out-of-scope list, stop after producing the listed files and docs.
 
-VERIFICATION CHECKLIST: confirm each of the 17 Day 5 deliverables is addressed, output the exact git command sequence, output a ready-to-paste PR description, output the filled-in Definition of Done checklist, output the exact prompt text sent to Groq, and confirm GROQ_API_KEY is read from environment configuration only.
+VERIFICATION CHECKLIST: confirm each of the queue-module deliverables is addressed, output the exact git command sequence, output a ready-to-paste PR description, output the filled-in Definition of Done checklist, output the exact prompt text sent to Groq, and confirm GROQ_API_KEY is read from environment configuration only.
 ```
 
 ---
@@ -553,7 +553,7 @@ Pull develop → branch feature/ci-cd-pipeline → build the workflow files → 
 
 **Branch:** `feature/cloud-deployment`
 
-**Summary:** Deployed CareQ to Azure. **One-time infra (`infra/azure/`)**: `main.bicep` provisions a VNet (apps-subnet 10.0.1.0/24 delegated to `Microsoft.App/environments`, vms-subnet 10.0.2.0/24), Log Analytics, a consumption-only VNet-injected Container Apps Environment, **nine** container apps (eureka/gateway/auth always-on min 1; user/doctor/queue/notification scale-to-zero min 0 with HTTP rules; redis:7-alpine + rabbitmq:3-management with TCP ingress + TCP scale rules), a Standard_B1s MySQL VM (static private IP 10.0.2.10, **no public IP**, NSG allowing :3306 **only** from 10.0.1.0/24, cloud-init installs MySQL 8 + `careq_db` + `careq` user), and a Free-tier Static Web App; `provision.sh` deploys it, prints live URLs, the SWA deployment token, and the GitHub secrets list. **Recurring deploy**: `deploy` + `deploy-frontend` jobs added to `cd-develop.yml`/`cd-release.yml` (OIDC `azure/login@v2`, no client secret; `az containerapp update` rolls images + secrets; frontend built with the live gateway FQDN baked in and uploaded via `azure/static-web-apps-deploy` with `skip_app_build`). **App changes**: `application-azure.yml` per Eureka client registers with `CONTAINER_APP_HOSTNAME` + port 80 so inter-service traffic flows through the Envoy proxy (what makes HTTP scale-to-zero actually wake), `CorsConfig` origins now env-driven (`CORS_ALLOWED_ORIGINS` → live SWA origin), Dockerfiles accept `JAVA_OPTS`, `seed-data.sh` accepts `API_BASE` override, new `scripts/day15-azure-smoke.mjs` runs the full patient journey against live Azure URLs. Docs: `10_DEPLOYMENT.md` §4 (architecture, cost policy, cold-start, teardown), README live banner + status. Renumbered from the pasted "Day 14" prompt — Day 14 in this repo is already the CI/CD pipeline, so this is filed as Day 15 (same precedent as Day 14). User runs the one-time provisioning and git steps themselves; the recurring deploy runs via GitHub Actions.
+**Summary:** Deployed CareQ to Azure. **One-time infra (`infra/azure/`)**: `main.bicep` provisions a VNet (apps-subnet 10.0.1.0/24 delegated to `Microsoft.App/environments`, vms-subnet 10.0.2.0/24), Log Analytics, a consumption-only VNet-injected Container Apps Environment, **nine** container apps (eureka/gateway/auth always-on min 1; user/doctor/queue/notification scale-to-zero min 0 with HTTP rules; redis:7-alpine + rabbitmq:3-management with TCP ingress + TCP scale rules), a Standard_B1s MySQL VM (static private IP 10.0.2.10, **no public IP**, NSG allowing :3306 **only** from 10.0.1.0/24, cloud-init installs MySQL 8 + `careq_db` + `careq` user), and a Free-tier Static Web App; `provision.sh` deploys it, prints live URLs, the SWA deployment token, and the GitHub secrets list. **Recurring deploy**: `deploy` + `deploy-frontend` jobs added to `cd-develop.yml`/`cd-release.yml` (OIDC `azure/login@v2`, no client secret; `az containerapp update` rolls images + secrets; frontend built with the live gateway FQDN baked in and uploaded via `azure/static-web-apps-deploy` with `skip_app_build`). **App changes**: `application-azure.yml` per Eureka client registers with `CONTAINER_APP_HOSTNAME` + port 80 so inter-service traffic flows through the Envoy proxy (what makes HTTP scale-to-zero actually wake), `CorsConfig` origins now env-driven (`CORS_ALLOWED_ORIGINS` → live SWA origin), Dockerfiles accept `JAVA_OPTS`, `seed-data.sh` accepts `API_BASE` override, new `scripts/azure-smoke.mjs` runs the full patient journey against live Azure URLs. Docs: `10_DEPLOYMENT.md` §4 (architecture, cost policy, cold-start, teardown), README live banner + status. Renumbered from the pasted "Day 14" prompt — Day 14 in this repo is already the CI/CD pipeline, so this is filed as Day 15 (same precedent as Day 14). User runs the one-time provisioning and git steps themselves; the recurring deploy runs via GitHub Actions.
 
 ## Full Prompt Text
 
@@ -820,7 +820,7 @@ headers, and (g) monitoring/alerting + a backup runbook.
    services, auth mail wiring); provision.sh secret checklist; .env.example;
    docker-compose auth-service env.
 7. Seed/smoke: seed-data.sh gains patient.smoke@careq.com + handles the
-   verificationRequired signup response; day15-azure-smoke.mjs runs the
+   verificationRequired signup response; azure-smoke.mjs runs the
    patient journey as the SEEDED patient (fresh signup is verification-gated
    now) — the account must be created BEFORE verification goes live so it is
    legacy-verified.

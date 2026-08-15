@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Day 13 — RabbitMQ publishing configuration for queue-service.
+ * RabbitMQ publishing configuration for queue-service.
  *
  * <p><b>Topology:</b> one durable <em>topic</em> exchange {@code careq.events}.
  * queue-service only declares the exchange and PUBLISHES — the binding of the

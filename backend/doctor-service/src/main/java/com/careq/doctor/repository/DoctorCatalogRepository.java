@@ -18,7 +18,7 @@ public interface DoctorCatalogRepository extends JpaRepository<DoctorCatalogEntr
     boolean existsByUserId(String userId);
 
     /**
-     * Single filtered + paginated search (Day 7a). Every filter is optional:
+     * Single filtered + paginated search . Every filter is optional:
      * a null/blank value leaves that dimension unconstrained. {@code search}
      * matches the doctor's display name OR specialization (case-insensitive
      * substring). Sorting is applied through the {@link Pageable}.

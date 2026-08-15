@@ -3,7 +3,7 @@ package com.careq.queue.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Per-doctor summary card data for the Admin live overview (Day 9: fully documented).
+ * Per-doctor summary card data for the Admin live overview (fully documented).
  */
 @Schema(description = "Per-doctor queue summary for the Admin live overview.")
 public class DoctorQueueStatsDto {

@@ -23,7 +23,7 @@ public class AuthResponseDto {
     @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN"})
     private String role;
 
-    // Day 17 — email verification. `token` is null when verification is
+    //  email verification. `token` is null when verification is
     // required (signup returns no session until the email is verified);
     // `message` / `verificationRequired` tell the client what happened.
     @Schema(description = "Human-readable status message (signup outcome, verify/reset result)", example = "Verification email sent to john@careq.com")

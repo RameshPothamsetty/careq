@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Admin analytics summary (Day 7b, documented Day 9).
+ * Admin analytics summary.
  *
  * Aggregated server-side from the {@code queue_entries} table over the
  * last 7 days (inclusive of today), with missing days zero-filled so the

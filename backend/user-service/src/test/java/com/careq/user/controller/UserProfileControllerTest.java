@@ -22,8 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Standalone MockMvc tests for {@link UserProfileController} (Day 3 plan,
- * built Day 10). Identity headers are simulated directly — the gateway is
+ * Standalone MockMvc tests for {@link UserProfileController} . Identity headers are simulated directly — the gateway is
  * what normally injects them.
  */
 @ExtendWith(MockitoExtension.class)

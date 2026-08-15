@@ -1,5 +1,5 @@
 # =====================================================================
-# CareQ — full-stack Docker Compose (Day 11)
+# CareQ — full-stack Docker Compose
 #
 # Bring up:      docker compose up -d --build
 # Tear down:     docker compose down            (keep data)
@@ -40,7 +40,7 @@ services:
     # (avoids clashing with a local MySQL on :3306). Uncomment for local
     # tooling:  ports: ["3306:3306"]
 
-  # ── Day 13: Redis — catalog cache for doctor-service (60s TTL).
+  # ── Redis — catalog cache for doctor-service (60s TTL).
   redis:
     image: redis:7-alpine
     container_name: careq-redis
@@ -54,7 +54,7 @@ services:
     networks:
       - careq-net
 
-  # ── Day 13: RabbitMQ — event bus for queue → notification events.
+  # ── RabbitMQ — event bus for queue → notification events.
   #    Management UI exposed on :15672 (guest/guest in dev).
   rabbitmq:
     image: rabbitmq:3-management
@@ -134,7 +134,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       JWT_SECRET: ${JWT_SECRET:-CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
-      # Day 17 — email verification + password reset. OFF locally so signup
+      # Email verification + password reset. OFF locally so signup
       # keeps returning a JWT; enable (and set SENDGRID_API_KEY) for testing
       # the verification flow:  docker compose up -d --build with these set.
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
@@ -199,7 +199,7 @@ services:
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
-      # Day 13: Redis catalog cache.
+      # Redis catalog cache.
       REDIS_HOST: redis
     depends_on:
       mysql:
@@ -233,7 +233,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       # Optional: without it, AI triage falls back to NORMAL (by design).
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      # Day 13: RabbitMQ event publishing (post-decision notifications only).
+      # RabbitMQ event publishing (post-decision notifications only).
       RABBITMQ_HOST: rabbitmq
     depends_on:
       mysql:
@@ -251,7 +251,7 @@ services:
     networks:
       - careq-net
 
-  # ── Day 13: notification-service — consumes RabbitMQ events, persists and
+  # ── notification-service — consumes RabbitMQ events, persists and
   #    serves the caller's in-app notifications.
   notification-service:
     build:
@@ -267,9 +267,9 @@ services:
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
-      # Day 13: RabbitMQ consumer.
+      # RabbitMQ consumer.
       RABBITMQ_HOST: rabbitmq
-      # Day 16: Web Push (VAPID). Optional — without the keys, push delivery
+      # Web Push (VAPID). Optional — without the keys, push delivery
       # is disabled (logged once) and in-app notifications keep working.
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
@@ -296,7 +296,7 @@ services:
       context: ./frontend
       args:
         VITE_API_BASE_URL: ""
-        # Day 16: Web Push — bake the VAPID public key into the bundle so the
+        # Web Push — bake the VAPID public key into the bundle so the
         # bell can offer push. Empty → the push toggle is hidden entirely.
         VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY:-}
     container_name: careq-frontend

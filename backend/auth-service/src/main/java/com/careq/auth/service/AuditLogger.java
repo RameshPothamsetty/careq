@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Structured audit trail for security-relevant auth events (Day 17).
+ * Structured audit trail for security-relevant auth events .
  *
  * <p>Events are written to a dedicated {@code AUDIT} logger as single-line
  * key=value records, which the Azure container logs retain and Log

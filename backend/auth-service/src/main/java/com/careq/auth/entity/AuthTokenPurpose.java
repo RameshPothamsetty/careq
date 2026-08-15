@@ -1,7 +1,7 @@
 package com.careq.auth.entity;
 
 /**
- * What a row in {@code auth_tokens} is for (Day 17 — email verification +
+ * What a row in {@code auth_tokens} is for (email verification +
  * password reset). Each purpose has its own expiry policy:
  * <ul>
  *   <li>{@link #VERIFY_EMAIL} — 24h, issued at signup, consumed by the

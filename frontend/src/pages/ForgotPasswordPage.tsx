@@ -7,7 +7,7 @@ import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
 
 /**
- * ForgotPasswordPage (Day 17) — enter the account email, get a one-time
+ * ForgotPasswordPage — enter the account email, get a one-time
  * reset link. Always shows the generic outcome message (the backend never
  * reveals whether the email exists).
  */

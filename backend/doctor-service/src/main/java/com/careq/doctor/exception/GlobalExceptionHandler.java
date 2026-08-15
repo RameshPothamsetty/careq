@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Central error handling (Day 9: every response uses the shared
+ * Central error handling (every response uses the shared
  * ErrorResponseDto shape with {@code timestamp / status / error / message /
  * path} and a {@code validationErrors} list on 400 validation failures).
  */
@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Day 9 consistency fix: duplicate doctor catalog entries (duplicate
+     * Consistency fix: duplicate doctor catalog entries (duplicate
      * userId) previously returned 400 here while the queue-service used 409
      * for its duplicate case. Duplicate resources are now 409 everywhere.
      */

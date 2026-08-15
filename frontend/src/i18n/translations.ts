@@ -57,7 +57,7 @@ export const en = {
   'auth.roleAdminDesc': 'Departments, doctors & oversight',
   'auth.alreadyHaveAccount': 'Already have an account?',
   'auth.signupFailed': 'Signup failed. Please try again.',
-  // Day 17 — email verification + password reset
+  // Email verification + password reset
   'auth.forgotPassword': 'Forgot password?',
   'auth.forgotTitle': 'Forgot your password?',
   'auth.forgotDesc': 'Enter your email and we’ll send you a reset link.',
@@ -116,12 +116,12 @@ export const en = {
   'header.mAgo': '{m}m ago',
   'header.hAgo': '{h}h ago',
   'header.dAgo': '{d}d ago',
-  // Day 16: Web Push toggle.
+  // Web Push toggle.
   'header.pushNotifications': 'Push notifications',
   'header.pushHint': 'Get alerts even when CareQ is closed',
   'header.pushDenied': 'Blocked in browser settings — enable it there',
 
-  // ── real-time toasts (client-derived, Day 7b layer) ──────────────
+  // ── real-time toasts (client-derived layer) ─────────────────────
   'toast.queueJoined': 'Queue joined',
   'toast.joinedMessage': "You joined {doctor}'s queue — position #{position}.",
   'toast.consultationComplete': 'Consultation complete',
@@ -326,7 +326,7 @@ const hi: Record<TranslationKey, string> = {
   'auth.roleAdminDesc': 'विभाग, डॉक्टर और निगरानी',
   'auth.alreadyHaveAccount': 'पहले से खाता है?',
   'auth.signupFailed': 'साइन अप विफल रहा। कृपया पुनः प्रयास करें।',
-  // Day 17 — email verification + password reset
+  // Email verification + password reset
   'auth.forgotPassword': 'पासवर्ड भूल गए?',
   'auth.forgotTitle': 'पासवर्ड भूल गए?',
   'auth.forgotDesc': 'अपना ईमेल दर्ज करें, हम आपको एक रीसेट लिंक भेजेंगे।',
@@ -579,7 +579,7 @@ const te: Record<TranslationKey, string> = {
   'auth.roleAdminDesc': 'విభాగాలు, డాక్టర్లు & పర్యవేక్షణ',
   'auth.alreadyHaveAccount': 'ఇప్పటికే ఖాతా ఉందా?',
   'auth.signupFailed': 'సైన్ అప్ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
-  // Day 17 — email verification + password reset
+  // Email verification + password reset
   'auth.forgotPassword': 'పాస్వర్డ్ మర్చిపోయారా?',
   'auth.forgotTitle': 'పాస్వర్డ్ మర్చిపోయారా?',
   'auth.forgotDesc': 'మీ ఇమెయిల్ నమోదు చేయండి, మేము రీసెట్ లింక్ పంపుతాము.',

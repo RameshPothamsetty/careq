@@ -37,7 +37,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        <!-- Day 9: OpenAPI / Swagger UI -->
+        <!-- OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -47,12 +47,12 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Day 11: actuator health endpoint used by Docker HEALTHCHECK -->
+        <!-- Actuator health endpoint used by Docker HEALTHCHECK -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <!-- Day 15: Azure Blob Storage (free 5 GB tier) for profile pictures.
+        <!-- Azure Blob Storage (free 5 GB tier) for profile pictures.
              Active ONLY when AZURE_STORAGE_CONNECTION_STRING is set (Azure
              Container Apps); local/Docker dev keeps the local-disk uploads. -->
         <dependency>
@@ -62,7 +62,7 @@
         </dependency>
     </dependencies>
 
-    <!-- Day 11: explicit Boot repackage so `mvn package` produces the
+    <!-- Explicit Boot repackage so `mvn package` produces the
          executable fat jar the Docker images run. -->
     <build>
         <plugins>

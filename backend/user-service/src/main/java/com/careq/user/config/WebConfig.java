@@ -19,7 +19,7 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * Day 15 fix: azure-storage-blob pulls in jackson-dataformat-xml, which makes
+     * Fix: azure-storage-blob pulls in jackson-dataformat-xml, which makes
      * Spring's default converter order serve XML before JSON — every DTO response
      * (and every error response) would go out as XML, breaking the JSON contract
      * the gateway and frontend expect. Drop the XML converter entirely; the Azure

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Day 10 — one-off demo-data repair.
+ * One-off demo-data repair.
  * The auth DB was re-created after the catalog was seeded, orphaning every
  * catalog entry (userId points at a deleted account). This script:
  *  1. ensures the 10 seed departments exist (creates any missing by name),

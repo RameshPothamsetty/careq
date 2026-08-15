@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Standard error response shape shared by every CareQ service (Day 9):
+ * Standard error response shape shared by every CareQ service :
  * {@code timestamp}, {@code status}, {@code error}, {@code message},
  * {@code path}, and an optional {@code validationErrors} list.
  */

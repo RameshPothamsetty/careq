@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * Day 9: OpenAPI documentation configuration for doctor-service.
+ * OpenAPI documentation configuration for doctor-service.
  *
  * All endpoints require a valid JWT (enforced by the API Gateway). A global
  * HTTP Bearer security scheme is declared so the Swagger UI shows an

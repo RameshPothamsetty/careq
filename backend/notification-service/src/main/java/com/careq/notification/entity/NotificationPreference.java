@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * Day 16 — per-user delivery preferences. One row per user (upserted by
+ * per-user delivery preferences. One row per user (upserted by
  * {@code PUT /api/notifications/preferences}); a missing row means "all
  * defaults on" — {@link #webPushEnabled} defaults to true, so an existing
  * patient who never opened settings still receives pushes once they enable

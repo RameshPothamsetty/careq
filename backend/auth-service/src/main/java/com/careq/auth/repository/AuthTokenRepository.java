@@ -14,7 +14,7 @@ public interface AuthTokenRepository extends JpaRepository<AuthToken, String> {
 
     /**
      * The verification gate: true iff the user has a pending (unused)
-     * VERIFY_EMAIL token. Legacy accounts created before Day 17 have no
+     * VERIFY_EMAIL token. Legacy accounts created before verification was enabled have no
      * tokens at all → false → they can sign in as before.
      */
     boolean existsByUserIdAndPurposeAndUsedAtIsNull(String userId, AuthTokenPurpose purpose);

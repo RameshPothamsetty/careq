@@ -17,7 +17,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Day 10 follow-up — BUG-2b: {@link DataSeeder} must HEAL missing departments
+ * BUG-2b: {@link DataSeeder} must HEAL missing departments
  * (create only the missing defaults) instead of skipping whenever the table is
  * non-empty, so a partially deleted table (e.g. Cardiology missing after a
  * manual cleanup) self-heals on restart.

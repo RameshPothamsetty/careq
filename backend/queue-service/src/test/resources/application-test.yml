@@ -1,4 +1,4 @@
-# Day 10: test profile for @SpringBootTest integration tests.
+# Test profile for @SpringBootTest integration tests.
 # H2 in MySQL mode (no MySQL server needed). The Groq + Feign clients are
 # mocked at the bean level in the tests, so ai.groq values are just placeholders.
 spring:

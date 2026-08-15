@@ -14,7 +14,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * Day 17 — SendGrid email payloads: correct endpoint, bearer auth, subject
+ * SendGrid email payloads: correct endpoint, bearer auth, subject
  * and recipient; and fail-open when the API key is absent.
  */
 class EmailServiceTest {

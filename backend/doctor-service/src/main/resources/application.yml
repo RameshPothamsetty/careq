@@ -6,7 +6,7 @@ spring:
     name: doctor-service
   datasource:
     # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
-    # Day 17 — MYSQL_CONN_PARAMS is overridden by the CD pipeline to
+    # MYSQL_CONN_PARAMS is overridden by the CD pipeline to
     # sslMode=REQUIRED... so Azure talks TLS to the DB. Local default stays
     # plain (fast, zero-config docker-compose).
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?${MYSQL_CONN_PARAMS:useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
@@ -21,7 +21,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-  # Day 13: Redis caching for the doctor/department catalog (60s TTL).
+  # Redis caching for the doctor/department catalog (60s TTL).
   # Live queue data (position, wait time, availability) is deliberately NOT
   # cached — see docs/03_ARCHITECTURE.md. Docker sets REDIS_HOST=redis.
   cache:
@@ -39,13 +39,13 @@ eureka:
   instance:
     prefer-ip-address: true
 
-# Pagination bounds for GET /api/doctors (Day 7a).
+# Pagination bounds for GET /api/doctors.
 # 1000 keeps the Admin queue-overview's Feign fetch (size=1000) from being
 # silently truncated while still bounding abusive client requests.
 doctor-list:
   max-page-size: 1000
 
-# Day 17 — production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
+# Production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
 # hide Swagger/OpenAPI from the public internet.
 springdoc:
   api-docs:

@@ -42,7 +42,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
 
         // Skip public auth routes and profile pictures (images loaded via <img> tags).
-        // Day 17: the verification/reset endpoints are reached from email links
+        // the verification/reset endpoints are reached from email links
         // WITHOUT a JWT, so they are public like signup/login.
         if (path.startsWith("/api/auth/signup")
                 || path.startsWith("/api/auth/login")
@@ -55,7 +55,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // Public health probes for every service (Day 9 review fix): the API
+        // Public health probes for every service (review fix): the API
         // contract documents all four /health endpoints as unauthenticated.
         if (path.equals("/api/users/health")
                 || path.equals("/api/doctors/health")
@@ -69,7 +69,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // Skip Swagger / OpenAPI routes (Day 9) — the centralized docs UI is
+        // Skip Swagger / OpenAPI routes  — the centralized docs UI is
         // public in this dev/demo setup so it can be browsed and tested without
         // a token. Swagger UI + aggregated specs + static assets are all covered.
         if (path.startsWith("/v3/api-docs")
@@ -104,7 +104,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         // downstream services never need to re-parse the token. fullName/email
         // are used by user-service to store display names (admin user list,
         // queue patient names) — they may be absent on tokens issued before
-        // Day 7a, so the gateway simply omits them in that case.
+        // so the gateway simply omits them in that case.
         String userId = claims.getSubject();
         String role = claims.get("role", String.class);
         String fullName = claims.get("fullName", String.class);

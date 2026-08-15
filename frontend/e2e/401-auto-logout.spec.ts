@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { loginAsAdmin } from './helpers';
 
 /**
- * Day 6 regression test: an expired/invalid JWT must never leave the app
+ * Regression test: an expired/invalid JWT must never leave the app
  * stuck on stale data. The chain under test:
  *
  *   protected query fires with bad token → backend 401

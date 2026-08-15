@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 /**
  * Consumer tests — the four known event types must persist a notification with
  * the right recipient, type and composed message; malformed/unknown events are
- * dropped, never persisted (Day 13).
+ * dropped, never persisted .
  */
 @ExtendWith(MockitoExtension.class)
 class NotificationConsumerTest {

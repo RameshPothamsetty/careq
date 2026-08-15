@@ -125,7 +125,7 @@ export const doctorApi = createApi({
       invalidatesTags: ['Doctor'],
     }),
 
-    // Day 13: resolve the CALLING doctor's own catalog entry by userId — no
+    // Resolve the CALLING doctor's own catalog entry by userId — no
     // more scanning the whole paginated catalog to find "which entry is mine".
     // 404 (isError) means the account isn't linked to a catalog entry yet.
     getMyDoctor: builder.query<DoctorCatalogResponse, void>({

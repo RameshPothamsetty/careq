@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 /**
- * Admin-only live overview across all doctors (Day 9: fully documented).
+ * Admin-only live overview across all doctors (fully documented).
  */
 @Schema(description = "Hospital-wide live queue overview (Admin).")
 public class LiveQueueOverviewDto {

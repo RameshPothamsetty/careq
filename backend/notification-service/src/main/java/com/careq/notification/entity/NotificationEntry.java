@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 
 /**
- * Day 13 — a persisted in-app notification (one row per consumed RabbitMQ
+ * a persisted in-app notification (one row per consumed RabbitMQ
  * event). Owned by notification-service; {@code recipientUserId} is a plain
  * reference to auth-service's users.id (microservice boundary, no FK).
  */

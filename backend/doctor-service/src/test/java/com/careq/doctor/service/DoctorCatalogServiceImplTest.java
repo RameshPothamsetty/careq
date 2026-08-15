@@ -32,7 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link DoctorCatalogServiceImpl} (Day 4 plan, built Day 10).
+ * Unit tests for {@link DoctorCatalogServiceImpl} .
  */
 @ExtendWith(MockitoExtension.class)
 class DoctorCatalogServiceImplTest {
@@ -205,7 +205,7 @@ class DoctorCatalogServiceImplTest {
 
     @Test
     void createDoctor_WithInvalidDepartment_ShouldThrowException() {
-        // Day 10 note: the real implementation throws DepartmentNotFoundException
+        // Note: the real implementation throws DepartmentNotFoundException
         // (not IllegalArgumentException as originally planned in docs/09_TESTING.md).
         when(doctorCatalogRepository.existsByUserId(USER_ID)).thenReturn(false);
         when(departmentRepository.existsById(DEPT_ID)).thenReturn(false);

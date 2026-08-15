@@ -138,7 +138,7 @@ public class QueueServiceImpl implements QueueService {
         // 6. Recompute ordering (new patient joined) and return with position + predicted wait.
         QueueEntryResponseDto response = toResponseDto(entry, doctor);
 
-        // Day 13: post-decision event — never on the critical path (publishing
+        // post-decision event — never on the critical path (publishing
         // failures are caught inside QueueEventPublisher and only logged).
         eventPublisher.publish(QueueEventPublisher.QUEUE_JOINED,
                 queueEvent(QueueEventPublisher.QUEUE_JOINED, entry, doctor, response.getPosition(), triage));
@@ -224,7 +224,7 @@ public class QueueServiceImpl implements QueueService {
         entry.setDoctorOverrideTriage(request.getTriageLevel());
         entry = queueEntryRepository.save(entry);
 
-        // Day 13: the patient learns their (possibly reordered) urgency.
+        // the patient learns their (possibly reordered) urgency.
         eventPublisher.publish(QueueEventPublisher.QUEUE_TRIAGED,
                 queueEvent(QueueEventPublisher.QUEUE_TRIAGED, entry, doctor, null, entry.effectiveTriage()));
 
@@ -247,7 +247,7 @@ public class QueueServiceImpl implements QueueService {
         entry.setCalledAt(LocalDateTime.now());
         entry = queueEntryRepository.save(entry);
 
-        // Day 13: "It's your turn!" — the flagship transition.
+        // "It's your turn!" — the flagship transition.
         eventPublisher.publish(QueueEventPublisher.QUEUE_CALLED,
                 queueEvent(QueueEventPublisher.QUEUE_CALLED, entry, doctor, null, entry.effectiveTriage()));
 
@@ -270,7 +270,7 @@ public class QueueServiceImpl implements QueueService {
         entry.setCompletedAt(LocalDateTime.now());
         entry = queueEntryRepository.save(entry);
 
-        // Day 13: consultation finished.
+        // consultation finished.
         eventPublisher.publish(QueueEventPublisher.QUEUE_COMPLETED,
                 queueEvent(QueueEventPublisher.QUEUE_COMPLETED, entry, doctor, null, entry.effectiveTriage()));
 
@@ -505,7 +505,7 @@ public class QueueServiceImpl implements QueueService {
     // Helpers
     // ─────────────────────────────────────────────────────────────
 
-    /** Day 13: builds a notification event from a persisted queue entry + doctor context. */
+    /** builds a notification event from a persisted queue entry + doctor context. */
     private QueueEventDto queueEvent(String eventType, QueueEntry entry, DoctorCatalogResponseDto doctor,
                                      Integer position, TriageLevel triage) {
         return new QueueEventDto(
@@ -533,7 +533,7 @@ public class QueueServiceImpl implements QueueService {
         QueueEntryResponseDto dto = QueueEntryResponseDto.fromEntity(entry);
         dto.setDepartmentName(doctor.getDepartmentName());
         dto.setSpecialization(doctor.getSpecialization());
-        // Doctor display name comes from the catalog entry (added Day 7a).
+        // Doctor display name comes from the catalog entry .
         dto.setDoctorName(doctor.getName());
 
         if (QueueOrderingService.ACTIVE_STATUSES.contains(entry.getStatus())) {

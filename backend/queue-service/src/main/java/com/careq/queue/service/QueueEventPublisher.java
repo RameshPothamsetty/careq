@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Day 13 — publishes post-decision notification events onto the
+ * publishes post-decision notification events onto the
  * {@code careq.events} topic exchange.
  *
  * <p><b>Non-blocking contract:</b> every publish is wrapped in try/catch. If

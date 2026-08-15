@@ -20,7 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Doctor catalog endpoints (Day 9: fully documented with OpenAPI).
+ * Doctor catalog endpoints (fully documented with OpenAPI).
  */
 @Tag(name = "Doctor Catalog", description = "Doctor catalog and availability. Browsing is open to any authenticated role; " +
         "create/update/delete require ADMIN; availability toggling is restricted to the doctor's own record.")
@@ -174,7 +174,7 @@ public class DoctorCatalogController {
     }
 
     /**
-     * Day 13: Doctor: resolve my own catalog entry by the caller's userId.
+     * Doctor: resolve my own catalog entry by the caller's userId.
      * Removes the frontend's need to scan the whole paginated catalog to find
      * "which entry is mine" — a 404 here means the account isn't linked to a
      * catalog entry yet, which the UI turns into a friendly setup state.

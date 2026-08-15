@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 /**
  * One day's average wait time in minutes (called_at - joined_at) for
- * entries called on that day (Day 9: fully documented). Null when no
+ * entries called on that day (fully documented). Null when no
  * patient was called that day.
  */
 @Schema(description = "Average patient wait on a single day.")

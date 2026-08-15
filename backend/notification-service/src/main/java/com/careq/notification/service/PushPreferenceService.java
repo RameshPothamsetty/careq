@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Day 16 — per-user delivery preferences + Web Push subscription registry.
+ * per-user delivery preferences + Web Push subscription registry.
  *
  * <p><b>Preference semantics:</b> a missing preference row means "all defaults
  * on" ({@code webPushEnabled = true}) — an existing patient who never opened

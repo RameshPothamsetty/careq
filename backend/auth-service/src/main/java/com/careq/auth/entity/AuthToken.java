@@ -7,13 +7,13 @@ import java.util.UUID;
 
 /**
  * One-time security token for email verification and password reset
- * (Day 17). Only the SHA-256 hash of the raw token is stored — the raw
+ * . Only the SHA-256 hash of the raw token is stored — the raw
  * value travels in the email link and is never persisted, so a database
  * leak cannot be replayed as tokens.
  *
  * <p>The row doubles as the account's verification state: an account is
  * <em>pending verification</em> iff it has a VERIFY_EMAIL row with
- * {@code usedAt == null}. Legacy accounts created before Day 17 have no
+ * {@code usedAt == null}. Legacy accounts created before verification was enabled have no
  * rows at all and are therefore treated as already verified — no migration
  * of existing users is needed.
  */

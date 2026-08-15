@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Day 16 — Web Push (VAPID) delivery for queue events.
+ * Web Push (VAPID) delivery for queue events.
  *
  * <p><b>Fail-open by design (the codebase's house rule):</b> push delivery is
  * strictly best-effort and fully detached from the in-app flow. The RabbitMQ

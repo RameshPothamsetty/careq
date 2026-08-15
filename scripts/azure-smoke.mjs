@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * Day 15 — Live-Azure smoke test.
+ * Live-Azure smoke test.
  *
  * Runs the same signup → login → browse → join → status journey as the
- * Day 11 Docker smoke, but against the deployed Azure URLs.
+ * Docker smoke, but against the deployed Azure URLs.
  *
  * Usage (after the first CD deploy run succeeds):
  *   API_BASE="https://careq-api-gateway.<env>.<region>.azurecontainerapps.io" \
  *   FRONTEND_BASE="https://careq-frontend.vercel.app" \
- *   node scripts/day15-azure-smoke.mjs
+ *   node scripts/azure-smoke.mjs
  *
  * Prereq (once): seed the live DB so doctors/departments exist:
  *   API_BASE="https://<gateway-fqdn>" bash scripts/seed-data.sh
  *
- * Day 17: email verification is enabled on the live deployment, so a FRESH
+ * Email verification is enabled on the live deployment, so a FRESH
  * signup no longer returns a session. The end-to-end patient journey runs as
  * the SEEDED smoke patient (patient.smoke@careq.com — created before
  * verification went live, so it is already verified); the fresh-signup check
@@ -22,7 +22,7 @@
  * COLD-START NOTE: user/doctor/queue/notification services scale to zero
  * after ~5 min idle. The first request after idle can return 503/502 while
  * the app wakes up (10-60s) — this script retries the join path a few times
- * and reports what it observed, which is exactly what the Day 15 checklist
+ * and reports what it observed, which is exactly what the live checklist
  * asks you to confirm.
  *
  * Exit code is non-zero if any check fails.
@@ -56,8 +56,7 @@ async function api(method, path, { token, body } = {}) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function main() {
-  console.log('CareQ — Day 15 live-Azure smoke test');
+async function main() {   console.log('CareQ — live-Azure smoke test');
   console.log(`  gateway:  ${GATEWAY}`);
   console.log(`  frontend: ${FRONTEND}\n`);
 
@@ -102,8 +101,7 @@ async function main() {
   record('Departments seeded', depts.status === 200 && Array.isArray(depts.data) && depts.data.length >= 1,
     `count=${Array.isArray(depts.data) ? depts.data.length : 'n/a'}`);
 
-  // 5. End-to-end patient journey.
-  //    Day 17: a fresh signup is verification-gated (201, verificationRequired,
+  // 5. End-to-end patient journey.   //    A fresh signup is verification-gated (201, verificationRequired,
   //    no token) — the journey continues as the SEEDED smoke patient, whose
   //    account predates verification and can log in directly.
   const signup = await api('POST', '/api/auth/signup', { body: { fullName: 'Azure Smoke Patient', email: `azure.smoke.${Date.now()}@careq.com`, password: 'password123', role: 'PATIENT' } });
@@ -146,8 +144,7 @@ async function main() {
   record('Patient my-status active', status.status === 200 && status.data?.active === true, `status=${status.status}`);
 
   console.log(`\n===== ${ok} passed, ${fail} failed =====`);
-  console.log('If any 503 checks passed only after retries, that delay was a scale-to-zero');
-  console.log('cold start — record it in docs/10_DEPLOYMENT.md §4 per the Day 15 checklist.');
+  console.log('If any 503 checks passed only after retries, that delay was a scale-to-zero');   console.log('cold start — record it in docs/10_DEPLOYMENT.md §4 per the live checklist.');
   process.exit(fail === 0 ? 0 : 1);
 }
 

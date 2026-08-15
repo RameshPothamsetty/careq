@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link JwtService} (Day 2 plan, built Day 10).
+ * Unit tests for {@link JwtService} .
  * Uses a real secret key — no mocking, so the token round-trip is genuinely verified.
  */
 class JwtServiceTest {

@@ -46,7 +46,7 @@ import { LoadingState, EmptyState } from '../components/ui/States';
 const POLL_INTERVAL_MS = 10_000;
 const WAITING_PREVIEW_LIMIT = 5;
 const TRIAGE_LEVELS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
-// Day 13: the doctor's own entry comes from /api/doctors/me (header-based
+// The doctor's own entry comes from /api/doctors/me (header-based
 // identity), polled so the dashboard self-heals once an admin links the
 // account. The big doctors list is still fetched for the department context.
 const MY_ENTRY_POLL_MS = 15_000;
@@ -83,7 +83,7 @@ export default function DoctorDashboard() {
     ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
     : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   // A single large page guarantees the doctor's own catalog entry is in the
-  // cache even for a big catalog (listing is server-side paginated since Day 7a).
+  // cache even for a big catalog (listing is server-side paginated).
   const { data: doctors, isLoading, error: queryError } = useGetDoctorsQuery({ size: 1000 });
   const [toggleAvailability, { isLoading: isToggling }] = useToggleAvailabilityMutation();
   const [callNext] = useCallNextMutation();
@@ -91,7 +91,7 @@ export default function DoctorDashboard() {
   const [success, setSuccess] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  // Day 13: authoritative resolution of the doctor's own catalog entry.
+  // Authoritative resolution of the doctor's own catalog entry.
   // isError (404) means the account isn't linked to a catalog entry yet.
   const {
     data: doctorEntry,
@@ -250,7 +250,7 @@ export default function DoctorDashboard() {
           </div>
         )}
 
-        {/* Day 13: account not linked to a doctor catalog entry yet — a clear,
+        {/* Account not linked to a doctor catalog entry yet — a clear,
             actionable setup state (auto-refreshes) instead of a blank page. */}
         {noCatalogEntry && (
           <EmptyState

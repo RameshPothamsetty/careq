@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * Centralizes the role checks that were previously inlined in every queue
- * controller endpoint (code review finding, Day 7a). A mismatch throws
+ * controller endpoint (code review finding). A mismatch throws
  * {@link UnauthorizedAccessException} (403), handled globally.
  */
 public final class RoleGuard {

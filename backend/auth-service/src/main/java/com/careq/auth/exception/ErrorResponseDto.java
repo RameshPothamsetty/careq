@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Standard error response shape shared by every CareQ service (Day 9):
+ * Standard error response shape shared by every CareQ service :
  * {@code timestamp}, {@code status}, {@code error}, {@code message},
  * {@code path}, and an optional {@code validationErrors} list (field + message
  * pairs) that is only present on 400 validation failures.
@@ -26,7 +26,7 @@ public class ErrorResponseDto {
     @Schema(description = "Human-readable error message", example = "Queue entry not found with id: 999")
     private String message;
 
-    @Schema(description = "Machine-readable error code (Day 17): EMAIL_NOT_VERIFIED, RATE_LIMITED, INVALID_TOKEN. Absent on older error paths.", example = "EMAIL_NOT_VERIFIED")
+    @Schema(description = "Machine-readable error code : EMAIL_NOT_VERIFIED, RATE_LIMITED, INVALID_TOKEN. Absent on older error paths.", example = "EMAIL_NOT_VERIFIED")
     private String code;
 
     @Schema(description = "Request path that produced the error", example = "/api/queue/999/call-next")

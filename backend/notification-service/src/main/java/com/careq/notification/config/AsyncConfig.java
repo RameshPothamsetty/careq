@@ -8,7 +8,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 
 /**
- * Day 16 — {@code @Async} support for fire-and-forget Web Push delivery.
+ * {@code @Async} support for fire-and-forget Web Push delivery.
  *
  * <p>Delivery runs on a small dedicated pool so a slow push service can never
  * block the RabbitMQ consumer thread (which must ack events promptly) and can

@@ -8,15 +8,15 @@ import type {
 } from '../api';
 
 /**
- * notificationApi — notification-service endpoints (Day 13) + Web Push
- * delivery preferences (Day 16).
+ * notificationApi — notification-service endpoints + Web Push
+ * delivery preferences.
  *
  * The bell's history is backed by REAL persisted notifications instead of the
- * Day 7b session-only derived list: GET /api/notifications/me is polled from
+ * Session-only derived list: GET /api/notifications/me is polled from
  * the bell (pollingInterval set at the hook call site, like the queue
  * screens), and marking read is a PUT that invalidates the list tag.
  *
- * Day 16 adds the delivery-preferences + push-subscription endpoints the bell
+ * The delivery-preferences + push-subscription endpoints the bell
  * toggle drives (see src/hooks/useWebPush.ts).
  */
 export const notificationApi = createApi({
@@ -43,7 +43,7 @@ export const notificationApi = createApi({
       invalidatesTags: ['Notifications'],
     }),
 
-    // ── Day 16: Web Push delivery ──────────────────────────────────────
+    // ── Web Push delivery ──────────────────────────────────────────────
 
     getNotificationPreferences: builder.query<NotificationPreferences, void>({
       query: () => '/api/notifications/preferences',

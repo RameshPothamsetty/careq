@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
  * The gateway is an API, not a website: opening the root used to fall through
  * to Spring Boot's default Whitelabel 404 page, which looks like an error.
  * This handler returns a small page pointing at the useful endpoints instead
- * (Day 15 live-run polish).
+ * (live-run polish).
  */
 @RestController
 public class RootController {

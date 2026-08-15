@@ -6,7 +6,7 @@ spring:
     name: notification-service
   datasource:
     # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
-    # Day 17 — MYSQL_CONN_PARAMS is overridden by the CD pipeline to
+    # MYSQL_CONN_PARAMS is overridden by the CD pipeline to
     # sslMode=REQUIRED... so Azure talks TLS to the DB. Local default stays
     # plain (fast, zero-config docker-compose).
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?${MYSQL_CONN_PARAMS:useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
@@ -21,7 +21,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-  # Day 13: RabbitMQ — this service CONSUMES the careq.events topic exchange
+  # RabbitMQ — this service CONSUMES the careq.events topic exchange
   # (binding queue careq.notifications with routing keys queue.*) and persists
   # one NotificationEntry per event. Docker sets RABBITMQ_HOST=rabbitmq.
   rabbitmq:
@@ -51,7 +51,7 @@ eureka:
 notifications:
   max-page-size: 50
 
-# Day 16: Web Push (VAPID) delivery. Both keys are base64url strings from
+# Web Push (VAPID) delivery. Both keys are base64url strings from
 # `npx web-push generate-vapid-keys` (the public key is also baked into the
 # frontend build as VITE_VAPID_PUBLIC_KEY). Empty keys → delivery disabled
 # (logged once at startup); in-app notifications keep working regardless.
@@ -61,7 +61,7 @@ push:
     private-key: ${VAPID_PRIVATE_KEY:}
     subject: ${VAPID_SUBJECT:mailto:careq@example.com}
 
-# Day 17 — production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
+# Production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
 # hide Swagger/OpenAPI from the public internet.
 springdoc:
   api-docs:

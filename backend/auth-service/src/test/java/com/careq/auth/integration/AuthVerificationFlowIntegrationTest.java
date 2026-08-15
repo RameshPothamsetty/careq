@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Day 17 — full email-verification + password-reset HTTP round trip with
+ * full email-verification + password-reset HTTP round trip with
  * verification ENFORCED (the test profile default has it off, so this class
  * flips it on):
  *

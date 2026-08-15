@@ -14,7 +14,7 @@ import java.util.List;
 public class CorsConfig {
 
     /**
-     * Day 15 — allowed origins are env-driven. On Azure, the frontend is served from
+     * allowed origins are env-driven. On Azure, the frontend is served from
      * Vercel (https://&lt;project&gt;.vercel.app) and calls the API
      * Gateway cross-origin, so the deploy workflow sets CORS_ALLOWED_ORIGINS to the live
      * Vercel origin. Local dev keeps the localhost defaults below. Comma-separated.

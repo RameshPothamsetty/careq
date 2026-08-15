@@ -1,4 +1,4 @@
-# Day 10: test profile for @SpringBootTest integration tests.
+# Test profile for @SpringBootTest integration tests.
 # H2 in MySQL mode (no MySQL server needed); the same app.jwt properties
 # as production so JWT round-trips are genuine.
 spring:

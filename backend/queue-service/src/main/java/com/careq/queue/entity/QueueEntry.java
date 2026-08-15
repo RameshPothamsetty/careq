@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 /**
  * A patient's position in a doctor's queue.
  *
- * Design notes (Day 5):
+ * Design notes :
  * - The doctor's consultation data (avgConsultationTimeMinutes, isAvailable)
  *   is NOT stored here — it is fetched live from doctor-service via the
  *   DoctorServiceClient Feign client. This keeps a single source of truth.
@@ -37,7 +37,7 @@ public class QueueEntry {
     private String patientId;
 
     /**
-     * Patient display name captured at join time (Day 7a). Nullable so rows
+     * Patient display name captured at join time . Nullable so rows
      * created before this column existed still load — the UI falls back to a
      * short ID when null.
      */

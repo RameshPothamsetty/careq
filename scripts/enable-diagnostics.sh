@@ -1,12 +1,12 @@
 #!/bin/bash
 # ================================================================
-# Day 17 — Enable Log Analytics diagnostics for every Container App.
+# Enable Log Analytics diagnostics for every Container App.
 #
 # Container Apps already send app logs to the `careq-logs` Log Analytics
 # workspace (the CAE is wired to it), but the per-app "Diagnostic settings"
 # that route console logs + request traces there are turned on per app in
 # the portal. This script enables them for all 9 apps in one shot so the
-# ACCESS / AUDIT log lines (Day 17) are queryable in Log Analytics.
+# ACCESS / AUDIT log lines are queryable in Log Analytics.
 #
 # Usage: bash scripts/enable-diagnostics.sh
 # Prereq: az login + subscription with the careq resources.

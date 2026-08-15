@@ -1,5 +1,5 @@
 // =====================================================================
-// CareQ — Day 15 Azure infrastructure (ONE-TIME provisioning)
+// CareQ — Azure infrastructure (ONE-TIME provisioning)
 //
 // Deploys into the EXISTING resource group `careq-rg-south`:
 //   • custom VNet (10.0.0.0/16)
@@ -156,7 +156,7 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
     administratorLogin: mysqlAdminUser
     administratorLoginPassword: mysqlPassword
     version: '8.0.21'
-    // Day 17: require TLS on the wire even inside the private VNet (defense
+    // Require TLS on the wire even inside the private VNet (defense
     // in depth). The CD pipeline sets MYSQL_CONN_PARAMS=sslMode=REQUIRED... on
     // every DB-backed service; flip the server flag only AFTER a deploy with
     // that env var is live, or the apps' plain connections will be refused.
@@ -278,7 +278,7 @@ var mysqlEnv = [
   { name: 'MYSQL_PORT', value: '3306' }
   { name: 'MYSQL_USER', value: mysqlAdminUser }
   { name: 'MYSQL_PASSWORD', secretRef: 'mysql-password' }
-  // Day 15 routing fix: the base application.yml sets
+  // Routing fix: the base application.yml sets
   // eureka.instance.prefer-ip-address=true, which makes instances register
   // with their pod IP. Other apps can't reach a pod IP on the ingress port
   // (connection refused) — so on Azure we MUST register a resolvable
@@ -503,7 +503,7 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           env: concat(mysqlEnv, [
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-auth-service' }
-            // Day 17 — email verification + password reset. The CD pipeline
+            // Email verification + password reset. The CD pipeline
             // overrides these after deploy (SENDGRID_API_KEY both-or-neither
             // with AUTH_EMAIL_VERIFICATION_ENABLED=true).
             { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
@@ -798,7 +798,7 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }
             { name: 'RABBITMQ_PASSWORD', secretRef: 'rabbitmq-pass' }
-            // Day 16: Web Push (VAPID). Optional — empty keys disable push
+            // Web Push (VAPID). Optional — empty keys disable push
             // delivery (in-app notifications keep working); the deploy job
             // only sets these secrets when the GitHub secrets exist.
             { name: 'VAPID_PUBLIC_KEY', secretRef: 'vapid-public-key' }

@@ -28,7 +28,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 
 /**
- * User profile endpoints (Day 9: fully documented with OpenAPI).
+ * User profile endpoints (fully documented with OpenAPI).
  *
  * Identity (X-User-Id / X-User-Role) is provided by the API Gateway after
  * JWT validation, so no Bearer token is read inside this service.
@@ -56,7 +56,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "400", description = "Missing X-User-Id / X-User-Role header",
                     content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
     })
-    // Day 15 fix: azure-storage-blob transitively pulls jackson-dataformat-xml,
+    // Fix: azure-storage-blob transitively pulls jackson-dataformat-xml,
     // which Spring's default converter order prefers over JSON. Declaring
     // produces=application/json keeps every DTO response JSON (the frontend and
     // the gateway contract expect JSON; the image route below is unaffected).
@@ -161,7 +161,7 @@ public class UserProfileController {
 
     /**
      * Admin: paginated, searchable user list (by display name or email).
-     * Added Day 7a — this was the missing counterpart to GET /api/users/{id}
+     * Added later — this was the missing counterpart to GET /api/users/{id}
      * and gives the Admin a real user-management view.
      */
     @Operation(summary = "List all users (Admin only)",

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# CareQ — Day 16: generate a Web Push (VAPID) keypair.
+# CareQ — generate a Web Push (VAPID) keypair.
 #
 # Prints ready-to-paste env lines. The PUBLIC key is needed in TWO places:
 #   * backend  → VAPID_PUBLIC_KEY (notification-service, Azure/GitHub secrets)
@@ -22,7 +22,7 @@ PUB=$(printf '%s' "$KEYS" | node -e "let d='';process.stdin.on('data',c=>d+=c).o
 PRIV=$(printf '%s' "$KEYS" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).privateKey))")
 
 echo ""
-echo "# ── Web Push (VAPID) — Day 16 ──────────────────────────────────"
+echo "# ── Web Push (VAPID) ────────────────────────────────────────────"
 echo "# Backend (root .env, and the GitHub secrets VAPID_PUBLIC_KEY /"
 echo "# VAPID_PRIVATE_KEY for the Azure deploy):"
 echo "VAPID_PUBLIC_KEY=$PUB"

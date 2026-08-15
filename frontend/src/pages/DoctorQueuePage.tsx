@@ -18,7 +18,7 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 const OVERRIDE_OPTIONS: TriageLevel[] = ['EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP'];
-// Day 13: the doctor's own catalog entry comes from GET /api/doctors/me
+// The doctor's own catalog entry comes from GET /api/doctors/me
 // (header-based identity) instead of scanning the whole paginated catalog —
 // which silently broke once the catalog outgrew one page. It is polled so the
 // page self-heals the moment an admin links the account.
@@ -104,7 +104,7 @@ export default function DoctorQueuePage() {
   const pageClass = isDark
     ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
     : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
-  // Day 13: resolve the doctor's own catalog entry via /api/doctors/me.
+  // Resolve the doctor's own catalog entry via /api/doctors/me.
   // isError (404) means the account isn't linked to a catalog entry yet —
   // shown as a friendly setup state below, not a dead-end error.
   const {
@@ -284,7 +284,7 @@ export default function DoctorQueuePage() {
 
         <Toast message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} />
 
-        {/* Day 13: no catalog entry for this account — a friendly setup state
+        {/* No catalog entry for this account — a friendly setup state
             (polled every 15s, so it disappears by itself once an admin links
             the account), not the old dead-end error. */}
         {noCatalogEntry && !isLoading && (

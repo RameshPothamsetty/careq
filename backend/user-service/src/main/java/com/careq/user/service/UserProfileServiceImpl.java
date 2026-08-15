@@ -46,7 +46,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                     return userProfileRepository.save(newProfile);
                 });
 
-        // Backfill display fields for profiles created before Day 7a (they only
+        // Backfill display fields for profiles created before the name/email columns existed (they only
         // stored userId + role). The JWT claims are authoritative for name/email,
         // so this self-heals on the next /me access after a fresh login.
         boolean changed = false;

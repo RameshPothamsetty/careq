@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Queue endpoints (Day 9: fully documented with OpenAPI).
+ * Queue endpoints (fully documented with OpenAPI).
  * Role enforcement uses the X-User-Id / X-User-Role headers propagated by the
  * API Gateway (same convention as Days 3-4). All business logic lives in
  * {@link QueueService}.

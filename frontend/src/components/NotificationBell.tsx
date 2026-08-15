@@ -24,10 +24,10 @@ const KIND_DOT: Record<string, string> = {
 const POLL_INTERVAL_MS = 15_000;
 
 /**
- * Notification bell — Day 13 upgrade: the dropdown history is now backed by
+ * Notification bell — the dropdown history is now backed by
  * REAL persisted notifications from notification-service (GET /api/notifications/me,
  * polled every 15s), so it survives page refreshes and shows on any device.
- * The Day 7b real-time toast-on-status-change layer is untouched and still
+ * The real-time toast-on-status-change layer is untouched and still
  * lives in NotificationContext (immediate feedback while the bell is the
  * durable record). Only PATIENTs see the bell — every queue event type is
  * patient-centric.
@@ -43,7 +43,7 @@ export default function NotificationBell() {
   });
   const [markNotificationRead] = useMarkNotificationReadMutation();
 
-  // Day 16: Web Push toggle — hooks must stay above the early return.
+  // Web Push toggle — hooks must stay above the early return.
   const webPush = useWebPush(!!isPatient);
 
   const [open, setOpen] = useState(false);

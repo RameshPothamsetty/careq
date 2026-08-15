@@ -1,7 +1,7 @@
 # CareQ — Architecture Document
 
-**Version:** 1.9 (Day 16)  
-**Status:** Updated — Web Push (VAPID) delivery with per-user preferences (notification-service), on top of Day 13's Redis catalog caching + RabbitMQ event bus
+**Version:** 1.9  
+**Status:** Updated — Web Push (VAPID) delivery with per-user preferences (notification-service), on top of Redis catalog caching + RabbitMQ event bus
 
 ---
 
@@ -160,15 +160,15 @@
 | `/api/users/**` | user-service | Yes | PATIENT, DOCTOR, ADMIN | Profile CRUD |
 | `/api/users/me` | user-service | Yes | PATIENT, DOCTOR, ADMIN | Own profile (GET + PUT) — lazy-created |
 | `/api/users/{id}` | user-service | Yes | ADMIN only | View any profile |
-| `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
-| `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Day 4 |
-| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Day 5 — Queue + AI triage |
-| `/api/notifications/**` | notification-service | Yes | PATIENT, DOCTOR, ADMIN | Day 13 — persisted in-app notifications |
+| `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Doctor catalog |
+| `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Department catalog |
+| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Queue + AI triage |
+| `/api/notifications/**` | notification-service | Yes | PATIENT, DOCTOR, ADMIN | Persisted in-app notifications |
 | `/api/eureka/**` | eureka-server | No | — (internal) | |
 
 ---
 
-## 6. Inter-Service Communication: Feign (Day 5)
+## 6. Inter-Service Communication: Feign
 
 **Decision:** `queue-service` reads a doctor's `avgConsultationTimeMinutes` and `isAvailable` **live from `doctor-service`** through a declarative Feign client — never duplicating those fields into its own tables. Two sources of truth are forbidden.
 
@@ -189,7 +189,7 @@ queue-service                    doctor-service (Eureka: lb://doctor-service)
 - `doctor-service` has no Spring Security of its own (auth is enforced at the gateway), so direct service-to-service calls are allowed.
 - A `404` from Feign is translated to `DoctorCatalogNotFoundException`; any other Feign failure is translated to `DoctorServiceUnavailableException` (503) so callers get a clean message instead of a raw Feign stack trace.
 
-## 7. AI Integration Point (Day 5)
+## 7. AI Integration Point
 
 Symptom triage calls the **Groq API** (OpenAI-compatible chat completions). The AI is a *suggestion only* — the doctor's override is always final.
 
@@ -228,7 +228,7 @@ POST /api/queue/join (patient)
 **Decision:** `user-service` does NOT get called by `auth-service` during signup. Instead, the first time a logged-in user calls `GET /api/users/me`, if no profile row exists for their `userId`, a default empty profile row is created automatically and returned.
 
 **Rationale:**
-- Keeps `auth-service` (finished and merged on Day 2) completely untouched
+- Keeps `auth-service` completely untouched
 - Every user is guaranteed to get a profile on first use without coupling signup to profile creation
 - The `role` field is denormalized into `user_profiles` for query convenience — no cross-service join needed
 - The denormalized role is populated from the `X-User-Role` header on first access and can be updated if needed
@@ -248,10 +248,10 @@ POST /api/queue/join (patient)
 | `src/services/rtk/userApi.ts` | user-service profile endpoints (`GET`/`PUT /api/users/me`, multipart picture upload) |
 | `src/services/rtk/doctorApi.ts` | doctor-service endpoints: department CRUD, doctor catalog browse/CRUD, availability toggle |
 | `src/services/rtk/queueApi.ts` | queue-service endpoints: join, my-status, doctor queue, override/call-next/complete, admin live overview, analytics summary |
-| `src/services/rtk/notificationApi.ts` | notification-service endpoints: paginated `GET /api/notifications/me` (polled by the bell) + `PUT /api/notifications/{id}/read` (Day 13); delivery preferences + push subscription endpoints (Day 16) |
-| `src/hooks/useWebPush.ts` | Day 16: Web Push lifecycle — permission prompt → SW registration → `pushManager.subscribe(VAPID)` → backend subscription + preference calls; drives the bell toggle |
+| `src/services/rtk/notificationApi.ts` | notification-service endpoints: paginated `GET /api/notifications/me` (polled by the bell) + `PUT /api/notifications/{id}/read`; delivery preferences + push subscription endpoints |
+| `src/hooks/useWebPush.ts` | Web Push lifecycle — permission prompt → SW registration → `pushManager.subscribe(VAPID)` → backend subscription + preference calls; drives the bell toggle |
 | `src/hooks/useQueueNotifications.ts` | Isolated hook watching the my-status polling; emits derived notification events on tracked transitions |
-| `src/context/NotificationContext.tsx` | Day 13: slimmed to the real-time TOAST layer only (the bell now reads persisted notifications from notification-service) |
+| `src/context/NotificationContext.tsx` | Slimmed to the real-time TOAST layer only (the bell now reads persisted notifications from notification-service) |
 
 **Key decisions:**
 - **Two kinds of state:** session state (user / role / token) stays in `AuthContext` + localStorage; server data lives in the RTK Query cache. `AuthContext.logout()` calls `resetApiState()` so one session's cached data never leaks into the next.
@@ -262,7 +262,7 @@ POST /api/queue/join (patient)
 
 ---
 
-## 10. Admin Analytics — SQL Aggregation, Not In-Memory (Day 7b)
+## 10. Admin Analytics — SQL Aggregation, Not In-Memory
 
 **Decision:** `GET /api/queue/analytics/summary` aggregates the `queue_entries` table in **MySQL, not in Java**. The repository uses native queries with `GROUP BY DATE(...)`/`TIMESTAMPDIFF`, returning only per-day/per-doctor rollups via lightweight interface projections. The dataset grows with every queue entry, so pulling all rows into memory to count in Java would not scale.
 
@@ -285,7 +285,7 @@ queue-service                     MySQL (careq_db)
 
 ---
 
-## 11. Client-Side Derived Notifications (Day 7b)
+## 11. Client-Side Derived Notifications
 
 **Decision:** notifications are **derived client-side from the existing polling**, not a new persisted backend system. The frontend already polls `GET /api/queue/my-status` every 10 s (RTK Query `pollingInterval`); `useQueueNotifications` watches that same cache entry and emits an event on tracked transitions:
 
@@ -300,13 +300,13 @@ Events land in `NotificationContext` (a session-only React store) which powers: 
 
 **Known, deliberate limitation (not a bug):** the history is **client-side and session-only** — it resets on page refresh and is cleared when the signed-in user changes. There is no backend notification store and no cross-device delivery.
 
-> **Day 13 — this limitation is now removed.** The Phase 2 roadmap item was deliberately scoped out on Day 7b and built properly later: see § 12 (RabbitMQ event-driven notification-service) below. The Day 7b toast layer remains as the immediate-feedback layer; the bell's history is now real persisted data.
+> **This limitation is now removed.** The Phase 2 roadmap item was deliberately scoped out early and built properly later: see § 12 (RabbitMQ event-driven notification-service) below. The toast layer remains as the immediate-feedback layer; the bell's history is now real persisted data.
 
 ---
 
-## 12. Event-Driven Notifications — RabbitMQ + notification-service (Day 13)
+## 12. Event-Driven Notifications — RabbitMQ + notification-service
 
-**Decision:** Day 7b's "client-side, session-only" notification limitation is replaced by a proper persisted system, while the real-time toast behavior is kept as an immediate-feedback layer on top.
+**Decision:** the earlier "client-side, session-only" notification limitation is replaced by a proper persisted system, while the real-time toast behavior is kept as an immediate-feedback layer on top.
 
 ### Topology
 
@@ -330,11 +330,11 @@ careq.events (durable topic exchange)  ─▶ careq.notifications (durable queue
 
 - Consumes the four routing keys, composes a human-readable `message` per event type, and persists a `NotificationEntry` (`recipientUserId`, `type`, `message`, `read`, `createdAt`) in the shared `careq_db`.
 - Exposes `GET /api/notifications/me` (paginated, caller's own rows only, plus a total `unreadCount` for the badge) and `PUT /api/notifications/{id}/read` (ownership-checked: recipient or ADMIN). Same gateway header-trust identity pattern as every other service; registered with Eureka; routed at `/api/notifications/**`.
-- **Frontend:** the bell polls `GET /api/notifications/me` every 15s (persisted history survives refresh); the Day 7b toast-on-status-change stays as the instant-feedback layer. Mark-all-read issues one PUT per unread row on the loaded page (bounded by page size — deliberately no bulk endpoint).
+- **Frontend:** the bell polls `GET /api/notifications/me` every 15s (persisted history survives refresh); the toast-on-status-change stays as the instant-feedback layer. Mark-all-read issues one PUT per unread row on the loaded page (bounded by page size — deliberately no bulk endpoint).
 
 ---
 
-## 13. Redis Catalog Caching (Day 13)
+## 13. Redis Catalog Caching
 
 **Decision:** `doctor-service` caches the two read-heavy, rarely-changing catalog endpoints in Redis with a **60s TTL**: `GET /api/doctors` (`@Cacheable(cacheNames="doctorCatalog")`, keyed by every filter/pagination param) and `GET /api/departments`. Every Admin create/update/delete mutation — plus the doctor's own availability toggle and department renames (department names appear inside the cached doctor list) — `@CacheEvict`s the affected cache(s) so stale data never lingers.
 
@@ -342,11 +342,11 @@ careq.events (durable topic exchange)  ─▶ careq.notifications (durable queue
 
 **Resilience:** a custom `CacheErrorHandler` logs and swallows every Redis failure — if Redis is briefly unreachable, reads fall through to the database and evictions are skipped; the catalog never 500s because the cache layer is down. Keys are namespaced `careq:doctorCatalog::…` / `careq:departments::…` for direct inspection with `redis-cli KEYS careq:*`.
 
-**Also Day 13:** `GET /api/doctors/me` resolves the calling doctor's own catalog entry by header identity. The doctor dashboard and queue page now use it instead of scanning the whole paginated catalog (which silently broke once the catalog outgrew one page, and was the root cause of the misleading "no catalog entry — ask an admin" dead-end); the Admin doctor form gained a DOCTOR-account picker so user IDs are selected, never hand-typed.
+**Also:** `GET /api/doctors/me` resolves the calling doctor's own catalog entry by header identity. The doctor dashboard and queue page now use it instead of scanning the whole paginated catalog (which silently broke once the catalog outgrew one page, and was the root cause of the misleading "no catalog entry — ask an admin" dead-end); the Admin doctor form gained a DOCTOR-account picker so user IDs are selected, never hand-typed.
 
 ---
 
-## 14. Web Push Delivery (Day 16) — VAPID + per-user preferences
+## 14. Web Push Delivery — VAPID + per-user preferences
 
 **Decision:** the Phase 2 roadmap item "real delivery" is implemented as **browser Web Push via VAPID** — the only channel that is truly free at scale (the browser's own push service, FCM/APNs/Mozilla, does the heavy lifting; no third-party account or API key is required, only a VAPID keypair). Email/SMS remain future channels: the preference + delivery architecture below is channel-agnostic by design (a per-user `webPushEnabled` flag and a registry of destinations), so adding e.g. a Resend email transport later means adding a transport class and a flag — not re-architecting.
 
@@ -368,7 +368,7 @@ bell toggle:  permission →            GET/PUT /api/notifications/preferences
 
 ### Design decisions
 
-- **Delivery is fire-and-forget and fail-open (hard rule, matching Day 13's non-blocking contract):** the RabbitMQ consumer persists the in-app `NotificationEntry` FIRST (the source of truth), then calls `WebPushDeliveryService.deliverAsync` on a dedicated `webPushExecutor` thread pool. Delivery never blocks the consumer's ack and never propagates failures — a slow push service, a DB hiccup, or missing VAPID keys only log. The same philosophy as an empty `GROQ_API_KEY`: **no keys → delivery silently disabled, everything else keeps working.**
+- **Delivery is fire-and-forget and fail-open (hard rule, matching the non-blocking contract):** the RabbitMQ consumer persists the in-app `NotificationEntry` FIRST (the source of truth), then calls `WebPushDeliveryService.deliverAsync` on a dedicated `webPushExecutor` thread pool. Delivery never blocks the consumer's ack and never propagates failures — a slow push service, a DB hiccup, or missing VAPID keys only log. The same philosophy as an empty `GROQ_API_KEY`: **no keys → delivery silently disabled, everything else keeps working.**
 - **No recipient-resolution step needed:** unlike email/SMS, a push destination IS the browser's subscription — the SPA registers it (keyed by the gateway's `X-User-Id`) at enable time, so the async consumer only reads its own tables. No cross-service Feign calls on the delivery path.
 - **Per-user preferences:** `notification_preferences` (one row per user, upsert). A missing row means defaults ON — an existing patient who never opened settings still receives pushes once they grant the browser permission. The preference is the user's opt-out; the browser permission is the separate OS-level opt-in — **both must be true**. The bell toggle reflects the EFFECTIVE state (preference AND a live subscription), so it never claims "on" when only half the setup exists.
 - **Subscription lifecycle:** upsert by endpoint (a re-subscribe, or a session switch on a shared browser, re-assigns the row — delivery never goes to the wrong person). Dead endpoints are self-cleaned during delivery: a 404/410 from the push service deletes the row so we stop paying for it.
@@ -378,9 +378,9 @@ bell toggle:  permission →            GET/PUT /api/notifications/preferences
 
 ---
 
-## 15. Launch Hardening (Day 17) — verification, reset, rate limits, audit trail
+## 15. Launch Hardening — verification, reset, rate limits, audit trail
 
-Day 17 closed the remaining launch-critical gaps without changing the core
+The launch-hardening pass closed the remaining launch-critical gaps without changing the core
 architecture: email verification + password reset, brute-force protection,
 an audit trail, Swagger lockdown, MySQL TLS, security headers, and free-tier
 monitoring/backups (runbook in `docs/12_MONITORING.md`).
@@ -393,9 +393,10 @@ monitoring/backups (runbook in `docs/12_MONITORING.md`).
   can't be replayed. Tokens are single-use (`used_at`) and rotated on
   resend.
 - **Legacy-safe by sentinel, not migration:** an account is *pending
-  verification* iff it has an unused `VERIFY_EMAIL` row. Pre-Day-17 accounts
-  have no rows → treated as verified. Zero data migration, and the seed
-  accounts (`dr.karthik@careq.com` etc.) keep working unchanged.
+  verification* iff it has an unused `VERIFY_EMAIL` row. Accounts created
+  before this feature have no rows → treated as verified. Zero data
+  migration, and the seed accounts (`dr.karthik@careq.com` etc.) keep
+  working unchanged.
 - **Config-gated:** `AUTH_EMAIL_VERIFICATION_ENABLED` — off by default so
   local docker-compose behaves exactly as before; the CD pipeline turns it
   ON for Azure **only when a `SENDGRID_API_KEY` secret exists**

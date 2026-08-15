@@ -1,18 +1,18 @@
-# CareQ — Database Schema (Day 16)
+# CareQ — Database Schema
 
-**Version:** 1.8 (Day 16)  
+**Version:** 1.8  
 **Database:** MySQL 8.x
 
-> **Day 16 schema additions** (applied automatically by Hibernate `ddl-auto: update`):
+> **Schema additions — Web Push** (applied automatically by Hibernate `ddl-auto: update`):
 > - `push_subscriptions` — Web Push registrations, one row per browser/device (owned by notification-service). See § 9 below.
 > - `notification_preferences` — per-user delivery preferences, one row per user (owned by notification-service). See § 10 below.
 
-> **Day 13 schema addition** (applied automatically by Hibernate `ddl-auto: update`):
+> **Schema addition — notifications** (applied automatically by Hibernate `ddl-auto: update`):
 > - `notification_entries` — persisted in-app notifications, one row per consumed RabbitMQ queue event (owned by notification-service). See § 8 below.
 
-> **Day 7a schema additions** (all applied automatically by Hibernate `ddl-auto: update`):
+> **Schema additions — profiles/catalog** (all applied automatically by Hibernate `ddl-auto: update`):
 > - `user_profiles`: `full_name VARCHAR(255)`, `email VARCHAR(255)` — populated from JWT claims (forwarded as `X-User-Name`/`X-User-Email`) at profile creation, with a self-healing backfill on the next `/api/users/me` access.
-> - `doctor_catalog_entries`: `name VARCHAR(255)` — the doctor's display name (sortable, searchable since Day 7a).
+> - `doctor_catalog_entries`: `name VARCHAR(255)` — the doctor's display name (sortable, searchable).
 > - `queue_entries`: `patient_name VARCHAR(255)` — patient display name captured at join time (searchable by doctors).
 
 ---
@@ -98,8 +98,8 @@ CREATE TABLE users (
 CREATE TABLE user_profiles (
     id                 BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id            CHAR(36)     NOT NULL UNIQUE,      -- Plain reference to users.id
-    full_name          VARCHAR(255),                       -- Day 7a: from JWT claim (X-User-Name header)
-    email              VARCHAR(255),                       -- Day 7a: from JWT claim (X-User-Email header)
+    full_name          VARCHAR(255),                       -- from JWT claim (X-User-Name header)
+    email              VARCHAR(255),                       -- from JWT claim (X-User-Email header)
     phone              VARCHAR(20),
     address            TEXT,
     date_of_birth      DATE,
@@ -158,7 +158,7 @@ CREATE TABLE departments (
 CREATE TABLE doctor_catalog_entries (
     id                          BIGINT       AUTO_INCREMENT PRIMARY KEY,
     user_id                     CHAR(36)     NOT NULL UNIQUE,
-    name                        VARCHAR(255),              -- Day 7a: display name (sortable/searchable)
+    name                        VARCHAR(255),              -- display name (sortable/searchable)
     department_id               BIGINT       NOT NULL,
     specialization              VARCHAR(255) NOT NULL,
     qualification               VARCHAR(500) NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE doctor_catalog_entries (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 7. queue_entries — Core queue tracking with AI triage (Day 5)
+-- 7. queue_entries — Core queue tracking with AI triage
 --     Owned by queue-service. patientId is a plain reference to
 --     users.id; doctorCatalogEntryId is a plain reference to
 --     doctor_catalog_entries.id (microservice boundary, no FKs).
@@ -187,7 +187,7 @@ CREATE TABLE doctor_catalog_entries (
 CREATE TABLE queue_entries (
     id                       BIGINT       AUTO_INCREMENT PRIMARY KEY,
     patient_id               CHAR(36)     NOT NULL,          -- users.id (plain ref)
-    patient_name             VARCHAR(255),                   -- Day 7a: captured at join, searchable by doctors
+    patient_name             VARCHAR(255),                   -- captured at join, searchable by doctors
     doctor_catalog_entry_id  BIGINT       NOT NULL,          -- doctor_catalog_entries.id (plain ref)
     symptom_text             VARCHAR(2000) NOT NULL,
     ai_suggested_triage      ENUM('EMERGENCY', 'HIGH', 'NORMAL', 'FOLLOW_UP') NOT NULL DEFAULT 'NORMAL',
@@ -203,7 +203,7 @@ CREATE TABLE queue_entries (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 8. notification_entries — Persisted in-app notifications (Day 13)
+-- 8. notification_entries — Persisted in-app notifications
 --     Owned by notification-service. Written by the RabbitMQ consumer
 --     (one row per queue.joined|triaged|called|completed event), read by
 --     GET /api/notifications/me. recipientUserId is a plain reference to
@@ -221,7 +221,7 @@ CREATE TABLE notification_entries (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 9. push_subscriptions — Web Push registrations (Day 16)
+-- 9. push_subscriptions — Web Push registrations
 --     Owned by notification-service. One row per browser/device,
 --     written by POST /api/notifications/push/subscriptions and
 --     deleted when the user unsubscribes or the push service
@@ -242,7 +242,7 @@ CREATE TABLE push_subscriptions (
 ) ENGINE=InnoDB;
 
 -- ============================================================
--- 10. notification_preferences — Per-user delivery prefs (Day 16)
+-- 10. notification_preferences — Per-user delivery prefs
 --     Owned by notification-service. One row per user (upsert by
 --     PUT /api/notifications/preferences). A MISSING row means
 --     "all defaults on" — web_push_enabled defaults to TRUE, so an
@@ -263,7 +263,7 @@ CREATE TABLE notification_preferences (
 
 ---
 
-### 2.x auth_tokens (Day 17 — email verification + password reset)
+### 2.x auth_tokens (email verification + password reset)
 
 One-time security tokens for verification / reset. Only the **SHA-256 hash** of
 the raw token is stored — the raw value travels in the email link only, so a
@@ -292,13 +292,13 @@ CREATE TABLE auth_tokens (
 | Table | Service Owner | Primary Key | Reference to users.id | Notes |
 |-------|--------------|-------------|----------------------|-------|
 | users | auth-service | id (UUID) | — | Auth table, JWT identity |
-| auth_tokens | auth-service | id (UUID) | user_id (plain ref) | Day 17 — one-time verification/reset tokens (SHA-256 hash only); presence of an unused VERIFY_EMAIL row = account pending verification |
+| auth_tokens | auth-service | id (UUID) | user_id (plain ref) | One-time verification/reset tokens (SHA-256 hash only); presence of an unused VERIFY_EMAIL row = account pending verification |
 | user_profiles | user-service | id (BIGINT) | user_id (plain ref) | Lazy-created on first profile access |
 | patient_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
 | admin_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
-| departments | doctor-service | id (BIGINT) | — | Day 4 — CRUD managed by Admin |
-| doctor_catalog_entries | doctor-service | id (BIGINT) | user_id (plain ref) | Day 4 — Catalog data separate from user_profiles |
-| queue_entries | queue-service | id (BIGINT) | patient_id, doctor_catalog_entry_id (plain refs) | Day 5 — AI triage + wait-time prediction; doctor consultation data NOT duplicated (fetched via Feign) |
-| notification_entries | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 13 — persisted in-app notifications, written by the RabbitMQ consumer |
-| push_subscriptions | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 16 — Web Push registrations, one per browser/device; self-cleaned on 404/410 during delivery |
-| notification_preferences | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Day 16 — per-user delivery prefs; missing row = defaults on |
+| departments | doctor-service | id (BIGINT) | — | CRUD managed by Admin |
+| doctor_catalog_entries | doctor-service | id (BIGINT) | user_id (plain ref) | Catalog data separate from user_profiles |
+| queue_entries | queue-service | id (BIGINT) | patient_id, doctor_catalog_entry_id (plain refs) | AI triage + wait-time prediction; doctor consultation data NOT duplicated (fetched via Feign) |
+| notification_entries | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Persisted in-app notifications, written by the RabbitMQ consumer |
+| push_subscriptions | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Web Push registrations, one per browser/device; self-cleaned on 404/410 during delivery |
+| notification_preferences | notification-service | id (BIGINT) | recipient_user_id (plain ref) | Per-user delivery prefs; missing row = defaults on |

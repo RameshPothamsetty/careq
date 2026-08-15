@@ -7,7 +7,7 @@ import java.time.Duration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Day 17 — fixed-window rate limiting: allows up to max, blocks beyond,
+ * fixed-window rate limiting: allows up to max, blocks beyond,
  * and the window resets so the key recovers.
  */
 class RateLimiterTest {

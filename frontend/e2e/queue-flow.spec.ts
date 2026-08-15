@@ -8,7 +8,7 @@ import {
 } from './helpers';
 
 /**
- * Queue happy path (Day 6 regression suite for the migrated queue screens):
+ * Queue happy path (regression suite for the migrated queue screens):
  *
  *   patient joins dr. Arjun's queue via the UI (AI triage runs)
  *   → patient's live status view shows their position
@@ -58,7 +58,7 @@ test.describe.serial('queue happy path (patient join → doctor call-next → co
       'Content-Type': 'application/json',
     };
 
-    // GET /api/doctors is paginated since Day 7a — read the .content array.
+    // GET /api/doctors is paginated — read the .content array.
     const doctorsResponse = await request.get(`${API_BASE}/api/doctors?size=100`, { headers: adminAuth });
     const doctorsPage = (await doctorsResponse.json()) as {
       content: Array<{ id: number; specialization: string }>;

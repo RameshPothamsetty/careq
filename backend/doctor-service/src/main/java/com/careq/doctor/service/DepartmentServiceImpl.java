@@ -24,7 +24,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional(readOnly = true)
-    // Day 13: cached in Redis (60s TTL) — department names also appear inside
+    // cached in Redis (60s TTL) — department names also appear inside
     // the cached doctor list, so department mutations evict BOTH caches.
     @Cacheable(cacheNames = "departments")
     public List<DepartmentResponseDto> getAllDepartments() {

@@ -3,7 +3,7 @@ package com.careq.doctor.exception;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * A single field-level validation failure (Day 9 shared error shape).
+ * A single field-level validation failure (shared error shape).
  */
 @Schema(description = "A single field validation failure.")
 public class ValidationError {

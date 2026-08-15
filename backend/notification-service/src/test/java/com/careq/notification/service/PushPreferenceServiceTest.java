@@ -22,7 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Day 16 — preference defaults-on semantics and endpoint-upsert subscription
+ * preference defaults-on semantics and endpoint-upsert subscription
  * registration.
  */
 @ExtendWith(MockitoExtension.class)

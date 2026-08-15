@@ -14,7 +14,7 @@ import {
  * stays decoupled from React context (baseQuery is module-scoped and cannot
  * call useAuth()).
  */
-// Day 11: an EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
+// An EMPTY VITE_API_BASE_URL means relative /api calls — Vite's dev
 // proxy handles them in dev, and the Docker Nginx container reverse-proxies
 // /api to the api-gateway in production. (??, not ||, keeps empty = relative.)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -65,7 +65,7 @@ export const authenticatedBaseQuery: BaseQueryFn<
 /**
  * Normalizes RTK Query errors (FetchBaseQueryError / SerializedError / Error)
  * into a single user-facing message, matching the backend's shared error
- * shape: { message, error, validationErrors: [{ field, message }] } (Day 9).
+ * shape: { message, error, validationErrors: [{ field, message }] }.
  */
 interface BackendErrorData {
   message?: string;

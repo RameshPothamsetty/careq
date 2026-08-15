@@ -2,8 +2,8 @@
 
 **Brand:** SmartOPD AI  
 **Project Name:** CareQ  
-**Duration:** 15 Days  
-**Methodology:** TrainingMug AI Development Framework (ADF) v1.0
+**Duration:** Multi-sprint build  
+**Methodology:** Milestone-based engineering (design → build → test → document per module)
 
 ---
 
@@ -69,7 +69,7 @@ CareQ follows a **microservices architecture** with the following services:
 
 ---
 
-## Folder Structure (ADF Section 3)
+## Folder Structure
 
 ```
 careq/
@@ -101,12 +101,12 @@ careq/
 │   ├── vite.config.ts
 │   └── index.html
 ├── docker/
-│   └── docker-compose.yml               # (Future — Day 10+)
+│   └── docker-compose.yml               # Full-stack orchestration
 ├── postman/
-│   └── CareQ.postman_collection.json    # (Future — Day 5+)
+│   └── CareQ.postman_collection.json    # API collection
 └── .github/
     └── workflows/
-        └── ci.yml                       # (Future — Day 12+)
+        └── ci.yml                       # CI/CD workflows
 ```
 
 ---
@@ -116,21 +116,21 @@ careq/
 ```
 main          ─── Production-ready (protected)
   └── develop ─── Integration branch (daily pushes)
-       ├── feature/day-1-requirements
-       ├── feature/day-2-auth
-       ├── feature/day-3-profiles
-       └── ... (one feature branch per day)
+       ├── feature/auth
+       ├── feature/user-profiles
+       ├── feature/doctor-service
+       └── ... (one feature branch per module)
 ```
 
-- **`main`** — Always deployable. Merged only at the end of 15 days.
-- **`develop`** — Daily integration branch. Push every evening after completing the day's checklist.
-- **`feature/*`** — One branch per day's work. Merged into `develop` at end of day.
+- **`main`** — Always deployable. Merged only when a milestone is complete and tagged.
+- **`develop`** — Integration branch. Push after completing each milestone's work.
+- **`feature/*`** — One branch per milestone's work. Merged into `develop` when complete.
 
 ---
 
 ## Deployment Strategy (Future Phase)
 
-> **Note:** Deployment configuration is explicitly out of scope for Days 1–9. It will be addressed in later checklist days.
+> **Note:** Deployment configuration was initially out of scope; it is now built (Docker Compose + Azure Container Apps + Vercel).
 
 Target stack (to be built):
 - **Containerization:** Docker (one container per microservice + MySQL + React)
@@ -141,12 +141,12 @@ Target stack (to be built):
 
 ---
 
-## ADF Framework Principles Applied
+## Engineering Principles Applied
 
-1. **Design before development; document before code** — All docs generated on Day 1
-2. **Build one module at a time** — Each day focuses on one slice of functionality
-3. **Every feature must be tested and documented** — Unit tests required per service
-4. **Every day ends with a GitHub push to `develop`** — Never to `main`
+1. **Design before development; document before code** — docs are written up front
+2. **Build one module at a time** — each milestone focuses on one slice of functionality
+3. **Every feature must be tested and documented** — unit tests required per service
+4. **Every milestone ends with a push to `develop`** — Never to `main`
 5. **Layered architecture** — Controller → Service → Repository → Entity
 6. **DTO pattern** — Never expose entities over the wire
 7. **Constructor injection** — No field injection with `@Autowired`

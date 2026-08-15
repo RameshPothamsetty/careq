@@ -3,7 +3,7 @@ package com.careq.notification.dto;
 import com.careq.notification.entity.NotificationPreference;
 
 /**
- * Day 16 — the caller's delivery preferences.
+ * the caller's delivery preferences.
  * {@code webPushEnabled} is the user's opt-out switch (defaults to ON when no
  * preference row exists yet); the OS-level browser permission is tracked by
  * the browser itself, so a subscription row only exists once the user granted

@@ -27,7 +27,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * Service-layer tests for notification persistence + ownership rules (Day 13).
+ * Service-layer tests for notification persistence + ownership rules .
  */
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceImplTest {

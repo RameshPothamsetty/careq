@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 /**
- * Queue entry view model (Day 9: fully documented). Position and
+ * Queue entry view model (fully documented). Position and
  * predictedWaitMinutes are derived live on every read — never persisted.
  */
 @Schema(description = "A queue entry with derived position and predicted wait.")

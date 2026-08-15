@@ -7,7 +7,7 @@ import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
 
 /**
- * ResetPasswordPage (Day 17) — the link target in the password-reset email
+ * ResetPasswordPage — the link target in the password-reset email
  * (?token=...). Sets a new password via POST /api/auth/reset-password.
  */
 export default function ResetPasswordPage() {

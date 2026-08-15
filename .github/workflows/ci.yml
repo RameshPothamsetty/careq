@@ -1,4 +1,4 @@
-# CareQ — CI (Day 14)
+# CareQ — CI
 #
 # Runs on every Pull Request targeting `develop` or `main`:
 #   1. backend-tests  — matrix job, one per service (failures attributed per service)
@@ -7,7 +7,7 @@
 #                       stack INSIDE the runner, waits for all health checks,
 #                       then hits the gateway, every service's health endpoint,
 #                       the SPA, and a real signup→login flow. This is the
-#                       pipeline's health check until Day 15 deployment exists.
+#                       pipeline's health check until the live deployment exists.
 name: CI
 
 on:

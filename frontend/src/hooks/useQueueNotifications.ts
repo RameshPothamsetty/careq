@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useI18n, type I18nT } from '../i18n';
 import { useGetMyQueueStatusQuery } from '../services/rtk/queueApi';
 
-/** An event derived client-side from a queue status transition (Day 7b). */
+/** An event derived client-side from a queue status transition. */
 export interface QueueNotificationEvent {
   title: string;
   message: string;
@@ -25,7 +25,7 @@ const POLL_INTERVAL_MS = 10_000;
  * The FIRST successful poll is treated as a baseline (no events fired) so a
  * page refresh mid-queue never replays "you joined" spam. Everything here is
  * client-side and session-only — the durable record lives in
- * notification-service (Day 13).
+ * notification-service.
  */
 export function useQueueNotifications(
   onEvent: (event: QueueNotificationEvent) => void,

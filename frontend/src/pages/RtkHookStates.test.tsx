@@ -6,7 +6,7 @@ import { doctorApi, useGetDepartmentsQuery } from '../services/rtk/doctorApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 
 /**
- * Day 10 — RTK Query hook state test.
+ * RTK Query hook state test.
  *
  * Verifies that a consuming component renders the three hook states
  * (loading / success / error) correctly, with the component wrapped in a
@@ -111,7 +111,7 @@ describe('RTK Query hook states (useGetDepartmentsQuery)', () => {
       }),
     );
     renderConsumer();
-    // getErrorMessage surfaces data.message (Day 9 shared error shape).
+    // getErrorMessage surfaces data.message (shared error shape).
     expect(screen.getByText('Error: Backend exploded')).toBeInTheDocument();
   });
 

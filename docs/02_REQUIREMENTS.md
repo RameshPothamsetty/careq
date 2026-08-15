@@ -1,7 +1,7 @@
 # CareQ — Software Requirements Specification (SRS)
 
 **Version:** 1.0  
-**Date:** Day 1  
+**Date:** 2026-07  
 **Author:** CareQ Engineering Team  
 **Status:** Draft
 
@@ -52,9 +52,9 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 - Receptionist role
 - Payment/billing anything
 
-> These items are tracked in the **Phase 2 Roadmap** and will not be built during the 15-day sprint.
+> These items are tracked in the **Phase 2 Roadmap** and remain out of scope for the current release.
 >
-> **Day 17 update:** email verification and password reset were **added** (they were implicit gaps, not roadmap items). The remaining Phase 2 items above (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments) are still out of scope.
+> **Update:** email verification and password reset were **added** (they were implicit gaps, not roadmap items). The remaining Phase 2 items above (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments) are still out of scope.
 
 ---
 
@@ -68,9 +68,9 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 | FR-02 | System shall authenticate users via email + password and issue a JWT token |
 | FR-03 | System shall validate JWT tokens on every authenticated request |
 | FR-04 | System shall enforce role-based access (PATIENT, DOCTOR, ADMIN) at the API Gateway |
-| FR-04a (Day 17) | New registrations shall verify their email via a one-time link before they can sign in (config-gated; off in local dev, on in production) |
-| FR-04b (Day 17) | System shall email a password-reset link for forgotten passwords and accept a new password via the one-time token |
-| FR-04c (Day 17) | Public auth endpoints (login/signup/resend/forgot) shall be rate-limited to resist brute-force and abuse |
+| FR-04a | New registrations shall verify their email via a one-time link before they can sign in (config-gated; off in local dev, on in production) |
+| FR-04b | System shall email a password-reset link for forgotten passwords and accept a new password via the one-time token |
+| FR-04c | Public auth endpoints (login/signup/resend/forgot) shall be rate-limited to resist brute-force and abuse |
 
 ### 4.2 user-service
 
@@ -108,7 +108,7 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 |----|------------|--------|
 | NFR-01 | **Performance** — API response time (P95) under 500ms for read endpoints | ≤ 500 ms |
 | NFR-02 | **Performance** — JWT validation at gateway under 50ms | ≤ 50 ms |
-| NFR-03 | **Availability** — System available 99% during business hours (student project) | 99% |
+| NFR-03 | **Availability** — System available 99% during business hours | 99% |
 | NFR-04 | **Security** — Passwords hashed with BCrypt | BCrypt (strength 10) |
 | NFR-05 | **Security** — All API traffic routed through API Gateway; direct service access blocked | Gateway-only |
 | NFR-06 | **Usability** — Role-based UI adapts to PATIENT / DOCTOR / ADMIN after login | Role-driven routing |
