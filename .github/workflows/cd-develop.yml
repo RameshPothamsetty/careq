@@ -317,7 +317,7 @@ jobs:
             --min-replicas 1 \
             --max-replicas 1
 
-      - name: Set per-service environment (Day 17: Swagger off, MySQL TLS, auth mail)
+      - name: "Set per-service environment (Day 17: Swagger off, MySQL TLS, auth mail)"
         shell: bash
         run: |
           set -euo pipefail
