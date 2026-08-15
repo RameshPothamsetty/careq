@@ -23,6 +23,15 @@ public class AuthResponseDto {
     @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN"})
     private String role;
 
+    // Day 17 — email verification. `token` is null when verification is
+    // required (signup returns no session until the email is verified);
+    // `message` / `verificationRequired` tell the client what happened.
+    @Schema(description = "Human-readable status message (signup outcome, verify/reset result)", example = "Verification email sent to john@careq.com")
+    private String message;
+
+    @Schema(description = "True when the account must verify its email before it can sign in (signup only)", example = "true")
+    private Boolean verificationRequired;
+
     public AuthResponseDto() {
     }
 
@@ -33,6 +42,8 @@ public class AuthResponseDto {
         this.email = email;
         this.fullName = fullName;
         this.role = role;
+        this.message = "Account created";
+        this.verificationRequired = false;
     }
 
     public String getToken() {
@@ -81,5 +92,21 @@ public class AuthResponseDto {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public Boolean getVerificationRequired() {
+        return verificationRequired;
+    }
+
+    public void setVerificationRequired(Boolean verificationRequired) {
+        this.verificationRequired = verificationRequired;
     }
 }

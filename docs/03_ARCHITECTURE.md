@@ -375,3 +375,70 @@ bell toggle:  permission →            GET/PUT /api/notifications/preferences
 - **VAPID keys are env-driven:** `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (base64url, from `scripts/generate-vapid-keys.sh`) with `VAPID_SUBJECT` (mailto). The PUBLIC key is ALSO baked into the frontend build as `VITE_VAPID_PUBLIC_KEY` (same pattern as `VITE_API_BASE_URL`); without it the bell toggle is hidden entirely. The payload is the same `{type, message}` pair the in-app bell shows; the service worker maps `type` → title (queue.called is sent with `Urgency: high` so it can break through Do-Not-Disturb).
 - **Security:** `web-push` 5.1.1's transitive BouncyCastle (jdk15on 1.61, known CVEs) and httpclient are explicitly overridden with `bcprov/bcpkix-jdk18on 1.78.1` and `httpclient 4.5.14` in `notification-service/pom.xml`. The VAPID private key never leaves the backend.
 - **Browser support caveat:** push requires a secure context (HTTPS — or localhost in dev) and the user's permission; iOS Safari supports it only from 16.4+. The feature degrades gracefully: unsupported browsers simply don't show the toggle.
+
+---
+
+## 15. Launch Hardening (Day 17) — verification, reset, rate limits, audit trail
+
+Day 17 closed the remaining launch-critical gaps without changing the core
+architecture: email verification + password reset, brute-force protection,
+an audit trail, Swagger lockdown, MySQL TLS, security headers, and free-tier
+monitoring/backups (runbook in `docs/12_MONITORING.md`).
+
+### Email verification + password reset (auth-service)
+
+- **One-time tokens in a single `auth_tokens` table** with a `purpose` column
+  (`VERIFY_EMAIL` 24h / `RESET_PASSWORD` 30 min). Only the **SHA-256 hash**
+  is stored; the raw token travels in the email link only, so a DB leak
+  can't be replayed. Tokens are single-use (`used_at`) and rotated on
+  resend.
+- **Legacy-safe by sentinel, not migration:** an account is *pending
+  verification* iff it has an unused `VERIFY_EMAIL` row. Pre-Day-17 accounts
+  have no rows → treated as verified. Zero data migration, and the seed
+  accounts (`dr.karthik@careq.com` etc.) keep working unchanged.
+- **Config-gated:** `AUTH_EMAIL_VERIFICATION_ENABLED` — off by default so
+  local docker-compose behaves exactly as before; the CD pipeline turns it
+  ON for Azure **only when a `SENDGRID_API_KEY` secret exists**
+  (both-or-neither), so a missing key can never leave signups stuck
+  unverified.
+- **SendGrid delivery is fail-open** (same contract as VAPID/Web Push): no
+  API key → skip + log; a failed send → log + swallow. Verification and
+  reset are resumable flows, so a transient email failure must not surface
+  as a 500.
+
+### Brute-force / abuse protection
+
+A small in-memory fixed-window `RateLimiter` guards the public endpoints:
+login 5/15 min per email+IP (plus a per-IP cap), signup 10/h per IP, resend
+and forgot 3/h per email. Limits are env-tunable. **Trade-off (documented):**
+counters are per-instance; auth-service runs a single replica, so the limit
+is effectively global today — a future multi-replica deploy should move the
+counters to Redis.
+
+### Audit trail (no new table)
+
+- **Gateway `ACCESS` logger** — every request: `method path status
+  duration_ms user ip` (user = `X-User-Id` from the JWT). This is the
+  request-level audit store.
+- **auth-service `AUDIT` logger** — security events: signup, login_success /
+  login_failed / login_blocked / rate_limited, verify_email,
+  resend_verification, forgot_password, reset_password.
+
+Both write single-line key=value records into the container logs, which Log
+Analytics retains and can query (`docs/12_MONITORING.md` §3).
+
+### Edge hardening
+
+- **Swagger/OpenAPI gated:** `SPRINGDOC_ENABLED=false` (CD workflow) switches
+  off `/v3/api-docs/**` + `/swagger-ui/**` on every service and the gateway
+  in production; local dev keeps the UI.
+- **MySQL TLS:** the CD pipeline sets `MYSQL_CONN_PARAMS=sslMode=REQUIRED…`
+  on all five DB-backed services and the bicep sets
+  `requireSecureTransport: true` — flip the server flag only AFTER a deploy
+  carrying the client flag is live (ordering documented in
+  `docs/10_DEPLOYMENT.md`).
+- **Security response headers:** CSP/HSTS/`nosniff`/`frame-ancestors` etc. on
+  Vercel (`vercel.json`), nginx, and gateway `default-filters`.
+- **Monitoring/backups:** scheduled uptime check (GitHub issue on failure),
+  Log Analytics diagnostic script, MySQL PITR runbook — all in
+  `docs/12_MONITORING.md`.

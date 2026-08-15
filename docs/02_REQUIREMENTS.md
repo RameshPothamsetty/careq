@@ -53,6 +53,8 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 - Payment/billing anything
 
 > These items are tracked in the **Phase 2 Roadmap** and will not be built during the 15-day sprint.
+>
+> **Day 17 update:** email verification and password reset were **added** (they were implicit gaps, not roadmap items). The remaining Phase 2 items above (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments) are still out of scope.
 
 ---
 
@@ -66,6 +68,9 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 | FR-02 | System shall authenticate users via email + password and issue a JWT token |
 | FR-03 | System shall validate JWT tokens on every authenticated request |
 | FR-04 | System shall enforce role-based access (PATIENT, DOCTOR, ADMIN) at the API Gateway |
+| FR-04a (Day 17) | New registrations shall verify their email via a one-time link before they can sign in (config-gated; off in local dev, on in production) |
+| FR-04b (Day 17) | System shall email a password-reset link for forgotten passwords and accept a new password via the one-time token |
+| FR-04c (Day 17) | Public auth endpoints (login/signup/resend/forgot) shall be rate-limited to resist brute-force and abuse |
 
 ### 4.2 user-service
 

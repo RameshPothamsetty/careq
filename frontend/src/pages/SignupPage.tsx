@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, UserPlus } from 'lucide-react';
+import { Activity, MailCheck, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 import { useI18n } from '../i18n';
 import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
@@ -22,6 +23,11 @@ export default function SignupPage() {
   const [role, setRole] = useState('PATIENT');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Day 17 — after signup, production requires the verification email
+  // before any session exists, so the page switches to a "check your
+  // inbox" screen instead of auto-navigating to the dashboard.
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resendMsg, setResendMsg] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -29,8 +35,12 @@ export default function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      await signup(fullName, email, password, role);
-      navigate(`/${role.toLowerCase()}/dashboard`, { replace: true });
+      const response = await signup(fullName, email, password, role);
+      if (response.verificationRequired) {
+        setRegisteredEmail(email);
+      } else {
+        navigate(`/${role.toLowerCase()}/dashboard`, { replace: true });
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -39,6 +49,17 @@ export default function SignupPage() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!registeredEmail) return;
+    setResendMsg('');
+    try {
+      const response = await api.resendVerification(registeredEmail);
+      setResendMsg(response.message || t('auth.resendSent'));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('auth.resendFailed'));
     }
   };
 
@@ -140,6 +161,29 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
+
+      {registeredEmail && (
+        <div className="glass mt-6 w-full rounded-3xl p-8 text-center shadow-lift sm:p-10">
+          <MailCheck className="mx-auto h-12 w-12 text-emerald-500" />
+          <h2 className="mt-4 font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+            {t('auth.checkYourEmail')}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {t('auth.checkYourEmailDesc', { email: registeredEmail })}
+          </p>
+          {(resendMsg || error) && (
+            <p className={`mt-3 text-sm font-medium ${error ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {error || resendMsg}
+            </p>
+          )}
+          <Button variant="secondary" onClick={handleResend} className="mt-6 w-full py-3 text-base">
+            {t('auth.resendEmail')}
+          </Button>
+          <Link to="/login" className="mt-4 inline-block text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400">
+            {t('auth.backToSignIn')}
+          </Link>
+        </div>
+      )}
     </AuthShell>
   );
 }

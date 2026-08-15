@@ -16,7 +16,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (fullName: string, email: string, password: string, role: string) => Promise<void>;
+  /** Day 17: returns the raw response so pages can branch on verificationRequired. */
+  signup: (fullName: string, email: string, password: string, role: string) => Promise<AuthResponse>;
   logout: () => void;
 }
 
@@ -54,16 +55,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (fullName: string, email: string, password: string, role: string) => {
     const response: AuthResponse = await api.signup({ fullName, email, password, role });
-    const userData: User = {
-      id: response.userId,
-      email: response.email,
-      fullName: response.fullName,
-      role: response.role,
-    };
-    setToken(response.token);
-    setUser(userData);
-    localStorage.setItem('careq_token', response.token);
-    localStorage.setItem('careq_user', JSON.stringify(userData));
+    if (response.token) {
+      // Verification disabled (local dev): signup still returns a session.
+      const userData: User = {
+        id: response.userId,
+        email: response.email,
+        fullName: response.fullName,
+        role: response.role,
+      };
+      setToken(response.token);
+      setUser(userData);
+      localStorage.setItem('careq_token', response.token);
+      localStorage.setItem('careq_user', JSON.stringify(userData));
+    }
+    // Verification required (production): no session — the page shows the
+    // "check your inbox" screen.
+    return response;
   }, []);
 
   const logout = useCallback(() => {

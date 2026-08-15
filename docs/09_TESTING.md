@@ -227,6 +227,25 @@ Two critical end-to-end flows were built with `@SpringBootTest` + `MockMvc`.
 | `login_UnknownEmail_Returns401` | Unknown account → 401 |
 | `unknownRoute_Returns404WithSharedErrorShape` (BUG-1) | **Unmapped route → 404** with the shared error shape, not the catch-all's 500 |
 
+### Flow A1 — verification + reset journey (`AuthVerificationFlowIntegrationTest`, auth-service, Day 17)
+
+With `app.auth.email-verification-enabled=true` flipped on via
+`@TestPropertySource`, the full HTTP round trip is exercised: signup → 201
+with `token: null` + `verificationRequired: true` → login → **403
+`EMAIL_NOT_VERIFIED`** → resend → consume a real token (issued through the
+actual `AuthTokenService`) → verify → reusing the token is rejected
+(`INVALID_TOKEN`, one-time) → login works → forgot-password → reset with a
+valid token → login with the new password → garbage reset token rejected.
+
+### Day 17 auth unit tests
+
+| Test | What it proves |
+|------|----------------|
+| `AuthServiceImplTest` (20) | signup in both verification modes (JWT vs. no-token + email link), duplicate, signup/login rate-limit 429s, wrong password, deactivated, **login blocked while verification pending (403)**, legacy account passes the gate, verify/resend/forgot/reset success + failure paths |
+| `AuthTokenServiceTest` (6) | issue stores only the SHA-256 hash (never the raw token), consume works once, expired / used / wrong-purpose / blank tokens rejected, reissue rotates the previous token |
+| `RateLimiterTest` (3) | fixed window: allows up to max, blocks beyond, independent keys, window expiry resets |
+| `EmailServiceTest` (3) | SendGrid payload shape (endpoint, bearer auth, subject, link), and **fail-open with no API key** (no HTTP call) |
+
 ### Flow B — full queue lifecycle (`QueueFlowIntegrationTest`, queue-service, 6 tests)
 
 | Test | What it proves |

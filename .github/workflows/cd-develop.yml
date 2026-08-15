@@ -261,6 +261,13 @@ jobs:
           if [[ -n "${{ secrets.VAPID_PUBLIC_KEY }}" && -n "${{ secrets.VAPID_PRIVATE_KEY }}" ]]; then
             VAPID_SECRET="vapid-public-key=${{ secrets.VAPID_PUBLIC_KEY }} vapid-private-key=${{ secrets.VAPID_PRIVATE_KEY }}"
           fi
+          # Day 17: SENDGRID_API_KEY is optional but both-or-neither with
+          # email verification — without a key, verification is turned OFF in
+          # the env step below so signups never get stuck unverified.
+          SENDGRID_SECRET=""
+          if [[ -n "${{ secrets.SENDGRID_API_KEY }}" ]]; then
+            SENDGRID_SECRET="sendgrid-api-key=${{ secrets.SENDGRID_API_KEY }}"
+          fi
           GHCR_SECRET=""
           REGISTRY_ARGS=()
           if [[ -n "${{ secrets.GHCR_PAT }}" ]]; then
@@ -285,6 +292,7 @@ jobs:
                 "storage-connection-string=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
                 $GROQ_SECRET \
                 $VAPID_SECRET \
+                $SENDGRID_SECRET \
                 $GHCR_SECRET
             # 2) Roll the image forward (+ optional GHCR registry credentials).
             az containerapp update \
@@ -308,6 +316,35 @@ jobs:
             --resource-group careq-rg-south \
             --min-replicas 1 \
             --max-replicas 1
+
+      - name: Set per-service environment (Day 17: Swagger off, MySQL TLS, auth mail)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # SPRINGDOC_ENABLED=false hides Swagger/OpenAPI in production for
+          # EVERY service. MySQL-backed services additionally force TLS on the
+          # JDBC connection (matches requireSecureTransport on the server).
+          MYSQL_SERVICES="auth-service user-service doctor-service queue-service notification-service"
+          for svc in eureka-server api-gateway auth-service user-service doctor-service queue-service notification-service; do
+            EXTRA=()
+            if [[ " $MYSQL_SERVICES " == *" $svc "* ]]; then
+              EXTRA+=(--set-env-vars "MYSQL_CONN_PARAMS=sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC")
+            fi
+            if [[ "$svc" == "auth-service" ]]; then
+              # Verification is ON only when a SendGrid key exists (both-or-neither).
+              if [[ -n "${{ secrets.SENDGRID_API_KEY }}" ]]; then
+                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=true" "APP_FRONTEND_BASE_URL=https://careq-frontend-eta.vercel.app" "APP_MAIL_FROM=careq@careq.com")
+              else
+                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=false")
+              fi
+            fi
+            az containerapp update \
+              --name "careq-$svc" \
+              --resource-group careq-rg-south \
+              --set-env-vars "SPRINGDOC_ENABLED=false" \
+              "${EXTRA[@]}"
+          done
+          echo "Swagger disabled; MySQL TLS on; auth mail wiring applied"
 
       - name: Point gateway CORS at the Vercel origin
         shell: bash

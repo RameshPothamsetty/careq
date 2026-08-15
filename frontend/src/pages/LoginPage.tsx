@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, LogIn } from 'lucide-react';
+import { Activity, LogIn, MailCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 import { useI18n } from '../i18n';
 import AuthShell from '../components/AuthShell';
 import Button from '../components/ui/Button';
@@ -14,10 +15,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Day 17 — a 403 EMAIL_NOT_VERIFIED switches the card to a "verify your
+  // email" prompt with a resend button instead of a generic error.
+  const [verifyPrompt, setVerifyPrompt] = useState(false);
+  const [resendMsg, setResendMsg] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setResendMsg('');
+    setVerifyPrompt(false);
     setIsSubmitting(true);
 
     try {
@@ -27,13 +34,27 @@ export default function LoginPage() {
         : null;
       navigate(`/${role?.toLowerCase() || 'patient'}/dashboard`, { replace: true });
     } catch (err: unknown) {
-      if (err instanceof Error) {
+      const code = (err as { code?: string }).code;
+      if (code === 'EMAIL_NOT_VERIFIED') {
+        setVerifyPrompt(true);
+        setError(err instanceof Error ? err.message : t('auth.verifyLoginBlocked'));
+      } else if (err instanceof Error) {
         setError(err.message);
       } else {
         setError(t('auth.loginFailed'));
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendMsg('');
+    try {
+      const response = await api.resendVerification(email);
+      setResendMsg(response.message || t('auth.resendSent'));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('auth.resendFailed'));
     }
   };
 
@@ -87,13 +108,46 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <Link to="/forgot-password" className="font-semibold text-brand-600 hover:underline dark:text-brand-400">
+            {t('auth.forgotPassword')}
+          </Link>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
           {t('auth.noAccount')}{' '}
           <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-700 hover:underline dark:text-brand-400 dark:hover:text-brand-300">
             {t('auth.createOne')}
           </Link>
         </p>
       </div>
+
+      {verifyPrompt && (
+        <div className="glass mt-6 w-full rounded-3xl p-8 text-center shadow-lift sm:p-10">
+          <MailCheck className="mx-auto h-12 w-12 text-emerald-500" />
+          <h2 className="mt-4 font-display text-xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
+            {t('auth.verifyYourEmail')}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            {t('auth.checkYourEmailDesc', { email })}
+          </p>
+          {(resendMsg || error) && (
+            <p className={`mt-3 text-sm font-medium ${error && !resendMsg ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {resendMsg || error}
+            </p>
+          )}
+          <Button variant="secondary" onClick={handleResend} className="mt-6 w-full py-3 text-base">
+            {t('auth.resendEmail')}
+          </Button>
+          <button
+            type="button"
+            onClick={() => setVerifyPrompt(false)}
+            className="mt-4 text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400"
+          >
+            {t('auth.backToSignIn')}
+          </button>
+        </div>
+      )}
     </AuthShell>
   );
 }

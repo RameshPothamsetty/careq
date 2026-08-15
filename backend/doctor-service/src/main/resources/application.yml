@@ -6,7 +6,10 @@ spring:
     name: doctor-service
   datasource:
     # Docker sets MYSQL_HOST=mysql; local dev falls back to localhost.
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    # Day 17 — MYSQL_CONN_PARAMS is overridden by the CD pipeline to
+    # sslMode=REQUIRED... so Azure talks TLS to the DB. Local default stays
+    # plain (fast, zero-config docker-compose).
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/careq_db?${MYSQL_CONN_PARAMS:useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -41,3 +44,11 @@ eureka:
 # silently truncated while still bounding abusive client requests.
 doctor-list:
   max-page-size: 1000
+
+# Day 17 — production deploys set SPRINGDOC_ENABLED=false (CD workflow) to
+# hide Swagger/OpenAPI from the public internet.
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}

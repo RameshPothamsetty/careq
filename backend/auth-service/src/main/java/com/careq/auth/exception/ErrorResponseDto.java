@@ -26,6 +26,9 @@ public class ErrorResponseDto {
     @Schema(description = "Human-readable error message", example = "Queue entry not found with id: 999")
     private String message;
 
+    @Schema(description = "Machine-readable error code (Day 17): EMAIL_NOT_VERIFIED, RATE_LIMITED, INVALID_TOKEN. Absent on older error paths.", example = "EMAIL_NOT_VERIFIED")
+    private String code;
+
     @Schema(description = "Request path that produced the error", example = "/api/queue/999/call-next")
     private String path;
 
@@ -72,6 +75,14 @@ public class ErrorResponseDto {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 
     public String getPath() {

@@ -754,3 +754,98 @@ are additive later.
 4. Docs updated; secret names consistent across bicep/workflows/provision.sh.
 5. Output the exact git command sequence for the feature branch + PR.
 ```
+
+---
+
+## Day 17 (Aug 15) — Launch hardening: email verification + password reset, rate limiting, audit trail, Swagger lockdown, MySQL TLS, monitoring & backups
+
+```
+You are acting as a Senior Software Architect and Full Stack Engineer
+continuing Day 17 of the CareQ project (the 15-day sprint plus Days 16-17
+follow-ups). Today's goal is CLOSING THE LAUNCH GAP: the system works and is
+live on Azure + Vercel, but real users need (a) email verification + password
+reset, (b) brute-force / abuse protection on the public auth endpoints, (c) an
+audit trail, (d) Swagger hidden in production, (e) TLS to MySQL, (f) security
+headers, and (g) monitoring/alerting + a backup runbook.
+
+## SCOPE — build all of these, in order
+
+1. auth-service (backend):
+   - New table auth_tokens: one-time VERIFY_EMAIL (24h) / RESET_PASSWORD
+     (30 min) tokens; store ONLY the SHA-256 hash; single-use; rotate on
+     resend. An account is "pending verification" iff it has an unused
+     VERIFY_EMAIL row — legacy pre-Day-17 accounts have no rows → verified
+     (NO data migration).
+   - Signup: verification-enabled mode returns NO token (201 +
+     verificationRequired:true + message); disabled mode returns the JWT as
+     before (local dev unchanged). Gate on AUTH_EMAIL_VERIFICATION_ENABLED
+     (default false; Azure sets true only when SENDGRID_API_KEY exists —
+     both-or-neither).
+   - Login: 403 + code EMAIL_NOT_VERIFIED when verification pending;
+     brute-force guard 5 attempts/15 min per email+IP (429 RATE_LIMITED).
+   - New endpoints: GET /api/auth/verify?token=, POST
+     /api/auth/resend-verification, POST /api/auth/forgot-password (generic
+     response, no enumeration), POST /api/auth/reset-password. Error shape
+     gains optional `code` field (EMAIL_NOT_VERIFIED / RATE_LIMITED /
+     INVALID_TOKEN).
+   - SendGrid v3 via RestClient, FAIL-OPEN (no key → skip + log; send error
+     → log, never throw). App config: app.mail.*, app.frontend.base-url,
+     app.rate-limit.*, app.auth.email-verification-enabled.
+   - In-memory fixed-window RateLimiter (sweep job), AuditLogger (AUDIT
+     logger, structured events).
+2. api-gateway: whitelist the four new public auth paths in
+   JwtAuthGlobalFilter; ACCESS access-log filter (method path status
+   duration_ms user ip — user from X-User-Id after the JWT filter);
+   springdoc gated by SPRINGDOC_ENABLED; AddResponseHeader default-filters
+   (nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy).
+3. All services: springdoc.api-docs/swagger-ui enabled from
+   SPRINGDOC_ENABLED (default true); JDBC URL parameterized with
+   MYSQL_CONN_PARAMS (local default useSSL=false; Azure sets
+   sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC).
+4. Frontend: api.ts endpoints + error.code; AuthContext.signup returns the
+   response; new pages VerifyEmailPage / ForgotPasswordPage /
+   ResetPasswordPage + routes; SignupPage "check your email" state + resend;
+   LoginPage EMAIL_NOT_VERIFIED prompt + resend + forgot-password link;
+   i18n en/hi/te for every new string.
+5. Ops: .github/workflows/uptime-check.yml (cron */15) + scripts/uptime-check.mjs
+   (GitHub issue on failure, auto-close on recovery); scripts/enable-diagnostics.sh
+   (Log Analytics diag settings for all 9 apps); docs/12_MONITORING.md
+   (runbook: uptime, portal, KQL queries, MySQL point-in-time restore,
+   manual dump).
+6. Deploy: bicep adds sendgrid-api-key placeholder + auth-service env
+   (SENDGRID_API_KEY secretRef, APP_MAIL_FROM, APP_FRONTEND_BASE_URL,
+   AUTH_EMAIL_VERIFICATION_ENABLED=true) + mysql requireSecureTransport:true;
+   both CD workflows: SENDGRID_SECRET (both-or-neither) + per-service env
+   step (SPRINGDOC_ENABLED=false everywhere, MYSQL_CONN_PARAMS on the 5 DB
+   services, auth mail wiring); provision.sh secret checklist; .env.example;
+   docker-compose auth-service env.
+7. Seed/smoke: seed-data.sh gains patient.smoke@careq.com + handles the
+   verificationRequired signup response; day15-azure-smoke.mjs runs the
+   patient journey as the SEEDED patient (fresh signup is verification-gated
+   now) — the account must be created BEFORE verification goes live so it is
+   legacy-verified.
+8. Docs: 02_REQUIREMENTS (FR-04a/b/c), 03_ARCHITECTURE (§15), 04_DATABASE
+   (auth_tokens), 05_API_CONTRACT (auth endpoints + codes), 09_TESTING,
+   10_DEPLOYMENT (secrets + Day-17 live notes), README, 11_PROMPTS.
+
+## HARD CONSTRAINTS
+
+- Verification must be OFF by default locally (docker-compose) so existing
+  scripts keep passing; ON in production only with a SendGrid key.
+- Never store raw tokens; never block signup/login on an email-send failure.
+- Do NOT restrict public signup roles in this pass (defer: seed still creates
+  DOCTOR/ADMIN via signup) — flag it as the #1 remaining launch risk.
+- Keep conventions: header-trust identity, env-driven config, plain DTOs,
+  Day-style comments, shared ErrorResponseDto shape.
+
+## VERIFICATION CHECKLIST
+
+1. Backend: `mvn -pl auth-service test` green (old + new tests: token
+   lifecycle, rate limiter, email payloads, verification integration flow).
+2. Frontend: `tsc --noEmit` + `npm test` green.
+3. Verify the gateway whitelist covers the four new public paths (a 401 there
+   would break the email links).
+4. Docs updated; secret names consistent across bicep / workflows /
+   provision.sh; MySQL TLS flip is documented as POST-deploy.
+5. Output the exact git command sequence for the feature branch + PR.
+```

@@ -91,6 +91,8 @@ docker compose down -v                 # stop AND delete volumes (full reset)
 | `GROQ_API_KEY` | No | queue-service | AI symptom triage; empty → fallback `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push (Day 16); generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
 | `VITE_VAPID_PUBLIC_KEY` | No | frontend build | = `VAPID_PUBLIC_KEY`; baked into the bundle (compose build arg / Vercel env) so the bell shows the push toggle — empty → toggle hidden |
+| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset (Day 17); https://app.sendgrid.com/settings/api_keys + verify a single sender for `APP_MAIL_FROM`. Empty → verification stays OFF |
+| `APP_MAIL_FROM` / `APP_FRONTEND_BASE_URL` / `AUTH_EMAIL_VERIFICATION_ENABLED` | No¹ | auth-service | sender + email-link base URL + verification gate. ¹SendGrid key and `AUTH_EMAIL_VERIFICATION_ENABLED=true` are both-or-neither |
 
 ¹ defaults to `root` if absent. ² defaults to a dev-only secret if absent — set a real one.
 
@@ -331,6 +333,7 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** (Day 16) — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
+| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** (Day 17) — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `APP_MAIL_FROM` (defaults `careq@careq.com` on Azure — change it to your verified sender!) |
 | `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
@@ -339,6 +342,24 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 
 > The old `AZURE_STATIC_WEB_APPS_API_TOKEN` is no longer needed — the frontend
 > moved to Vercel (Day 15 revision).
+
+> **Day 17 — launch hardening on the live site:**
+> 1. Add `SENDGRID_API_KEY` to GitHub secrets (both-or-neither contract: the
+>    pipeline then sets `AUTH_EMAIL_VERIFICATION_ENABLED=true` on Azure).
+> 2. **Existing accounts stay verified** (no rows in the new `auth_tokens`
+>    table → treated as verified) — the seed doctors/admin/patients keep
+>    logging in. New signups must click the emailed link before their first
+>    login.
+> 3. Swagger/OpenAPI is **switched off in production** (`SPRINGDOC_ENABLED=false`)
+>    on every service; it stays on for local dev.
+> 4. **MySQL TLS:** the pipeline sets `MYSQL_CONN_PARAMS=sslMode=REQUIRED…` on
+>    all DB services; the bicep sets `requireSecureTransport: true`. After a
+>    Day-17 deploy is confirmed healthy, flip the live server with
+>    `az mysql flexible-server update -g careq-rg-south -n careq-mysql --require-secure-transport Enabled`
+>    (never before — plain connections would be refused).
+> 5. **Monitoring/backups:** see `docs/12_MONITORING.md` — uptime workflow
+>    (GitHub issue on failure), Log Analytics queries, MySQL point-in-time
+>    restore runbook.
 
 > **Day 16 — Web Push on the live site:** after adding the two VAPID secrets,
 > also set `VITE_VAPID_PUBLIC_KEY` (= the same public key) in the Vercel

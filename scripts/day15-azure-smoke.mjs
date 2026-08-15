@@ -13,6 +13,12 @@
  * Prereq (once): seed the live DB so doctors/departments exist:
  *   API_BASE="https://<gateway-fqdn>" bash scripts/seed-data.sh
  *
+ * Day 17: email verification is enabled on the live deployment, so a FRESH
+ * signup no longer returns a session. The end-to-end patient journey runs as
+ * the SEEDED smoke patient (patient.smoke@careq.com — created before
+ * verification went live, so it is already verified); the fresh-signup check
+ * below just asserts signup still succeeds and returns verificationRequired.
+ *
  * COLD-START NOTE: user/doctor/queue/notification services scale to zero
  * after ~5 min idle. The first request after idle can return 503/502 while
  * the app wakes up (10-60s) — this script retries the join path a few times
@@ -97,13 +103,20 @@ async function main() {
     `count=${Array.isArray(depts.data) ? depts.data.length : 'n/a'}`);
 
   // 5. End-to-end patient journey.
-  const email = `azure.smoke.${Date.now()}@careq.com`;
-  const signup = await api('POST', '/api/auth/signup', { body: { fullName: 'Azure Smoke Patient', email, password: 'password123', role: 'PATIENT' } });
-  record('Fresh patient signup', signup.status === 201 && !!signup.data?.token, `status=${signup.status}`);
+  //    Day 17: a fresh signup is verification-gated (201, verificationRequired,
+  //    no token) — the journey continues as the SEEDED smoke patient, whose
+  //    account predates verification and can log in directly.
+  const signup = await api('POST', '/api/auth/signup', { body: { fullName: 'Azure Smoke Patient', email: `azure.smoke.${Date.now()}@careq.com`, password: 'password123', role: 'PATIENT' } });
+  record('Fresh patient signup (verification required)', signup.status === 201 && signup.data?.verificationRequired === true,
+    `status=${signup.status}, verificationRequired=${signup.data?.verificationRequired}`);
 
-  const patientLogin = await api('POST', '/api/auth/login', { body: { email, password: 'password123' } });
+  const patientLogin = await api('POST', '/api/auth/login', { body: { email: 'patient.smoke@careq.com', password: 'password123' } });
   const patientToken = patientLogin.data?.token;
-  record('Patient login', patientLogin.status === 200 && !!patientToken, `status=${patientLogin.status}`);
+  record('Seeded patient login', patientLogin.status === 200 && !!patientToken, `status=${patientLogin.status}`);
+  if (!patientToken) {
+    console.error('\nAborting: seed the smoke patient first -> API_BASE=<gateway> bash scripts/seed-data.sh');
+    process.exit(1);
+  }
 
   const doctors = await api('GET', '/api/doctors?page=0&size=20', { token: patientToken });
   const available = Array.isArray(doctors.data?.content) ? doctors.data.content.find((d) => d.isAvailable) : null;

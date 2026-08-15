@@ -6,6 +6,13 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      # Day 17 — security response headers on every proxied route (defense in
+      # depth on top of the Vercel/nginx frontend headers).
+      default-filters:
+        - AddResponseHeader=X-Content-Type-Options, nosniff
+        - AddResponseHeader=X-Frame-Options, DENY
+        - AddResponseHeader=Referrer-Policy, strict-origin-when-cross-origin
+        - AddResponseHeader=Permissions-Policy, geolocation=(), camera=(), microphone=()
       routes:
         - id: auth-service
           uri: lb://auth-service
@@ -81,8 +88,13 @@ eureka:
 
 # ── Day 9: centralized Swagger UI ─────────────────────────────────
 # One browsable UI listing every business service's OpenAPI docs.
+# Day 17: SPRINGDOC_ENABLED=false (set by the CD workflow in production)
+# switches BOTH the aggregated docs and the UI off entirely.
 springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
   swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}
     urls:
       - name: Auth Service
         url: /v3/api-docs/auth-service

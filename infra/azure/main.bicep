@@ -152,11 +152,15 @@ resource mysqlServer 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
   sku: {
     name: mysqlSku
     tier: 'Burstable'
-  }
-  properties: {
+  }    properties: {
     administratorLogin: mysqlAdminUser
     administratorLoginPassword: mysqlPassword
     version: '8.0.21'
+    // Day 17: require TLS on the wire even inside the private VNet (defense
+    // in depth). The CD pipeline sets MYSQL_CONN_PARAMS=sslMode=REQUIRED... on
+    // every DB-backed service; flip the server flag only AFTER a deploy with
+    // that env var is live, or the apps' plain connections will be refused.
+    requireSecureTransport: true
     storage: {
       storageSizeGB: 32
       autoGrow: 'Disabled'
@@ -251,6 +255,7 @@ var placeholderSecrets = [
   { name: 'groq-api-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'vapid-public-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'vapid-private-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'sendgrid-api-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-user', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-pass', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'ghcr-pat', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
@@ -498,6 +503,13 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
           env: concat(mysqlEnv, [
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-auth-service' }
+            // Day 17 — email verification + password reset. The CD pipeline
+            // overrides these after deploy (SENDGRID_API_KEY both-or-neither
+            // with AUTH_EMAIL_VERIFICATION_ENABLED=true).
+            { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
+            { name: 'APP_MAIL_FROM', value: 'careq@careq.com' }
+            { name: 'APP_FRONTEND_BASE_URL', value: 'https://careq-frontend-eta.vercel.app' }
+            { name: 'AUTH_EMAIL_VERIFICATION_ENABLED', value: 'true' }
           ])
           probes: [
             {

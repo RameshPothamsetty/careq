@@ -35,6 +35,21 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNAUTHORIZED, "Unauthorized", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<ErrorResponseDto> handleEmailNotVerified(EmailNotVerifiedException ex, HttpServletRequest request) {
+        return buildWithCode(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage(), "EMAIL_NOT_VERIFIED", request);
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponseDto> handleRateLimit(RateLimitExceededException ex, HttpServletRequest request) {
+        return buildWithCode(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", ex.getMessage(), "RATE_LIMITED", request);
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<ErrorResponseDto> handleInvalidToken(InvalidTokenException ex, HttpServletRequest request) {
+        return buildWithCode(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), "INVALID_TOKEN", request);
+    }
+
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ErrorResponseDto> handleMissingHeader(MissingRequestHeaderException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Missing Header",
@@ -91,7 +106,12 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ErrorResponseDto> build(HttpStatus status, String error, String message, HttpServletRequest request) {
+        return buildWithCode(status, error, message, null, request);
+    }
+
+    private ResponseEntity<ErrorResponseDto> buildWithCode(HttpStatus status, String error, String message, String code, HttpServletRequest request) {
         ErrorResponseDto dto = new ErrorResponseDto(status.value(), error, message);
+        dto.setCode(code);
         dto.setPath(request.getRequestURI());
         return ResponseEntity.status(status).body(dto);
     }

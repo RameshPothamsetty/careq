@@ -34,8 +34,20 @@ signup_user() {
     -H "Content-Type: application/json" \
     -d "{\"fullName\":\"$name\",\"email\":\"$email\",\"password\":\"$password\",\"role\":\"$role\"}")
 
-  # Check for error
-  if echo "$RESPONSE" | grep -q "message\|error"; then
+  # Day 17 — with email verification enabled, a SUCCESSFUL signup returns
+  # { message, verificationRequired: true } and NO token (the account can't
+  # log in until the emailed link is clicked). Detect that case explicitly so
+  # we don't mistake success for an error.
+  if echo "$RESPONSE" | grep -q '"verificationRequired":true'; then
+    echo "     ⚠️  $email created but PENDING EMAIL VERIFICATION — seed accounts" >&2
+    echo "        must exist BEFORE verification is enabled, or be verified" >&2
+    echo "        via the emailed link. Proceeding without a token." >&2
+    echo "$RESPONSE"
+    return 0
+  fi
+
+  # Check for error (409 duplicate, 400 validation, 429 rate limit)
+  if echo "$RESPONSE" | grep -q '"error"'; then
     echo "  ⚠️  $email may already exist — logging in to reuse the account" >&2
     LOGIN_RESP=$(login_user "$email" "$password")
     if echo "$LOGIN_RESP" | grep -q "token"; then
@@ -120,9 +132,12 @@ echo "--------------------------------------------------"
 
 ADMIN_RESP=$(signup_user "Admin CareQ" "admin@careq.com" "admin123" "ADMIN")
 PATIENT_RESP=$(signup_user "John Patient" "john@careq.com" "password123" "PATIENT")
+# Day 17 — dedicated smoke-test patient (used by scripts/day15-azure-smoke.mjs).
+SMOKE_PATIENT_RESP=$(signup_user "Smoke Patient" "patient.smoke@careq.com" "password123" "PATIENT")
 
 echo "✅ Admin ready: admin@careq.com / admin123"
 echo "✅ Patient ready: john@careq.com / password123"
+echo "✅ Smoke patient ready: patient.smoke@careq.com / password123"
 echo ""
 
 # ─── Step 3: Get departments (to map department IDs) ───

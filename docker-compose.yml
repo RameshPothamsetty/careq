@@ -134,6 +134,13 @@ services:
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
       JWT_SECRET: ${JWT_SECRET:-CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
+      # Day 17 — email verification + password reset. OFF locally so signup
+      # keeps returning a JWT; enable (and set SENDGRID_API_KEY) for testing
+      # the verification flow:  docker compose up -d --build with these set.
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-careq@example.com}
+      APP_FRONTEND_BASE_URL: ${APP_FRONTEND_BASE_URL:-http://localhost:3030}
+      AUTH_EMAIL_VERIFICATION_ENABLED: ${AUTH_EMAIL_VERIFICATION_ENABLED:-false}
     depends_on:
       mysql:
         condition: service_healthy

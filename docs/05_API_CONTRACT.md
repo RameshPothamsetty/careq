@@ -1166,6 +1166,61 @@ DELETE /api/notifications/push/subscriptions?endpoint=<url-encoded>
 
 ---
 
+## Auth Endpoints (`/api/auth`) — Day 2, extended Day 17
+
+Public (no Bearer token). Error responses use the shared shape plus an
+optional `code` field (Day 17) for machine-readable branching.
+
+### `POST /api/auth/signup` — register
+
+Body: `{ "fullName", "email", "password", "role" }` → `201`.
+
+| Mode | Response |
+|---|---|
+| Verification **off** (local dev) | `AuthResponse` with a real `token` — the session is created immediately, as before Day 17 |
+| Verification **on** (production) | `token: null`, `verificationRequired: true`, `message` explains the email was sent — the account is locked until verified |
+
+`409` duplicate email · `400` validation · `429` `RATE_LIMITED` (10/hour/IP).
+
+### `POST /api/auth/login` — sign in
+
+Body: `{ "email", "password" }` → `200` + JWT.
+
+- `401` invalid credentials or deactivated account
+- **`403` `EMAIL_NOT_VERIFIED`** — account hasn't clicked its verification link yet (frontend shows the resend screen)
+- **`429` `RATE_LIMITED`** — brute-force guard (5 attempts/15 min per email+IP)
+
+### `GET /api/auth/verify?token=<raw>` — verify email (link target)
+
+`200` `{ message: "Your email has been verified — you can now sign in." }`
+`400` `INVALID_TOKEN` (unknown / expired / already used). One-time.
+
+### `POST /api/auth/resend-verification`
+
+Body: `{ "email" }` → `200` with an outcome `message` (new link sent, already
+verified, or generic for unknown emails — no enumeration). `429` `RATE_LIMITED` (3/hour/email).
+
+### `POST /api/auth/forgot-password`
+
+Body: `{ "email" }` → `200` with a **generic** message either way (the endpoint
+can't be used to enumerate accounts). Emails a 30-min reset link for verified
+accounts only. `429` `RATE_LIMITED` (3/hour/email).
+
+### `POST /api/auth/reset-password`
+
+Body: `{ "token", "newPassword" }` → `200` + message. `400` `INVALID_TOKEN`
+(unknown / expired / already used). Invalidates the reset token (one-time).
+
+### Day 17 error codes
+
+| `code` | HTTP | Meaning |
+|---|---|---|
+| `EMAIL_NOT_VERIFIED` | 403 | login blocked pending email verification |
+| `RATE_LIMITED` | 429 | brute-force / abuse limit hit |
+| `INVALID_TOKEN` | 400 | verification/reset token unknown, expired, or used |
+
+---
+
 ## Status Codes Summary
 
 | Code | Meaning |
@@ -1204,4 +1259,4 @@ All return `200` with `{ "service": "<name>", "status": "UP", "timestamp": <epoc
 - **Per-service UI:** `http://localhost:808X/swagger-ui.html` on each service port.
 - **Postman collection:** `postman/CareQ.postman_collection.json` + `postman/CareQ.postman_environment.json` — import both; the Login request auto-captures the JWT into `{{authToken}}`.
 
-> **Note:** Swagger UI is intentionally public in this dev/demo setup (whitelisted in the gateway JWT filter and auth-service security config). Restrict `/v3/api-docs/**` and `/swagger-ui/**` before any production exposure.
+> **Note (Day 17):** Swagger UI is open in local dev, but **production deploys set `SPRINGDOC_ENABLED=false`** (CD workflow) which switches off both `/v3/api-docs/**` and `/swagger-ui/**` on every service and the gateway. The gateway still whitelists those paths so a local demo keeps working.

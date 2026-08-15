@@ -47,6 +47,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 ### 🔔 Everyone
 - **In-app notifications (Day 13)** — the bell's history is now **real persisted data**: queue-service publishes every state change (joined / triaged / called / completed) onto a RabbitMQ event bus, a dedicated notification-service persists it, and the bell (polled every 15s) survives refreshes. The Day 7b real-time toast-on-status-change layer still fires instantly on top.
 - **Web Push notifications (Day 16)** — the Phase 2 "real delivery" item, delivered as **browser push via VAPID** (free — no third-party account): patients flip a toggle in the bell, grant the browser permission, and get OS-level alerts ("It's your turn!") even when CareQ is closed. Per-user preferences (`notification_preferences`) + per-browser subscriptions (`push_subscriptions`), async fail-open delivery on the notification-service side; email/SMS remain future channels.
+- **Launch hardening (Day 17)** — **email verification + password reset** (one-time hashed tokens via SendGrid, legacy accounts grandfathered), **rate limiting** on signup/login/resend/forgot (brute-force guard), a request-level **audit trail** (gateway `ACCESS` + auth `AUDIT` logs), **Swagger disabled in production**, **MySQL TLS**, **security headers** (CSP/HSTS on Vercel + nginx + gateway), a 15-minute **uptime check** that opens a GitHub issue when the site is down, and a **monitoring/backup runbook** (`docs/12_MONITORING.md`).
 
 ---
 
@@ -116,6 +117,11 @@ The queue-service never duplicates doctor consultation data — it fetches `avgC
 | `JWT_SECRET` | No | auth-service + gateway | dev secret |
 | `MYSQL_PASSWORD` | No | all DB-backed services | `root` |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | No | queue-service + notification-service | `guest` / `guest` |
+| `SENDGRID_API_KEY` | No² | auth-service email verification/reset | — |
+| `AUTH_EMAIL_VERIFICATION_ENABLED` | No² | auth-service | `false` (local dev) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VITE_VAPID_PUBLIC_KEY` | No | notification-service / frontend | — (Web Push) |
+
+² Email verification is OFF locally by default (signup returns a JWT as before); set `SENDGRID_API_KEY` + `AUTH_EMAIL_VERIFICATION_ENABLED=true` to exercise the real flow (both-or-neither).
 
 ¹ Without `GROQ_API_KEY` every patient is triaged `NORMAL`. Set it for the real AI behavior:
 
@@ -284,10 +290,11 @@ Every day's work is tracked as a GitHub Issue with a checked-off deliverable che
 | [05_API_CONTRACT.md](docs/05_API_CONTRACT.md) | API contracts for all services (incl. shared error shape) |
 | [09_TESTING.md](docs/09_TESTING.md) | Unit test plans and results |
 | [11_PROMPTS.md](docs/11_PROMPTS.md) | Archive of daily development prompts |
+| [12_MONITORING.md](docs/12_MONITORING.md) | Day 17 — uptime checks, Log Analytics queries, backup/restore runbook |
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Vercel frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures; ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The remaining Phase 2 delivery item was **partially delivered on Day 16**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). Analytics charts and file upload were likewise scoped to their existing implementations. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–14 for the design decisions.
+Day 7b deliberately built **client-side derived notifications** (session-only, resets on refresh) rather than a full notification service; that limitation was **removed on Day 13** with the Redis + RabbitMQ + notification-service work (see the Project Status table). Cloud deployment was **done on Day 15** (Azure Container Apps + Vercel frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures; ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The Phase 2 delivery item was **partially delivered on Day 16**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). **Day 17 closed the remaining launch-critical gaps**: email verification + password reset (SendGrid), brute-force rate limiting, an access/audit log trail, Swagger locked down in production, MySQL TLS, security headers, and a free-tier monitoring + backup runbook (`docs/12_MONITORING.md`). The genuinely-out-of-scope roadmap items that remain are the product/scale features (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments). See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–15 for the design decisions.
 
 ## Git Branching Strategy
 

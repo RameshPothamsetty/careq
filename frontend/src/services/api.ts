@@ -32,6 +32,10 @@ interface AuthResponse {
   email: string;
   fullName: string;
   role: string;
+  // Day 17 — email verification. token is null when verification is required;
+  // message / verificationRequired describe the signup outcome.
+  message?: string;
+  verificationRequired?: boolean;
 }
 
 interface UserProfileResponse {
@@ -377,14 +381,17 @@ async function request<T>(
 
   if (!response || !response.ok) {
     // Day 9: backend error shape is now { message, error, validationErrors } (was { details }).
+    // Day 17: an optional machine-readable `code` (EMAIL_NOT_VERIFIED, RATE_LIMITED,
+    // INVALID_TOKEN) lets pages branch on the failure instead of parsing text.
     const errorMessage =
       (data.message as string) ||
       (data.error as string) ||
       (text
         ? 'An unexpected error occurred'
         : 'Service is warming up — please try again in a moment.');
-    const error = new Error(errorMessage) as Error & { status: number; validationErrors: { field: string; message: string }[] };
+    const error = new Error(errorMessage) as Error & { status: number; code?: string; validationErrors: { field: string; message: string }[] };
     error.status = response?.status ?? 0;
+    error.code = data.code as string | undefined;
     error.validationErrors = (data.validationErrors as { field: string; message: string }[]) || [];
     throw error;
   }
@@ -404,6 +411,30 @@ export const api = {
     request<AuthResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  // Day 17 — email verification + password reset.
+  verifyEmail: (token: string) =>
+    request<AuthResponse>(`/api/auth/verify?token=${encodeURIComponent(token)}`, {
+      method: 'GET',
+    }),
+
+  resendVerification: (email: string) =>
+    request<AuthResponse>('/api/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  forgotPassword: (email: string) =>
+    request<AuthResponse>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<AuthResponse>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
     }),
 };
 

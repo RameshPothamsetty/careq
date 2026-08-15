@@ -41,9 +41,15 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // Skip public auth routes and profile pictures (images loaded via <img> tags)
+        // Skip public auth routes and profile pictures (images loaded via <img> tags).
+        // Day 17: the verification/reset endpoints are reached from email links
+        // WITHOUT a JWT, so they are public like signup/login.
         if (path.startsWith("/api/auth/signup")
                 || path.startsWith("/api/auth/login")
+                || path.startsWith("/api/auth/verify")
+                || path.startsWith("/api/auth/resend-verification")
+                || path.startsWith("/api/auth/forgot-password")
+                || path.startsWith("/api/auth/reset-password")
                 || path.startsWith("/api/auth/health")
                 || path.startsWith("/api/users/profile-pictures/")) {
             return chain.filter(exchange);

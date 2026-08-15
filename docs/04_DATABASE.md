@@ -263,11 +263,36 @@ CREATE TABLE notification_preferences (
 
 ---
 
+### 2.x auth_tokens (Day 17 — email verification + password reset)
+
+One-time security tokens for verification / reset. Only the **SHA-256 hash** of
+the raw token is stored — the raw value travels in the email link only, so a
+DB leak can't be replayed. An account is *pending verification* iff it has a
+`VERIFY_EMAIL` row with `used_at IS NULL`; **legacy accounts (pre-Day-17) have
+no rows and are treated as verified** — no migration needed.
+
+```sql
+CREATE TABLE auth_tokens (
+    id         VARCHAR(36)  NOT NULL PRIMARY KEY,
+    user_id    VARCHAR(36)  NOT NULL,          -- plain ref to users.id
+    purpose    VARCHAR(20)  NOT NULL,          -- VERIFY_EMAIL | RESET_PASSWORD
+    token_hash VARCHAR(64)  NOT NULL UNIQUE,   -- SHA-256 hex of the raw token
+    expires_at DATETIME     NOT NULL,
+    used_at    DATETIME     NULL,
+    created_at DATETIME     NOT NULL
+) ENGINE=InnoDB;
+-- VERIFY_EMAIL: TTL 24h · RESET_PASSWORD: TTL 30 min; reissuing a token
+-- deletes the previous one of the same purpose for that user.
+```
+
+---
+
 ## 3. Table Summary
 
 | Table | Service Owner | Primary Key | Reference to users.id | Notes |
 |-------|--------------|-------------|----------------------|-------|
 | users | auth-service | id (UUID) | — | Auth table, JWT identity |
+| auth_tokens | auth-service | id (UUID) | user_id (plain ref) | Day 17 — one-time verification/reset tokens (SHA-256 hash only); presence of an unused VERIFY_EMAIL row = account pending verification |
 | user_profiles | user-service | id (BIGINT) | user_id (plain ref) | Lazy-created on first profile access |
 | patient_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
 | admin_profiles | user-service | id (BIGINT) | user_id (FK) | Future |
