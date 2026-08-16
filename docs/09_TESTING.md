@@ -244,7 +244,7 @@ valid token → login with the new password → garbage reset token rejected.
 | `AuthServiceImplTest` (20) | signup in both verification modes (JWT vs. no-token + email link), duplicate, signup/login rate-limit 429s, wrong password, deactivated, **login blocked while verification pending (403)**, legacy account passes the gate, verify/resend/forgot/reset success + failure paths |
 | `AuthTokenServiceTest` (6) | issue stores only the SHA-256 hash (never the raw token), consume works once, expired / used / wrong-purpose / blank tokens rejected, reissue rotates the previous token |
 | `RateLimiterTest` (3) | fixed window: allows up to max, blocks beyond, independent keys, window expiry resets |
-| `EmailServiceTest` (3) | SendGrid payload shape (endpoint, bearer auth, subject, link), and **fail-open with no API key** (no HTTP call) |
+| `EmailServiceTest` (3) | Gmail SMTP message shape (subject, from with display name "CareQ", recipient, verify/reset link), and **fail-open with no credentials** (no send) |
 
 ### Flow B — full queue lifecycle (`QueueFlowIntegrationTest`, queue-service, 6 tests)
 

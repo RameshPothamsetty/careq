@@ -91,9 +91,8 @@ docker compose down -v                 # stop AND delete volumes (full reset)
 | `GROQ_API_KEY` | No | queue-service | AI symptom triage; empty → fallback `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push; generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
 | `VITE_VAPID_PUBLIC_KEY` | No | frontend build | = `VAPID_PUBLIC_KEY`; baked into the bundle (compose build arg / Vercel env) so the bell shows the push toggle — empty → toggle hidden |
-| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset; https://app.sendgrid.com/settings/api_keys + verify a single sender (Settings → Sender Authentication → Single Sender Verification). Empty → verification stays OFF |
-| `SENDGRID_FROM` | No¹ | auth-service | the **verified sender address** used as `APP_MAIL_FROM` on Azure (e.g. `rap53748@gmail.com`); unset → falls back to `careq@careq.com` (which SendGrid will reject unless you own it — set this secret!) |
-| `APP_MAIL_FROM` / `APP_FRONTEND_BASE_URL` / `AUTH_EMAIL_VERIFICATION_ENABLED` | No¹ | auth-service | sender + email-link base URL + verification gate. ¹SendGrid key and `AUTH_EMAIL_VERIFICATION_ENABLED=true` are both-or-neither |
+| `APP_MAIL_USERNAME` / `APP_MAIL_PASSWORD` | No¹ | auth-service | Gmail SMTP credentials for email verification + password reset. Enable 2-Step Verification on the Gmail account, then create an **App Password** (myaccount.google.com → Security → App passwords). Empty → verification stays OFF |
+| `APP_MAIL_FROM` / `APP_FRONTEND_BASE_URL` / `AUTH_EMAIL_VERIFICATION_ENABLED` | No¹ | auth-service | sender + email-link base URL + verification gate. ¹Gmail credentials and `AUTH_EMAIL_VERIFICATION_ENABLED=true` are both-or-neither |
 
 ¹ defaults to `root` if absent. ² defaults to a dev-only secret if absent — set a real one.
 
@@ -334,8 +333,8 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
-| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `SENDGRID_FROM` to that exact address (the pipeline uses it as `APP_MAIL_FROM`; without it the default `careq@careq.com` will be rejected as unverified) |
-| `SENDGRID_FROM` | auth-service `APP_MAIL_FROM` | **optional but strongly recommended** — your SendGrid-verified sender (e.g. `rap53748@gmail.com`). Unset → `careq@careq.com` is used, which only works if you verify that address |
+| `GMAIL_USERNAME` | auth-service email verification/reset | **optional but both-or-neither** — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. The Gmail address that sends verification/reset emails (e.g. `rap53748@gmail.com`); recipients see the From display name "CareQ" |
+| `GMAIL_APP_PASSWORD` | auth-service email verification/reset | the **App Password** for the Gmail account (Google → Security → 2-Step Verification → App passwords). 16 chars, no spaces — pasted as-is into the GitHub secret |
 | `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
@@ -346,8 +345,12 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 > moved to Vercel.
 
 > **Launch hardening on the live site:**
-> 1. Add `SENDGRID_API_KEY` to GitHub secrets (both-or-neither contract: the
->    pipeline then sets `AUTH_EMAIL_VERIFICATION_ENABLED=true` on Azure).
+> 1. Add `GMAIL_USERNAME` + `GMAIL_APP_PASSWORD` to GitHub secrets
+>    (both-or-neither contract: the pipeline then sets
+>    `AUTH_EMAIL_VERIFICATION_ENABLED=true` on Azure and wires the Gmail SMTP
+>    credentials). To get an App Password: enable 2-Step Verification on the
+>    Gmail account, then myaccount.google.com → Security → App passwords →
+>    create one for "Mail".
 > 2. **Existing accounts stay verified** (no rows in the new `auth_tokens`
 >    table → treated as verified) — the seed doctors/admin/patients keep
 >    logging in. New signups must click the emailed link before their first

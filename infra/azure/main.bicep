@@ -255,7 +255,8 @@ var placeholderSecrets = [
   { name: 'groq-api-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'vapid-public-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'vapid-private-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
-  { name: 'sendgrid-api-key', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'gmail-username', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
+  { name: 'gmail-app-password', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-user', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'rabbitmq-pass', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
   { name: 'ghcr-pat', value: 'CHANGE_ME_DEPLOY_WILL_SET' }
@@ -504,9 +505,10 @@ resource authServiceApp 'Microsoft.App/containerApps@2025-02-02-preview' = {
             { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'EUREKA_INSTANCE_HOSTNAME', value: 'careq-auth-service' }
             // Email verification + password reset. The CD pipeline
-            // overrides these after deploy (SENDGRID_API_KEY both-or-neither
-            // with AUTH_EMAIL_VERIFICATION_ENABLED=true).
-            { name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }
+            // overrides these after deploy (Gmail SMTP credentials
+            // both-or-neither with AUTH_EMAIL_VERIFICATION_ENABLED=true).
+            { name: 'APP_MAIL_USERNAME', secretRef: 'gmail-username' }
+            { name: 'APP_MAIL_PASSWORD', secretRef: 'gmail-app-password' }
             { name: 'APP_MAIL_FROM', value: 'careq@careq.com' }
             { name: 'APP_FRONTEND_BASE_URL', value: 'https://careq-frontend-eta.vercel.app' }
             { name: 'AUTH_EMAIL_VERIFICATION_ENABLED', value: 'true' }

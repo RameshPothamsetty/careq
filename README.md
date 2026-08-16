@@ -47,7 +47,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 ### 🔔 Everyone
 - **In-app notifications** — the bell's history is now **real persisted data**: queue-service publishes every state change (joined / triaged / called / completed) onto a RabbitMQ event bus, a dedicated notification-service persists it, and the bell (polled every 15s) survives refreshes. The real-time toast-on-status-change layer still fires instantly on top.
 - **Web Push notifications** — the Phase 2 "real delivery" item, delivered as **browser push via VAPID** (free — no third-party account): patients flip a toggle in the bell, grant the browser permission, and get OS-level alerts ("It's your turn!") even when CareQ is closed. Per-user preferences (`notification_preferences`) + per-browser subscriptions (`push_subscriptions`), async fail-open delivery on the notification-service side; email/SMS remain future channels.
-- **Launch hardening** — **email verification + password reset** (one-time hashed tokens via SendGrid, legacy accounts grandfathered), **rate limiting** on signup/login/resend/forgot (brute-force guard), a request-level **audit trail** (gateway `ACCESS` + auth `AUDIT` logs), **Swagger disabled in production**, **MySQL TLS**, **security headers** (CSP/HSTS on Vercel + nginx + gateway), a 15-minute **uptime check** that opens a GitHub issue when the site is down, and a **monitoring/backup runbook** (`docs/12_MONITORING.md`).
+- **Launch hardening** — **email verification + password reset** (one-time hashed tokens via Gmail SMTP, legacy accounts grandfathered), **rate limiting** on signup/login/resend/forgot (brute-force guard), a request-level **audit trail** (gateway `ACCESS` + auth `AUDIT` logs), **Swagger disabled in production**, **MySQL TLS**, **security headers** (CSP/HSTS on Vercel + nginx + gateway), a 15-minute **uptime check** that opens a GitHub issue when the site is down, and a **monitoring/backup runbook** (`docs/12_MONITORING.md`).
 
 ---
 
@@ -117,11 +117,11 @@ The queue-service never duplicates doctor consultation data — it fetches `avgC
 | `JWT_SECRET` | No | auth-service + gateway | dev secret |
 | `MYSQL_PASSWORD` | No | all DB-backed services | `root` |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | No | queue-service + notification-service | `guest` / `guest` |
-| `SENDGRID_API_KEY` | No² | auth-service email verification/reset | — |
+| `APP_MAIL_USERNAME` / `APP_MAIL_PASSWORD` | No² | auth-service email verification/reset | — (Gmail App Password) |
 | `AUTH_EMAIL_VERIFICATION_ENABLED` | No² | auth-service | `false` (local dev) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VITE_VAPID_PUBLIC_KEY` | No | notification-service / frontend | — (Web Push) |
 
-² Email verification is OFF locally by default (signup returns a JWT as before); set `SENDGRID_API_KEY` + `AUTH_EMAIL_VERIFICATION_ENABLED=true` to exercise the real flow (both-or-neither).
+² Email verification is OFF locally by default (signup returns a JWT as before); set `APP_MAIL_USERNAME` + `APP_MAIL_PASSWORD` (a Gmail App Password) + `AUTH_EMAIL_VERIFICATION_ENABLED=true` to exercise the real flow (both-or-neither).
 
 ¹ Without `GROQ_API_KEY` every patient is triaged `NORMAL`. Set it for the real AI behavior:
 
@@ -294,7 +294,7 @@ Every milestone's work is tracked as a GitHub Issue with a checked-off deliverab
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Client-side derived notifications (session-only, resets on refresh) were an early scoping decision; that limitation was later removed with the Redis + RabbitMQ + notification-service work (see the Project Status table), which delivers persisted in-app notifications. Cloud deployment runs on **Azure Container Apps** + **Vercel** frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures (ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The Phase 2 delivery item was **partially delivered**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). Launch-critical gaps are closed: email verification + password reset (SendGrid), brute-force rate limiting, an access/audit log trail, Swagger locked down in production, MySQL TLS, security headers, and a free-tier monitoring + backup runbook (`docs/12_MONITORING.md`). The genuinely-out-of-scope roadmap items that remain are the product/scale features (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments). See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–15 for the design decisions.
+Client-side derived notifications (session-only, resets on refresh) were an early scoping decision; that limitation was later removed with the Redis + RabbitMQ + notification-service work (see the Project Status table), which delivers persisted in-app notifications. Cloud deployment runs on **Azure Container Apps** + **Vercel** frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures (ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The Phase 2 delivery item was **partially delivered**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). Launch-critical gaps are closed: email verification + password reset (Gmail SMTP — no third-party account needed), brute-force rate limiting, an access/audit log trail, Swagger locked down in production, MySQL TLS, security headers, and a free-tier monitoring + backup runbook (`docs/12_MONITORING.md`). The genuinely-out-of-scope roadmap items that remain are the product/scale features (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments). See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–15 for the design decisions.
 
 ## Git Branching Strategy
 

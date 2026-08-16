@@ -21,6 +21,19 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+  mail:
+    # Gmail SMTP via spring-boot-starter-mail. Credentials are optional:
+    # when empty, EmailService fails open and skips the email step.
+    host: ${APP_MAIL_HOST:smtp.gmail.com}
+    port: ${APP_MAIL_PORT:587}
+    username: ${APP_MAIL_USERNAME:}
+    password: ${APP_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 eureka:
   client:
@@ -37,10 +50,15 @@ app:
   auth:
     # Email verification. OFF by default so local docker-compose
     # keeps behaving like before (signup returns a JWT, scripts stay green).
-    # The CD workflow sets it ON for Azure and wires SENDGRID_API_KEY.
+    # The CD workflow sets it ON for Azure and wires the Gmail SMTP
+    # credentials (both-or-neither).
     email-verification-enabled: ${AUTH_EMAIL_VERIFICATION_ENABLED:false}
   mail:
-    sendgrid-api-key: ${SENDGRID_API_KEY:}
+    # Gmail SMTP account used to send verification/reset emails. Blank in
+    # local dev (docker-compose) → EmailService fails open and skips the
+    # email step (accounts stay unverified, resend is available).
+    username: ${APP_MAIL_USERNAME:}
+    password: ${APP_MAIL_PASSWORD:}
     from: ${APP_MAIL_FROM:careq@example.com}
   frontend:
     # Base URL used to build the verify/reset links in emails.

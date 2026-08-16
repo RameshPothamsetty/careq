@@ -399,11 +399,11 @@ monitoring/backups (runbook in `docs/12_MONITORING.md`).
   working unchanged.
 - **Config-gated:** `AUTH_EMAIL_VERIFICATION_ENABLED` — off by default so
   local docker-compose behaves exactly as before; the CD pipeline turns it
-  ON for Azure **only when a `SENDGRID_API_KEY` secret exists**
-  (both-or-neither), so a missing key can never leave signups stuck
+  ON for Azure **only when the Gmail SMTP credentials exist**
+  (both-or-neither), so missing credentials can never leave signups stuck
   unverified.
-- **SendGrid delivery is fail-open** (same contract as VAPID/Web Push): no
-  API key → skip + log; a failed send → log + swallow. Verification and
+- **Gmail SMTP delivery is fail-open** (same contract as VAPID/Web Push): no
+  credentials → skip + log; a failed send → log + swallow. Verification and
   reset are resumable flows, so a transient email failure must not surface
   as a 500.
 

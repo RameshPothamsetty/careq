@@ -261,12 +261,12 @@ jobs:
           if [[ -n "${{ secrets.VAPID_PUBLIC_KEY }}" && -n "${{ secrets.VAPID_PRIVATE_KEY }}" ]]; then
             VAPID_SECRET="vapid-public-key=${{ secrets.VAPID_PUBLIC_KEY }} vapid-private-key=${{ secrets.VAPID_PRIVATE_KEY }}"
           fi
-          # SENDGRID_API_KEY is optional but both-or-neither with
-          # email verification — without a key, verification is turned OFF in
+          # Gmail SMTP credentials are optional but both-or-neither with
+          # email verification — without them, verification is turned OFF in
           # the env step below so signups never get stuck unverified.
-          SENDGRID_SECRET=""
-          if [[ -n "${{ secrets.SENDGRID_API_KEY }}" ]]; then
-            SENDGRID_SECRET="sendgrid-api-key=${{ secrets.SENDGRID_API_KEY }}"
+          GMAIL_SECRET=""
+          if [[ -n "${{ secrets.GMAIL_USERNAME }}" && -n "${{ secrets.GMAIL_APP_PASSWORD }}" ]]; then
+            GMAIL_SECRET="gmail-username=${{ secrets.GMAIL_USERNAME }} gmail-app-password=${{ secrets.GMAIL_APP_PASSWORD }}"
           fi
           GHCR_SECRET=""
           REGISTRY_ARGS=()
@@ -292,7 +292,7 @@ jobs:
                 "storage-connection-string=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
                 $GROQ_SECRET \
                 $VAPID_SECRET \
-                $SENDGRID_SECRET \
+                $GMAIL_SECRET \
                 $GHCR_SECRET
             # 2) Roll the image forward (+ optional GHCR registry credentials).
             az containerapp update \
@@ -325,22 +325,16 @@ jobs:
           # EVERY service. MySQL-backed services additionally force TLS on the
           # JDBC connection (matches requireSecureTransport on the server).
           MYSQL_SERVICES="auth-service user-service doctor-service queue-service notification-service"
-          # APP_MAIL_FROM comes from the SENDGRID_FROM secret when set (it must
-          # be a sender verified in SendGrid), otherwise falls back to
-          # careq@careq.com.
-          MAIL_FROM="${{ secrets.SENDGRID_FROM }}"
-          if [[ -z "$MAIL_FROM" ]]; then
-            MAIL_FROM="careq@careq.com"
-          fi
           for svc in eureka-server api-gateway auth-service user-service doctor-service queue-service notification-service; do
             EXTRA=()
             if [[ " $MYSQL_SERVICES " == *" $svc "* ]]; then
               EXTRA+=(--set-env-vars "MYSQL_CONN_PARAMS=sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC")
             fi
             if [[ "$svc" == "auth-service" ]]; then
-              # Verification is ON only when a SendGrid key exists (both-or-neither).
-              if [[ -n "${{ secrets.SENDGRID_API_KEY }}" ]]; then
-                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=true" "APP_FRONTEND_BASE_URL=https://careq-frontend-eta.vercel.app" "APP_MAIL_FROM=$MAIL_FROM" "SENDGRID_API_KEY=secretref:sendgrid-api-key")
+              # Verification is ON only when the Gmail SMTP credentials
+              # exist (both-or-neither). APP_MAIL_FROM = the Gmail address.
+              if [[ -n "${{ secrets.GMAIL_APP_PASSWORD }}" ]]; then
+                EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=true" "APP_FRONTEND_BASE_URL=https://careq-frontend-eta.vercel.app" "APP_MAIL_USERNAME=secretref:gmail-username" "APP_MAIL_PASSWORD=secretref:gmail-app-password" "APP_MAIL_FROM=secretref:gmail-username")
               else
                 EXTRA+=(--set-env-vars "AUTH_EMAIL_VERIFICATION_ENABLED=false")
               fi

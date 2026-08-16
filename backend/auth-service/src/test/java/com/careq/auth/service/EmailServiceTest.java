@@ -1,71 +1,82 @@
 package com.careq.auth.service;
 
+import jakarta.mail.Message;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestClient;
+import org.mockito.ArgumentCaptor;
+import org.springframework.mail.javamail.JavaMailSender;
 
+import java.util.Properties;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * SendGrid email payloads: correct endpoint, bearer auth, subject
- * and recipient; and fail-open when the API key is absent.
+ * Gmail SMTP emails: correct subject / from (display name "CareQ") /
+ * recipient and verify/reset links; and fail-open when the SMTP
+ * credentials are absent.
  */
 class EmailServiceTest {
 
-    @Test
-    void sendVerificationEmail_BuildsSendGridPayload() {
-        RestClient.Builder builder = RestClient.builder();
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        EmailService service = new EmailService(builder, "sg-key", "careq@careq.com", "https://careq.example.com");
+    private JavaMailSender mailSender() {
+        JavaMailSender sender = mock(JavaMailSender.class);
+        when(sender.createMimeMessage())
+                .thenReturn(new MimeMessage(Session.getDefaultInstance(new Properties())));
+        return sender;
+    }
 
-        server.expect(requestTo("https://api.sendgrid.com/v3/mail/send"))
-                .andExpect(method(HttpMethod.POST))
-                .andExpect(header("Authorization", "Bearer sg-key"))
-                .andExpect(jsonPath("$.personalizations[0].to[0].email").value("john@careq.com"))
-                .andExpect(jsonPath("$.from.email").value("careq@careq.com"))
-                .andExpect(jsonPath("$.subject").value("Verify your CareQ account"))
-                .andExpect(jsonPath("$.content[0].value").value(
-                        org.hamcrest.Matchers.containsString("https://careq.example.com/verify-email?token=abc123")))
-                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
-
-        assertThatCode(() -> service.sendVerificationEmail("john@careq.com", "John Patient", "abc123"))
-                .doesNotThrowAnyException();
-        server.verify();
+    private EmailService service(JavaMailSender sender) {
+        return new EmailService(sender, "rap53748@gmail.com", "app-password",
+                "rap53748@gmail.com", "https://careq.example.com");
     }
 
     @Test
-    void sendPasswordResetEmail_ContainsResetLink() {
-        RestClient.Builder builder = RestClient.builder();
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        EmailService service = new EmailService(builder, "sg-key", "careq@careq.com", "https://careq.example.com");
+    void sendVerificationEmail_BuildsMailMessage() throws Exception {
+        JavaMailSender sender = mailSender();
+        EmailService service = service(sender);
 
-        server.expect(requestTo("https://api.sendgrid.com/v3/mail/send"))
-                .andExpect(method(HttpMethod.POST))
-                .andExpect(jsonPath("$.subject").value("Reset your CareQ password"))
-                .andExpect(jsonPath("$.content[0].value").value(
-                        org.hamcrest.Matchers.containsString("https://careq.example.com/reset-password?token=reset-1")))
-                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        assertThatCode(() -> service.sendVerificationEmail("john@careq.com", "John Patient", "abc123"))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        MimeMessage msg = captor.getValue();
+        assertThat(msg.getSubject()).isEqualTo("Verify your CareQ account");
+        assertThat(msg.getFrom()[0].toString()).contains("CareQ").contains("rap53748@gmail.com");
+        assertThat(msg.getRecipients(Message.RecipientType.TO)[0].toString()).contains("john@careq.com");
+        assertThat(msg.getContent().toString())
+                .contains("https://careq.example.com/verify-email?token=abc123");
+    }
+
+    @Test
+    void sendPasswordResetEmail_ContainsResetLink() throws Exception {
+        JavaMailSender sender = mailSender();
+        EmailService service = service(sender);
 
         assertThatCode(() -> service.sendPasswordResetEmail("john@careq.com", "John Patient", "reset-1"))
                 .doesNotThrowAnyException();
-        server.verify();
+
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        MimeMessage msg = captor.getValue();
+        assertThat(msg.getSubject()).isEqualTo("Reset your CareQ password");
+        assertThat(msg.getContent().toString())
+                .contains("https://careq.example.com/reset-password?token=reset-1");
     }
 
     @Test
-    void missingApiKey_DoesNotCallSendGrid() {
-        RestClient.Builder builder = RestClient.builder();
-        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        EmailService service = new EmailService(builder, "", "careq@careq.com", "https://careq.example.com");
+    void missingCredentials_DoesNotSendMail() {
+        JavaMailSender sender = mailSender();
+        EmailService service = new EmailService(sender, "", "", "careq@example.com", "https://careq.example.com");
 
         assertThatCode(() -> service.sendVerificationEmail("john@careq.com", "John Patient", "abc123"))
                 .doesNotThrowAnyException();
-        server.verify(); // no expectations registered → any request would fail the verify
+        verify(sender, never()).send(any(MimeMessage.class));
     }
 }
