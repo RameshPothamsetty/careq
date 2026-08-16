@@ -91,7 +91,8 @@ docker compose down -v                 # stop AND delete volumes (full reset)
 | `GROQ_API_KEY` | No | queue-service | AI symptom triage; empty → fallback `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | No | notification-service | Web Push; generate with `bash scripts/generate-vapid-keys.sh` — empty → push disabled, in-app notifications unaffected |
 | `VITE_VAPID_PUBLIC_KEY` | No | frontend build | = `VAPID_PUBLIC_KEY`; baked into the bundle (compose build arg / Vercel env) so the bell shows the push toggle — empty → toggle hidden |
-| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset; https://app.sendgrid.com/settings/api_keys + verify a single sender for `APP_MAIL_FROM`. Empty → verification stays OFF |
+| `SENDGRID_API_KEY` | No¹ | auth-service | email verification + password reset; https://app.sendgrid.com/settings/api_keys + verify a single sender (Settings → Sender Authentication → Single Sender Verification). Empty → verification stays OFF |
+| `SENDGRID_FROM` | No¹ | auth-service | the **verified sender address** used as `APP_MAIL_FROM` on Azure (e.g. `rap53748@gmail.com`); unset → falls back to `careq@careq.com` (which SendGrid will reject unless you own it — set this secret!) |
 | `APP_MAIL_FROM` / `APP_FRONTEND_BASE_URL` / `AUTH_EMAIL_VERIFICATION_ENABLED` | No¹ | auth-service | sender + email-link base URL + verification gate. ¹SendGrid key and `AUTH_EMAIL_VERIFICATION_ENABLED=true` are both-or-neither |
 
 ¹ defaults to `root` if absent. ² defaults to a dev-only secret if absent — set a real one.
@@ -333,7 +334,8 @@ gateway URL, the MySQL private FQDN, and the full GitHub secrets list.
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | queue + notification + broker | generated at provisioning |
 | `GROQ_API_KEY` | queue-service AI triage | optional — empty → triage falls back to `NORMAL` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | notification-service Web Push | **optional** — both must be set together; `bash scripts/generate-vapid-keys.sh` → paste the two values. Not set → push delivery disabled |
-| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `APP_MAIL_FROM` (defaults `careq@careq.com` on Azure — change it to your verified sender!) |
+| `SENDGRID_API_KEY` | auth-service email verification/reset | **optional but both-or-neither** — with it, the pipeline also sets `AUTH_EMAIL_VERIFICATION_ENABLED=true`; without it, verification stays off so signups never get stuck. Free tier: 100 emails/day. Also verify a **single sender** in SendGrid and set `SENDGRID_FROM` to that exact address (the pipeline uses it as `APP_MAIL_FROM`; without it the default `careq@careq.com` will be rejected as unverified) |
+| `SENDGRID_FROM` | auth-service `APP_MAIL_FROM` | **optional but strongly recommended** — your SendGrid-verified sender (e.g. `rap53748@gmail.com`). Unset → `careq@careq.com` is used, which only works if you verify that address |
 | `GHCR_PAT` | image pulls | **optional** — only if the ghcr.io packages are private (fine-grained PAT, `packages:read`) |
 | `VERCEL_TOKEN` | frontend deploy | vercel.com → Account Settings → Tokens → Create |
 | `VERCEL_ORG_ID` | frontend deploy | `orgId` in `frontend/.vercel/project.json` after `npx vercel link` |
