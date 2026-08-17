@@ -6,6 +6,7 @@ import type {
   DoctorCatalogResponse,
   DoctorCatalogRequest,
   AvailabilityRequest,
+  DoctorSearchResult,
   PaginatedResponse,
 } from '../api';
 
@@ -86,6 +87,22 @@ export const doctorApi = createApi({
       providesTags: ['Doctor'],
     }),
 
+    // Ranked relevance search (RAG-style retrieval): GET /api/doctors/search
+    // scores the whole catalog by term matches and returns the best matches,
+    // most relevant first, each with a relevanceScore (0-100).
+    searchDoctors: builder.query<
+      DoctorSearchResult[],
+      { q: string; availableOnly?: boolean; limit?: number }
+    >({
+      query: ({ q, availableOnly, limit }) => {
+        const query = new URLSearchParams({ q });
+        if (availableOnly) query.set('availableOnly', 'true');
+        if (limit) query.set('limit', String(limit));
+        return `/api/doctors/search?${query.toString()}`;
+      },
+      providesTags: ['Doctor'],
+    }),
+
     createDoctor: builder.mutation<DoctorCatalogResponse, DoctorCatalogRequest>({
       query: (body) => ({
         url: '/api/doctors',
@@ -142,6 +159,7 @@ export const {
   useDeleteDepartmentMutation,
   useGetDoctorsQuery,
   useGetDoctorByIdQuery,
+  useSearchDoctorsQuery,
   useCreateDoctorMutation,
   useUpdateDoctorMutation,
   useDeleteDoctorMutation,

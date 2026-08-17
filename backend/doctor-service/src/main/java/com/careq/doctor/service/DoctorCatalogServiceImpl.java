@@ -3,6 +3,7 @@ package com.careq.doctor.service;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.dto.DoctorSearchResultDto;
 import com.careq.doctor.entity.Department;
 import com.careq.doctor.entity.DoctorCatalogEntry;
 import com.careq.doctor.exception.DepartmentNotFoundException;
@@ -19,7 +20,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+
+import static java.util.stream.Collectors.toList;
 
 @Service
 public class DoctorCatalogServiceImpl implements DoctorCatalogService {
@@ -67,6 +74,103 @@ public class DoctorCatalogServiceImpl implements DoctorCatalogService {
         return doctorCatalogRepository
                 .search(departmentId, trimmedSpecialization, trimmedSearch, pageable)
                 .map(entry -> DoctorCatalogResponseDto.fromEntity(entry, getDepartmentName(entry.getDepartmentId())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    // NOT cached on purpose — the ranked search feeds the chat assistant and
+    // the browse screen, so it always reflects the latest catalog + availability.
+    public List<DoctorSearchResultDto> searchRanked(String query, boolean availableOnly, int limit) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        int cappedLimit = Math.min(Math.max(limit, 1), maxPageSize);
+        List<String> tokens = tokenize(query);
+        if (tokens.isEmpty()) {
+            return List.of();
+        }
+
+        List<DoctorSearchResultDto> results = new ArrayList<>();
+        for (DoctorCatalogEntry entry : doctorCatalogRepository.findAll()) {
+            if (availableOnly && !Boolean.TRUE.equals(entry.getIsAvailable())) {
+                continue;
+            }
+            String departmentName = getDepartmentName(entry.getDepartmentId());
+            int score = relevanceScore(entry, departmentName, tokens);
+            if (score > 0) {
+                results.add(new DoctorSearchResultDto(
+                        DoctorCatalogResponseDto.fromEntity(entry, departmentName), score));
+            }
+        }
+
+        results.sort(Comparator.comparingInt(DoctorSearchResultDto::getRelevanceScore).reversed()
+                .thenComparing(DoctorSearchResultDto::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
+        return results.stream().limit(cappedLimit).collect(toList());
+    }
+
+    /**
+     * Scores one entry against the query tokens. Weighted fields: name ×3,
+     * specialization ×2, department ×2, qualification ×1. Within a field an
+     * exact whole-token match scores highest, then a prefix match, then a
+     * substring. Normalized to 0-100.
+     */
+    private int relevanceScore(DoctorCatalogEntry entry, String departmentName, List<String> tokens) {
+        // List of (field text, weight) pairs — NOT a Map, because two fields
+        // can normalize to the same string (e.g. specialization and department
+        // both "cardiology") and must both be scored.
+        List<Map.Entry<String, Integer>> fields = List.of(
+                Map.entry(lower(entry.getName()), 3),
+                Map.entry(lower(entry.getSpecialization()), 2),
+                Map.entry(lower(departmentName), 2),
+                Map.entry(lower(entry.getQualification()), 1)
+        );
+
+        int raw = 0;
+        for (String token : tokens) {
+            for (Map.Entry<String, Integer> field : fields) {
+                String text = field.getKey();
+                if (text == null || text.isEmpty()) {
+                    continue;
+                }
+                if (containsToken(text, token)) {
+                    raw += 6 * field.getValue();
+                } else if (text.startsWith(token)) {
+                    raw += 4 * field.getValue();
+                } else if (text.contains(token)) {
+                    raw += 2 * field.getValue();
+                }
+            }
+        }
+        return Math.min(100, raw);
+    }
+
+    private boolean containsToken(String text, String token) {
+        int idx = text.indexOf(token);
+        while (idx >= 0) {
+            boolean beforeOk = idx == 0 || !Character.isLetterOrDigit(text.charAt(idx - 1));
+            int after = idx + token.length();
+            boolean afterOk = after >= text.length() || !Character.isLetterOrDigit(text.charAt(after));
+            if (beforeOk && afterOk) {
+                return true;
+            }
+            idx = text.indexOf(token, idx + 1);
+        }
+        return false;
+    }
+
+    private List<String> tokenize(String query) {
+        String[] parts = query.toLowerCase(Locale.ROOT).split("[^a-z0-9]+");
+        List<String> tokens = new ArrayList<>();
+        for (String part : parts) {
+            if (!part.isBlank()) {
+                tokens.add(part);
+            }
+        }
+        return tokens;
+    }
+
+    private String lower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 
     @Override

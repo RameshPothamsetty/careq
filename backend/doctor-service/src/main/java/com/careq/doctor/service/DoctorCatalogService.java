@@ -3,7 +3,10 @@ package com.careq.doctor.service;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.dto.DoctorSearchResultDto;
 import org.springframework.data.domain.Page;
+
+import java.util.List;
 
 public interface DoctorCatalogService {
 
@@ -30,6 +33,17 @@ public interface DoctorCatalogService {
     void deleteDoctor(Long id);
 
     DoctorCatalogResponseDto toggleAvailability(String userId, AvailabilityRequestDto request);
+
+    /**
+     * Ranked free-text search over the catalog (RAG-style retrieval): scores
+     * every entry by term matches across name / specialization / department /
+     * qualification and returns the best matches, most relevant first.
+     *
+     * @param query         free-text query (tokenized; blank → empty list)
+     * @param availableOnly when true, only doctors accepting joins are returned
+     * @param limit         max results (clamped to the configured maximum)
+     */
+    List<DoctorSearchResultDto> searchRanked(String query, boolean availableOnly, int limit);
 
     /**
      * resolves the CALLING doctor's own catalog entry by their userId

@@ -3,6 +3,7 @@ package com.careq.doctor.service;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.dto.DoctorSearchResultDto;
 import com.careq.doctor.entity.Department;
 import com.careq.doctor.entity.DoctorCatalogEntry;
 import com.careq.doctor.exception.DepartmentNotFoundException;
@@ -87,6 +88,65 @@ class DoctorCatalogServiceImplTest {
 
     private Page<DoctorCatalogEntry> page(DoctorCatalogEntry... entries) {
         return new PageImpl<>(List.of(entries));
+    }
+
+    @Test
+    void searchRanked_MatchesAcrossFields_SortsByRelevance() {
+        DoctorCatalogEntry cardio = entry(USER_ID, "Dr. Arjun Sharma", DEPT_ID, "Interventional Cardiology");
+        DoctorCatalogEntry derma = entry("u2", "Dr. Meera Iyer", 2L, "Cosmetic Dermatology");
+        when(doctorCatalogRepository.findAll()).thenReturn(List.of(derma, cardio));
+        when(departmentRepository.findById(DEPT_ID))
+                .thenReturn(Optional.of(new Department("Cardiology", "Heart")));
+        when(departmentRepository.findById(2L))
+                .thenReturn(Optional.of(new Department("Dermatology", "Skin")));
+
+        List<DoctorSearchResultDto> results = service.searchRanked("cardiology", false, 10);
+
+        // Only the cardiology doctor matches; dermatology scores 0 and is excluded.
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getName()).isEqualTo("Dr. Arjun Sharma");
+        assertThat(results.get(0).getRelevanceScore()).isGreaterThan(0);
+        assertThat(results.get(0).getDepartmentName()).isEqualTo("Cardiology");
+    }
+
+    @Test
+    void searchRanked_TokenizedQuery_OnlyMatchesEntriesContainingAToken() {
+        DoctorCatalogEntry cardio = entry(USER_ID, "Dr. Arjun Sharma", DEPT_ID, "Interventional Cardiology");
+        DoctorCatalogEntry neuro = entry("u2", "Dr. Vikram Reddy", 2L, "Stroke Neurology");
+        when(doctorCatalogRepository.findAll()).thenReturn(List.of(neuro, cardio));
+        when(departmentRepository.findById(DEPT_ID))
+                .thenReturn(Optional.of(new Department("Cardiology", "Heart")));
+        when(departmentRepository.findById(2L))
+                .thenReturn(Optional.of(new Department("Neurology", "Brain")));
+
+        List<DoctorSearchResultDto> results = service.searchRanked("cardio specialist", false, 10);
+
+        // "cardio" hits the cardio entry (department + specialization); the
+        // neurology entry matches nothing and is excluded. Non-matching tokens
+        // like "specialist" never hurt an entry that matched another token.
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getName()).isEqualTo("Dr. Arjun Sharma");
+    }
+
+    @Test
+    void searchRanked_AvailableOnly_FiltersOutOfflineDoctors() {
+        DoctorCatalogEntry online = entry(USER_ID, "Dr. Arjun Sharma", DEPT_ID, "Cardiology");
+        DoctorCatalogEntry offline = entry("u2", "Dr. Offline", DEPT_ID, "Cardiology");
+        offline.setIsAvailable(false);
+        when(doctorCatalogRepository.findAll()).thenReturn(List.of(offline, online));
+        when(departmentRepository.findById(DEPT_ID))
+                .thenReturn(Optional.of(new Department("Cardiology", "Heart")));
+
+        List<DoctorSearchResultDto> results = service.searchRanked("cardiology", true, 10);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getName()).isEqualTo("Dr. Arjun Sharma");
+    }
+
+    @Test
+    void searchRanked_BlankQuery_ReturnsEmpty() {
+        assertThat(service.searchRanked("   ", false, 10)).isEmpty();
+        assertThat(service.searchRanked(null, false, 10)).isEmpty();
     }
 
     @Test

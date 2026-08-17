@@ -3,6 +3,7 @@ package com.careq.doctor.controller;
 import com.careq.doctor.dto.AvailabilityRequestDto;
 import com.careq.doctor.dto.DoctorCatalogRequestDto;
 import com.careq.doctor.dto.DoctorCatalogResponseDto;
+import com.careq.doctor.dto.DoctorSearchResultDto;
 import com.careq.doctor.exception.ErrorResponseDto;
 import com.careq.doctor.exception.RoleGuard;
 import com.careq.doctor.service.DoctorCatalogService;
@@ -19,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * Doctor catalog endpoints (fully documented with OpenAPI).
  */
@@ -32,6 +35,31 @@ public class DoctorCatalogController {
 
     public DoctorCatalogController(DoctorCatalogService doctorCatalogService) {
         this.doctorCatalogService = doctorCatalogService;
+    }
+
+    /**
+     * Ranked relevance search (RAG-style retrieval over the catalog).
+     * Scores every entry by term matches across name / specialization /
+     * department / qualification and returns the best matches, most relevant
+     * first, each with a relevanceScore (0-100). Used by the browse screen's
+     * free-text box and by the AI chat assistant's grounding.
+     */
+    @Operation(summary = "Ranked doctor search",
+            description = "Free-text relevance search over the whole catalog (name, specialization, department, " +
+                    "qualification), most relevant first. Each result carries a relevanceScore (0-100). " +
+                    "Blank query returns an empty list.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Ranked doctor results (most relevant first)",
+                    content = @Content(schema = @Schema(implementation = DoctorSearchResultDto.class))),
+            @ApiResponse(responseCode = "400", description = "limit out of range (clamped server-side anyway)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
+    })
+    @GetMapping("/search")
+    public ResponseEntity<List<DoctorSearchResultDto>> searchDoctors(
+            @Parameter(description = "Free-text query", example = "heart specialist") @RequestParam String q,
+            @Parameter(description = "Only doctors currently accepting joins") @RequestParam(defaultValue = "false") boolean availableOnly,
+            @Parameter(description = "Max results (clamped to 1-100)") @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(doctorCatalogService.searchRanked(q, availableOnly, limit));
     }
 
     /**

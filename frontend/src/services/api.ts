@@ -100,6 +100,22 @@ interface AvailabilityRequest {
   isAvailable: boolean;
 }
 
+// ---- Ranked search (RAG-style retrieval) ----
+
+/** One result from GET /api/doctors/search — catalog fields + relevance. */
+interface DoctorSearchResult {
+  id: number;
+  name: string;
+  departmentName: string;
+  specialization: string;
+  qualification: string;
+  experienceYears: number;
+  consultationFee: number;
+  avgConsultationTimeMinutes: number;
+  isAvailable: boolean;
+  relevanceScore: number;
+}
+
 // ---- Queue types ----
 
 type TriageLevel = 'EMERGENCY' | 'HIGH' | 'NORMAL' | 'FOLLOW_UP';
@@ -467,6 +483,7 @@ export type {
   DepartmentRequest,
   DoctorCatalogResponse,
   DoctorCatalogRequest,
+  DoctorSearchResult,
   AvailabilityRequest,
   TriageLevel,
   QueueStatus,

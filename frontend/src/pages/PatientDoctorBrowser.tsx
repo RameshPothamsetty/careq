@@ -3,12 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Activity, FilterX, Stethoscope, Wallet, Clock, Award, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useGetDepartmentsQuery, useGetDoctorsQuery } from '../services/rtk/doctorApi';
+import {
+  useGetDepartmentsQuery,
+  useGetDoctorsQuery,
+  useSearchDoctorsQuery,
+} from '../services/rtk/doctorApi';
 import { getErrorMessage } from '../services/rtk/baseQuery';
 import { useI18n } from '../i18n';
 import QueuePageHeader from '../components/QueuePageHeader';
 import { StatCard, StatusTag, AvatarInitials, Button, CountUp } from '../components/ui';
 import { LoadingState, EmptyState } from '../components/ui/States';
+import type { DoctorCatalogResponse, DoctorSearchResult } from '../services/api';
 
 export default function PatientDoctorBrowser() {
   const navigate = useNavigate();
@@ -20,12 +25,12 @@ export default function PatientDoctorBrowser() {
     : 'min-h-screen bg-mesh-light px-4 py-6 sm:px-6';
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [searchInput, setSearchInput] = useState('');
-  const [searchSpecialization, setSearchSpecialization] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Debounce the free-text search so typing fires at most one doctor query per
-  // 300ms pause instead of one per keystroke.
+  // Debounce the free-text search so typing fires at most one ranked-search
+  // query per 300ms pause instead of one per keystroke.
   useEffect(() => {
-    const timer = setTimeout(() => setSearchSpecialization(searchInput.trim()), 300);
+    const timer = setTimeout(() => setSearchQuery(searchInput.trim()), 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
@@ -42,13 +47,25 @@ export default function PatientDoctorBrowser() {
     error,
   } = useGetDoctorsQuery({
     departmentId: selectedDeptId ? Number(selectedDeptId) : undefined,
-    specialization: searchSpecialization || undefined,
+    specialization: searchQuery || undefined,
     size: 50,
   });
 
-  const isLoading = isFetching;
-  const doctorList = doctors?.content ?? [];
-  const total = doctors?.totalElements ?? 0;
+  // Ranked relevance search (RAG-style retrieval): while the free-text box has
+  // text, results come from GET /api/doctors/search (relevance-scored) instead
+  // of the plain filtered listing.
+  const {
+    data: searchResults,
+    isFetching: isSearching,
+  } = useSearchDoctorsQuery(searchQuery ? { q: searchQuery, limit: 50 } : { q: '' }, {
+    skip: !searchQuery,
+  });
+
+  const isLoading = isFetching || isSearching;
+  const doctorList: (DoctorCatalogResponse | DoctorSearchResult)[] = searchQuery
+    ? (searchResults ?? [])
+    : (doctors?.content ?? []);
+  const total = searchQuery ? (searchResults?.length ?? 0) : (doctors?.totalElements ?? 0);
   const stats = {
     total,
     available: doctorList.filter((d) => d.isAvailable).length,
@@ -58,10 +75,10 @@ export default function PatientDoctorBrowser() {
   const clearFilters = () => {
     setSelectedDeptId('');
     setSearchInput('');
-    setSearchSpecialization('');
+    setSearchQuery('');
   };
 
-  const hasFilters = selectedDeptId || searchSpecialization;
+  const hasFilters = selectedDeptId || searchQuery;
 
   return (
     <div className={pageClass}>
