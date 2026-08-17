@@ -8,7 +8,12 @@ import { LoadingState, EmptyState, ErrorState } from '../components/ui/States';
 
 const POLL_INTERVAL_MS = 10_000;
 
-export default function AdminQueueOverview() {
+interface AdminQueueOverviewProps {
+  /** Back-link target for the page header (admin vs receptionist dashboard). */
+  dashboardPath?: string;
+}
+
+export default function AdminQueueOverview({ dashboardPath = '/admin' }: AdminQueueOverviewProps) {
   const { isDark } = useTheme();
   const pageClass = isDark
     ? 'dark min-h-screen bg-mesh-dark px-4 py-6 sm:px-6'
@@ -35,7 +40,7 @@ export default function AdminQueueOverview() {
           icon="🏥"
           title="Live Queue Overview"
           subtitle="Hospital-wide patient flow, delays & doctor load"
-          dashboardPath="/admin"
+          dashboardPath={dashboardPath}
         />
 
         {overview && (

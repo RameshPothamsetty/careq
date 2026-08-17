@@ -549,9 +549,9 @@ public class QueueServiceImpl implements QueueService {
         return dto;
     }
 
-    /** Verifies a patient only cancels their own entry; ADMIN is allowed everywhere. */
+    /** Verifies a patient only cancels their own entry; ADMIN/RECEPTIONIST are allowed everywhere. */
     private void verifyPatientAccess(QueueEntry entry, String requesterUserId, String requesterRole) {
-        if ("ADMIN".equalsIgnoreCase(requesterRole)) {
+        if ("ADMIN".equalsIgnoreCase(requesterRole) || "RECEPTIONIST".equalsIgnoreCase(requesterRole)) {
             return;
         }
         if (!"PATIENT".equalsIgnoreCase(requesterRole)) {
@@ -562,13 +562,13 @@ public class QueueServiceImpl implements QueueService {
         }
     }
 
-    /** Verifies a DOCTOR only touches their own queue; ADMIN is allowed everywhere. */
+    /** Verifies a DOCTOR only touches their own queue; ADMIN/RECEPTIONIST are allowed everywhere. */
     private void verifyDoctorAccess(DoctorCatalogResponseDto doctor, String requesterUserId, String requesterRole) {
-        if ("ADMIN".equalsIgnoreCase(requesterRole)) {
+        if ("ADMIN".equalsIgnoreCase(requesterRole) || "RECEPTIONIST".equalsIgnoreCase(requesterRole)) {
             return;
         }
         if (!"DOCTOR".equalsIgnoreCase(requesterRole)) {
-            throw new UnauthorizedAccessException("Only a doctor or an admin can manage queue entries");
+            throw new UnauthorizedAccessException("Only a doctor, admin or receptionist can manage queue entries");
         }
         if (!doctor.getUserId().equals(requesterUserId)) {
             throw new UnauthorizedAccessException("You can only manage your own queue");

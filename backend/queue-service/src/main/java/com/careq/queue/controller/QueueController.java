@@ -277,7 +277,7 @@ public class QueueController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
 
-        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN", "RECEPTIONIST");
         return ResponseEntity.ok(queueService.getDoctorQueue(doctorCatalogEntryId, search, userId, role));
     }
 
@@ -325,7 +325,7 @@ public class QueueController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
 
-        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN", "RECEPTIONIST");
         return ResponseEntity.ok(queueService.callNext(id, userId, role));
     }
 
@@ -349,7 +349,7 @@ public class QueueController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
 
-        RoleGuard.requireAnyRole(role, "PATIENT", "ADMIN");
+        RoleGuard.requireAnyRole(role, "PATIENT", "ADMIN", "RECEPTIONIST");
         return ResponseEntity.ok(queueService.cancel(id, userId, role));
     }
 
@@ -373,12 +373,12 @@ public class QueueController {
             @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
 
-        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN");
+        RoleGuard.requireAnyRole(role, "DOCTOR", "ADMIN", "RECEPTIONIST");
         return ResponseEntity.ok(queueService.complete(id, userId, role));
     }
 
-    /** Admin-only live overview across all doctors. */
-    @Operation(summary = "Live queue overview (Admin only)",
+    /** Admin/Receptionist live overview across all doctors. */
+    @Operation(summary = "Live queue overview (Admin/Receptionist)",
             description = "Hospital-wide live overview: summary metrics (waiting, in-progress, doctors online/offline, " +
                     "delayed, average wait) plus a per-doctor breakdown with queue loads.")
     @ApiResponses(value = {
@@ -392,7 +392,7 @@ public class QueueController {
     public ResponseEntity<LiveQueueOverviewDto> getLiveOverview(
             @Parameter(hidden = true) @RequestHeader("X-User-Role") String role) {
 
-        RoleGuard.requireRole(role, "ADMIN");
+        RoleGuard.requireAnyRole(role, "ADMIN", "RECEPTIONIST");
         return ResponseEntity.ok(queueService.getLiveOverview());
     }
 

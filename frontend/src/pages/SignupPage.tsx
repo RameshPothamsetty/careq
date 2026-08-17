@@ -11,6 +11,7 @@ const ROLES = [
   { value: 'PATIENT', icon: '👤', labelKey: 'auth.rolePatient', descKey: 'auth.rolePatientDesc' },
   { value: 'DOCTOR', icon: '🩺', labelKey: 'auth.roleDoctor', descKey: 'auth.roleDoctorDesc' },
   { value: 'ADMIN', icon: '⚙️', labelKey: 'auth.roleAdmin', descKey: 'auth.roleAdminDesc' },
+  { value: 'RECEPTIONIST', icon: '🗂️', labelKey: 'auth.roleReceptionist', descKey: 'auth.roleReceptionistDesc' },
 ] as const;
 
 export default function SignupPage() {

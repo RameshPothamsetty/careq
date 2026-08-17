@@ -23,6 +23,7 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import AdminDepartmentManager from './pages/AdminDepartmentManager';
 import AdminDoctorManager from './pages/AdminDoctorManager';
 import AdminUserManager from './pages/AdminUserManager';
+import ReceptionistDashboard from './pages/ReceptionistDashboard';
 
 /**
  * Null-rendering bridge that keeps the real-time notification socket alive
@@ -129,6 +130,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/receptionist/*"
+            element={
+              <ProtectedRoute allowedRoles={['RECEPTIONIST']}>
+                <ReceptionistDashboard />
               </ProtectedRoute>
             }
           />

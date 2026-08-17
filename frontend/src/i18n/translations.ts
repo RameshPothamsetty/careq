@@ -55,6 +55,8 @@ export const en = {
   'auth.rolePatientDesc': 'Browse doctors & join queues',
   'auth.roleDoctorDesc': 'Manage your live queue',
   'auth.roleAdminDesc': 'Departments, doctors & oversight',
+  'auth.roleReceptionist': 'Receptionist',
+  'auth.roleReceptionistDesc': 'Manage the front desk & live queues',
   'auth.alreadyHaveAccount': 'Already have an account?',
   'auth.signupFailed': 'Signup failed. Please try again.',
   // Email verification + password reset
@@ -328,6 +330,8 @@ const hi: Record<TranslationKey, string> = {
   'auth.rolePatientDesc': 'डॉक्टर देखें और कतार में शामिल हों',
   'auth.roleDoctorDesc': 'अपनी लाइव कतार प्रबंधित करें',
   'auth.roleAdminDesc': 'विभाग, डॉक्टर और निगरानी',
+  'auth.roleReceptionist': 'रिसेप्शनिस्ट',
+  'auth.roleReceptionistDesc': 'फ्रंट डेस्क और लाइव कतारें संभालें',
   'auth.alreadyHaveAccount': 'पहले से खाता है?',
   'auth.signupFailed': 'साइन अप विफल रहा। कृपया पुनः प्रयास करें।',
   // Email verification + password reset
@@ -585,6 +589,8 @@ const te: Record<TranslationKey, string> = {
   'auth.rolePatientDesc': 'డాక్టర్లను చూడండి & క్యూలో చేరండి',
   'auth.roleDoctorDesc': 'మీ లైవ్ క్యూను నిర్వహించండి',
   'auth.roleAdminDesc': 'విభాగాలు, డాక్టర్లు & పర్యవేక్షణ',
+  'auth.roleReceptionist': 'రిసెప్షనిస్ట్',
+  'auth.roleReceptionistDesc': 'ఫ్రంట్ డెస్క్ & లైవ్ క్యూలను నిర్వహించండి',
   'auth.alreadyHaveAccount': 'ఇప్పటికే ఖాతా ఉందా?',
   'auth.signupFailed': 'సైన్ అప్ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
   // Email verification + password reset

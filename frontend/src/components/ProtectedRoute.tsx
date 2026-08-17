@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const KNOWN_ROLES = ['PATIENT', 'DOCTOR', 'ADMIN'] as const;
+const KNOWN_ROLES = ['PATIENT', 'DOCTOR', 'ADMIN', 'RECEPTIONIST'] as const;
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

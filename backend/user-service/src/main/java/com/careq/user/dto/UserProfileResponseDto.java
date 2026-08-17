@@ -35,7 +35,7 @@ public class UserProfileResponseDto {
     @Schema(description = "Public URL of the stored profile picture, if any", example = "/api/users/profile-pictures/abc123.jpg")
     private String profilePictureUrl;
 
-    @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN"})
+    @Schema(description = "Account role", example = "PATIENT", allowableValues = {"PATIENT", "DOCTOR", "ADMIN", "RECEPTIONIST"})
     private String role;
 
     public UserProfileResponseDto() {
