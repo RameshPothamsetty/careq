@@ -72,6 +72,16 @@ app:
     email-max: ${AUTH_RATE_LIMIT_EMAIL_MAX:3}
     email-window-minutes: ${AUTH_RATE_LIMIT_EMAIL_WINDOW_MINUTES:60}
 
+management:
+  health:
+    # Mail is optional (fail-open): with spring-boot-starter-mail on the
+    # classpath Spring Boot auto-registers a MailHealthIndicator that does
+    # a real SMTP connect. With blank local-docker credentials that AUTH
+    # fails and /actuator/health reports DOWN forever, which would block
+    # the CD smoke health check. The app's health must not depend on mail.
+    mail:
+      enabled: false
+
 springdoc:
   api-docs:
     # Swagger/OpenAPI is gated by SPRINGDOC_ENABLED so production
