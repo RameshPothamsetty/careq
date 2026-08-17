@@ -1,7 +1,7 @@
 # CareQ — API Contract
 
 **Version:** 1.9
-**Status:** Added notification-service endpoints (`/api/notifications`), `GET /api/doctors/me`, health probe for notification-service
+**Status:** Added Phase 2 endpoints — `GET /api/doctors/search` (ranked), `POST /api/queue/chat` (AI assistant), `/api/bills/**` (sandbox billing); WebSocket STOMP at `/ws` (notification-service)
 
 ---
 
@@ -638,6 +638,44 @@ GET /api/doctors/me
 
 ---
 
+### 11c. Ranked Doctor Search (RAG-style)
+
+```
+GET /api/doctors/search?q=<query>
+```
+
+**Auth:** All authenticated roles
+
+**Query Parameters:**
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| q | String (required) | — | Free-text query (symptom, specialty, department, doctor name) |
+| limit | int | 10 | Max results (clamped to 50) |
+
+**Description:** Deterministic, RAG-style relevance retrieval — no vector store. Every catalog doctor is scored by weighted token overlap between the normalized query and their **name (3×), specialization (2×), department (2×), and qualification (1×)**; ties break alphabetically. Returns a flat, relevance-ranked list (not paginated) — one `DoctorSearchResultDto` per doctor (same fields as `DoctorCatalogResponseDto` plus `score`). Drives the patient browse screen's search box and grounds the AI chat assistant's doctor suggestions.
+
+**Success Response (200):**
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "name": "Dr. Arjun Sharma",
+      "departmentName": "Cardiology",
+      "specialization": "Interventional Cardiology",
+      "qualification": "MD, DM Cardiology",
+      "experienceYears": 12,
+      "consultationFee": 500.00,
+      "avgConsultationTimeMinutes": 15,
+      "isAvailable": true,
+      "score": 0.95
+    }
+  ]
+}
+```
+
+---
+
 ## Queue Endpoints (`/api/queue`)
 
 All queue endpoints require a valid JWT (validated at the gateway) and use the `X-User-Id` / `X-User-Role` headers propagated by the API Gateway.
@@ -1015,6 +1053,106 @@ GET /api/queue/analytics/summary
 **Sparse/empty data behavior:** with no activity in the window the endpoint still returns 200 with seven zero-filled days and an empty `departmentDistribution` — it never crashes or 500s on an empty dataset.
 
 **Error Responses:** `403` (non-admin). If doctor-service is unreachable, `departmentDistribution` degrades to an empty list (logged) while the time series still return — a doctor-service outage does not take down the whole analytics response.
+
+---
+
+### 19b. AI Chat Assistant (Patient)
+
+```
+POST /api/queue/chat
+```
+
+**Auth:** Any authenticated role
+
+**Headers:** `X-User-Id`, `X-User-Role` (set by gateway)
+
+**Request Body:**
+```json
+{
+  "message": "How long will I wait?"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "reply": "You are position 2 of 5 with an estimated wait of ~15 minutes.",
+  "intent": "WAIT_TIME",
+  "suggestedDoctors": []
+}
+```
+
+**Description:** Heuristic intent matching over live data (deterministic — works with no Groq key):
+- `WAIT_TIME` — resolves the caller's active queue entry and answers with position + estimated wait
+- `SYMPTOM_TRIAGE` — maps reported symptoms to a suggested department + ranked doctors (reuses `DoctorRecommendationService`); replies include `suggestedDoctors`
+- `HELP` / `DEFAULT` — generic guidance
+
+**Error Responses:** `400` (empty message), `503` (doctor-service unreachable — degrades to a generic reply instead).
+
+---
+
+## Bill Endpoints (`/api/bills`)
+
+Bills are created automatically when a visit is marked **completed**: the queue-service charges the doctor's catalog `consultationFee` (fetched via Feign), adds 18% GST, and stores an `UNPAID` bill. Payments are **sandboxed** — `POST …/pay` flips the status to `PAID` with a timestamp; no gateway, no real money.
+
+### 25. My Bills (Patient)
+
+```
+GET /api/bills/my
+```
+
+**Auth:** PATIENT
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": 12,
+    "queueEntryId": 34,
+    "doctorName": "Dr. Arjun Sharma",
+    "departmentName": "Cardiology",
+    "amount": 500.00,
+    "gst": 90.00,
+    "total": 590.00,
+    "status": "UNPAID",
+    "createdAt": "2026-08-17T10:00:00"
+  }
+]
+```
+
+**Error Responses:** `403` (non-patient), `404` (no profile identity).
+
+---
+
+### 26. Bills for a Queue (Doctor/Admin/Receptionist)
+
+```
+GET /api/bills/queue/{queueEntryId}
+```
+
+**Auth:** DOCTOR, ADMIN, or RECEPTIONIST
+
+**Description:** The single bill for a given queue entry — lets the doctor's queue screen surface the invoice for a completed visit. Ownership-checked: doctors can only fetch their own queue's bills; ADMIN/RECEPTIONIST can fetch any.
+
+**Success Response (200):** one `BillResponseDto` (same shape as above).
+
+**Error Responses:** `403` (wrong role or not your queue), `404` (no bill for this queue entry).
+
+---
+
+### 27. Pay a Bill (sandbox)
+
+```
+POST /api/bills/{id}/pay
+```
+
+**Auth:** the owning PATIENT (or ADMIN)
+
+**Description:** Sandbox payment — marks the bill `PAID` and records `paidAt`. Idempotent: paying an already-`PAID` bill succeeds (no error).
+
+**Success Response (200):** updated `BillResponseDto` with `"status": "PAID"`.
+
+**Error Responses:** `403` (not the owner), `404` (no such bill).
 
 ---
 

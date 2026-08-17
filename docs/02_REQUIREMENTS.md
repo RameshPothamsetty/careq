@@ -52,9 +52,7 @@ The goal is to reduce average patient wait time by 30% and ensure that no urgent
 - Receptionist role
 - Payment/billing anything
 
-> These items are tracked in the **Phase 2 Roadmap** and remain out of scope for the current release.
->
-> **Update:** email verification and password reset were **added** (they were implicit gaps, not roadmap items). The remaining Phase 2 items above (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments) are still out of scope.
+> **Update:** email verification and password reset were **added** (they were implicit gaps, not roadmap items). The Phase 2 items above were **all delivered** in a later pass: AI load-balancing (auto-assign), AI assistant chat (`/api/queue/chat`), RAG-style ranked doctor search (`/api/doctors/search`), WebSocket real-time push (STOMP at `/ws`), Redis catalog caching, the RECEPTIONIST role, and sandbox billing. The only remaining roadmap item is **email/SMS notification channels** — the notification delivery architecture is channel-agnostic, so an email transport is a new class + flag, not a re-architecture.
 
 ---
 
@@ -127,6 +125,9 @@ A Doctor logs in to see a live queue of patients assigned to them. The queue dis
 
 ### Admin
 An Admin has a system-wide view. They can create and manage departments, add/edit doctor profiles, view all queues across all departments, monitor real-time load, and manage user accounts (activate/deactivate). Admins do not interact directly with patients in the queue.
+
+### Receptionist
+A Receptionist (front-desk) can view and advance any doctor's live queue — seeing queue positions, triage levels, and estimated waits, and marking patients In Consultation / Completed — without any administrative powers over users, departments, or doctors. Receptionists are created by an Admin; the role is not offered at public self-signup.
 
 ---
 
@@ -229,14 +230,16 @@ An Admin has a system-wide view. They can create and manage departments, add/edi
 
 ---
 
-## 8. Out of Scope (Phase 2 Roadmap)
+## 8. Delivered Roadmap Items (formerly Phase 2 Out of Scope)
 
-| Feature | Rationale |
+All originally out-of-scope items below were delivered in later passes (see `docs/03_ARCHITECTURE.md` § 16). The single remaining roadmap item is **email/SMS notification channels**.
+
+| Feature | Delivery |
 |---------|-----------|
-| AI load-balancing across doctors | Requires advanced ML model — Phase 2 |
-| Standalone AI assistant chat | Not part of core OPD flow |
-| RAG / vector search | Infrastructure-heavy, not needed for MVP |
-| WebSocket real-time push | Adds complexity — polling suffices for MVP |
-| Redis caching | Performance optimization, not required for MVP scale |
-| Receptionist role | Role scope creep — MVP limits to 3 roles |
-| Payment/billing | Out of scope for OPD operations |
+| AI load-balancing across doctors | ✅ Auto-assign — symptoms → best available doctor, tied by shortest predicted wait |
+| Standalone AI assistant chat | ✅ `POST /api/queue/chat` + frontend chat page |
+| RAG / vector search | ✅ Ranked relevance search (`GET /api/doctors/search`), deterministic, no vector store |
+| WebSocket real-time push | ✅ STOMP at `/ws`, per-user topics, polling fallback |
+| Redis caching | ✅ Doctor/department catalog, 60s TTL |
+| Receptionist role | ✅ RECEPTIONIST role with queue management, no admin powers |
+| Payment/billing | ✅ Sandbox per-visit bills (catalog fee + 18% GST), `PAID`/`UNPAID` flow |

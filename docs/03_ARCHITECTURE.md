@@ -443,3 +443,79 @@ Analytics retains and can query (`docs/12_MONITORING.md` §3).
 - **Monitoring/backups:** scheduled uptime check (GitHub issue on failure),
   Log Analytics diagnostic script, MySQL PITR runbook — all in
   `docs/12_MONITORING.md`.
+
+## 16. Phase 2 Delivery — WebSockets, AI chat, RAG search, receptionist, billing
+
+A second roadmap pass delivered the remaining Phase 2 items as code-only
+changes (no new Azure resources, no paid APIs — chat/search stay
+heuristic-first like the existing triage, and billing is sandboxed).
+
+### WebSocket real-time push (notification-service)
+
+- **STOMP endpoint at `/ws`** with a `WsAuthChannelInterceptor` that
+  validates the JWT from the STOMP `CONNECT` frame (browsers can't set
+  headers on the WS handshake, so the gateway skips JWT auth for `/ws/**`
+  and auth happens at the STOMP layer). The authenticated user's id is
+  attached as a session attribute.
+- **`WebSocketNotifier`** pushes to the per-user topic
+  `/topic/notifications/{userId}` whenever the consumer persists a
+  notification. The frontend subscribes via `@stomp/stompjs`; the existing
+  15s polling stays as the automatic fallback (subscribe-on-mount, poll on
+  failure).
+- The gateway adds a `lb://notification-service` route for `/ws/**`
+  (WebSocket upgrade requests pass through the JWT skip list).
+
+### AI chat assistant (queue-service)
+
+- **`POST /api/queue/chat`** (`ChatService`) answers plain-language
+  questions with heuristic intent matching over live data: queue position
+  / wait time, symptoms → suggested department + doctors (reusing
+  `DoctorRecommendationService`), and generic replies. `AiTriageClient`
+  stays the optional Groq path with graceful fallback — the chat itself is
+  deterministic, so it works with zero external keys.
+- Frontend **`ChatPage`** gives patients a chat UI wired to this endpoint
+  (message bubbles, loading state, quick-reply chips).
+
+### RAG-style ranked search (doctor-service)
+
+- **`GET /api/doctors/search?q=…`** scores every catalog doctor by
+  normalized token overlap across name, specialization, department and
+  qualifications (weighted), returning a relevance-ranked list with the
+  same shape as the browse response. No vector store — retrieval is
+  deterministic and instant, which is the right fit for a small catalog;
+  it feeds both the patient browse screen's search box and chat grounding.
+
+### Receptionist role (cross-cutting)
+
+- New `RECEPTIONIST` enum value in auth-service (persisted as a string, so
+  no migration); user-service profiles and the frontend role lists treat it
+  like any other role.
+- queue-service role guards admit `RECEPTIONIST` alongside `ADMIN` for
+  cross-doctor queue management and alongside `DOCTOR` for per-doctor
+  actions — a front-desk user can see and advance any doctor's queue but
+  cannot touch users, departments or doctors (doctor/user services remain
+  admin-only).
+- Frontend `ReceptionistDashboard` reuses the admin queue overview; the
+  signup page no longer offers the role (receptionists are created
+  admin-side, consistent with doctors).
+
+### Billing (queue-service, sandbox)
+
+- When a visit is marked **completed**, `QueueServiceImpl` creates a
+  `Bill` at the doctor's catalog fee (`fee` from doctor-service via Feign),
+  with `status = UNPAID` and a computed `gst` (18%).
+- **`GET /api/bills/my`** (patient), **`GET /api/bills/queue/{queueId}`**
+  (doctor/admin/receptionist), **`POST /api/bills/{id}/pay`** — the sandbox
+  payment marks the bill `PAID` and records the `paidAt` timestamp; no
+  gateway, no real money. `BillServiceTest` covers creation, ownership
+  checks and the pay flow.
+- Frontend `PatientBillsPage` lists a patient's bills with status badges
+  and a sandbox "Pay now" action; bills auto-appear after any completed
+  visit.
+
+### Cost posture
+
+All six items are pure application code — no new Azure resources, no paid
+APIs, no storage growth beyond the two small tables (`bills`, plus the
+STOMP session state which is in-memory). The container footprint and
+monthly run-rate are unchanged by this pass.

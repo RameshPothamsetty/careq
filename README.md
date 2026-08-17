@@ -26,6 +26,9 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 - **Recent visits & recommendations** — your visit history with statuses and timestamps, plus doctor recommendations based on your last visit's department (continuity of care)
 - **Leave the queue** — cancel your own waiting entry anytime; cancelled visits appear in your history
 - **Profile** — manage phone, address, DOB, gender, and profile picture
+- **AI chat assistant** — ask plain-language questions ("How long will I wait?", "Which doctor for chest pain?") and get answers grounded in live queue data and the doctor catalog
+- **Ranked doctor search** — type a symptom or specialty and get relevance-ranked results across names, specializations, departments and qualifications
+- **Bills** — every completed visit generates an invoice at the doctor's fee + 18% GST, viewable in a dedicated bills page with a sandbox "Pay now" flow
 - **Multilingual UI (i18n)** — switch between English / हिन्दी / తెలుగు from the 🌐 switcher on login and in the header; your choice is remembered per browser
 
 ### 🩺 Doctor
@@ -37,6 +40,10 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 - **Triage override** — the doctor's clinical judgment is final and reorders the queue
 - **Call next / complete** with one tap, and toggle your own availability (online/offline)
 
+### 🧑‍💼 Receptionist (front desk)
+- **Live queue management** — see every doctor's queue with triage levels and estimated waits, and mark patients In Consultation / Completed, without any admin powers over users, departments, or doctors
+- Created by an Admin — not offered at public self-signup
+
 ### ⚙️ Admin
 - **Manage departments & doctors** — full CRUD with search, server-side pagination and sortable columns
 - **Doctor detail drawer** — click any doctor for the full record (qualification, fees, experience) plus their live queue snapshot
@@ -46,6 +53,7 @@ OPDs are chaotic: patients wait with no idea how long it will take, urgent cases
 
 ### 🔔 Everyone
 - **In-app notifications** — the bell's history is now **real persisted data**: queue-service publishes every state change (joined / triaged / called / completed) onto a RabbitMQ event bus, a dedicated notification-service persists it, and the bell (polled every 15s) survives refreshes. The real-time toast-on-status-change layer still fires instantly on top.
+- **Real-time WebSocket push** — the bell updates **instantly** over STOMP at `/ws` (JWT-authenticated at the connection layer); the 15s polling stays as an automatic fallback
 - **Web Push notifications** — the Phase 2 "real delivery" item, delivered as **browser push via VAPID** (free — no third-party account): patients flip a toggle in the bell, grant the browser permission, and get OS-level alerts ("It's your turn!") even when CareQ is closed. Per-user preferences (`notification_preferences`) + per-browser subscriptions (`push_subscriptions`), async fail-open delivery on the notification-service side; email/SMS remain future channels.
 - **Launch hardening** — **email verification + password reset** (one-time hashed tokens via Gmail SMTP, legacy accounts grandfathered), **rate limiting** on signup/login/resend/forgot (brute-force guard), a request-level **audit trail** (gateway `ACCESS` + auth `AUDIT` logs), **Swagger disabled in production**, **MySQL TLS**, **security headers** (CSP/HSTS on Vercel + nginx + gateway), a 15-minute **uptime check** that opens a GitHub issue when the site is down, and a **monitoring/backup runbook** (`docs/12_MONITORING.md`).
 
@@ -294,7 +302,7 @@ Every milestone's work is tracked as a GitHub Issue with a checked-off deliverab
 
 ## Phase 2 Roadmap (explicitly out of scope today)
 
-Client-side derived notifications (session-only, resets on refresh) were an early scoping decision; that limitation was later removed with the Redis + RabbitMQ + notification-service work (see the Project Status table), which delivers persisted in-app notifications. Cloud deployment runs on **Azure Container Apps** + **Vercel** frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures (ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The Phase 2 delivery item was **partially delivered**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). Launch-critical gaps are closed: email verification + password reset (Gmail SMTP — no third-party account needed), brute-force rate limiting, an access/audit log trail, Swagger locked down in production, MySQL TLS, security headers, and a free-tier monitoring + backup runbook (`docs/12_MONITORING.md`). The genuinely-out-of-scope roadmap items that remain are the product/scale features (AI load-balancing, AI chat, RAG, WebSockets, Redis caching, receptionist role, payments). See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–15 for the design decisions.
+Client-side derived notifications (session-only, resets on refresh) were an early scoping decision; that limitation was later removed with the Redis + RabbitMQ + notification-service work (see the Project Status table), which delivers persisted in-app notifications. Cloud deployment runs on **Azure Container Apps** + **Vercel** frontend + free-tier MySQL Flexible Server + Blob Storage for profile pictures (ephemeral Redis/RabbitMQ storage is the one documented trade-off — profile pictures persist in Blob Storage). The Phase 2 delivery item was **partially delivered**: browser **Web Push** is live (free, self-hosted VAPID — no account needed); **email/SMS** channels remain future work (the preference + delivery architecture is channel-agnostic: a per-user flag + a destination registry, so an email transport is a new class + flag, not a re-architecture). Launch-critical gaps are closed: email verification + password reset (Gmail SMTP — no third-party account needed), brute-force rate limiting, an access/audit log trail, Swagger locked down in production, MySQL TLS, security headers, and a free-tier monitoring + backup runbook (`docs/12_MONITORING.md`). The Phase 2 product/scale roadmap items are now **delivered**: **AI load-balancing** (auto-assign: symptoms → the single best available doctor, tied by shortest live wait), **WebSocket real-time push** (STOMP at `/ws` — the bell updates instantly, polling remains the fallback), **AI chat assistant** (heuristic intents over live queue/catalog data at `/api/queue/chat`), **RAG-style retrieval** (ranked `GET /api/doctors/search` scoring name/specialization/department/qualification, feeding the browse screen + chat grounding), **Redis caching** (doctor catalog, 60s TTL), **Receptionist role** (front-desk live queue management) and **billing** (per-visit invoices at the doctor's catalog fee with a sandbox payment flow). The only remaining roadmap item is **email/SMS notification channels** — the delivery architecture is channel-agnostic (a per-user flag + destination registry), so an email transport is a new class + flag, not a re-architecture. See [`docs/03_ARCHITECTURE.md`](docs/03_ARCHITECTURE.md) § 11–16 for the design decisions.
 
 ## Git Branching Strategy
 
