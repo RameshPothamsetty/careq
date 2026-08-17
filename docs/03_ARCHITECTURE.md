@@ -162,8 +162,7 @@
 | `/api/users/{id}` | user-service | Yes | ADMIN only | View any profile |
 | `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Doctor catalog |
 | `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Department catalog |
-| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Queue + AI triage + chat (`/api/queue/chat`) |
-| `/api/bills/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN, RECEPTIONIST | Sandbox billing |
+| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Queue + AI triage + chat (`/api/queue/chat`) + sandbox bills (`/api/queue/bills/**`) |
 | `/api/notifications/**` | notification-service | Yes | PATIENT, DOCTOR, ADMIN | Persisted in-app notifications |
 | `/ws/**` | notification-service | STOMP-frame JWT | PATIENT, DOCTOR, ADMIN | WebSocket real-time push |
 | `/api/eureka/**` | eureka-server | No | — (internal) | |
@@ -505,10 +504,10 @@ heuristic-first like the existing triage, and billing is sandboxed).
 
 - When a visit is marked **completed**, `QueueServiceImpl` creates a
   `Bill` at the doctor's catalog fee (`fee` from doctor-service via Feign),
-  with `status = UNPAID` and a computed `gst` (18%).
-- **`GET /api/bills/my`** (patient), **`GET /api/bills/queue/{queueId}`**
-  (doctor/admin/receptionist), **`POST /api/bills/{id}/pay`** — the sandbox
-  payment marks the bill `PAID` and records the `paidAt` timestamp; no
+  with `status = PENDING` and a computed `gst` (18%).
+- **`GET /api/queue/bills/my`** (patient), **`GET /api/queue/bills/{id}`**
+  (patient, ownership-checked), **`POST /api/queue/bills/{id}/pay`** — the
+  sandbox payment marks the bill `PAID` and records the payment method; no
   gateway, no real money. `BillServiceTest` covers creation, ownership
   checks and the pay flow.
 - Frontend `PatientBillsPage` lists a patient's bills with status badges

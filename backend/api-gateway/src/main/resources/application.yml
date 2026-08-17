@@ -33,11 +33,8 @@ spring:
           uri: lb://queue-service
           predicates:
             - Path=/api/queue/**
-
-        - id: queue-bills
-          uri: lb://queue-service
-          predicates:
-            - Path=/api/bills/**
+          # Bill endpoints live in queue-service under /api/queue/bills/**,
+          # so the /api/queue/** route above covers them — no extra route.
 
         - id: notification-service
           uri: lb://notification-service

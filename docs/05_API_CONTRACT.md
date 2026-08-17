@@ -1,7 +1,7 @@
 # CareQ — API Contract
 
 **Version:** 1.9
-**Status:** Added Phase 2 endpoints — `GET /api/doctors/search` (ranked), `POST /api/queue/chat` (AI assistant), `/api/bills/**` (sandbox billing); WebSocket STOMP at `/ws` (notification-service)
+**Status:** Added Phase 2 endpoints — `GET /api/doctors/search` (ranked), `POST /api/queue/chat` (AI assistant), `/api/queue/bills/**` (sandbox billing); WebSocket STOMP at `/ws` (notification-service)
 
 ---
 
@@ -1090,14 +1090,14 @@ POST /api/queue/chat
 
 ---
 
-## Bill Endpoints (`/api/bills`)
+## Bill Endpoints (`/api/queue/bills`)
 
-Bills are created automatically when a visit is marked **completed**: the queue-service charges the doctor's catalog `consultationFee` (fetched via Feign), adds 18% GST, and stores an `UNPAID` bill. Payments are **sandboxed** — `POST …/pay` flips the status to `PAID` with a timestamp; no gateway, no real money.
+Bills live in **queue-service** (so they ride the existing `/api/queue/**` gateway route — no separate route needed). They are created automatically when a visit is marked **completed**: the queue-service charges the doctor's catalog `consultationFee` (fetched via Feign), adds 18% GST, and stores a `PENDING` bill. Payments are **sandboxed** — `POST …/pay` flips the status to `PAID` with a timestamp; no gateway, no real money.
 
 ### 25. My Bills (Patient)
 
 ```
-GET /api/bills/my
+GET /api/queue/bills/my
 ```
 
 **Auth:** PATIENT
@@ -1113,7 +1113,7 @@ GET /api/bills/my
     "amount": 500.00,
     "gst": 90.00,
     "total": 590.00,
-    "status": "UNPAID",
+    "status": "PENDING",
     "createdAt": "2026-08-17T10:00:00"
   }
 ]
@@ -1123,35 +1123,37 @@ GET /api/bills/my
 
 ---
 
-### 26. Bills for a Queue (Doctor/Admin/Receptionist)
+### 26. Bill Detail (Patient)
 
 ```
-GET /api/bills/queue/{queueEntryId}
+GET /api/queue/bills/{id}
 ```
 
-**Auth:** DOCTOR, ADMIN, or RECEPTIONIST
+**Auth:** the owning PATIENT
 
-**Description:** The single bill for a given queue entry — lets the doctor's queue screen surface the invoice for a completed visit. Ownership-checked: doctors can only fetch their own queue's bills; ADMIN/RECEPTIONIST can fetch any.
+**Description:** One of the calling patient's bills by ID. Ownership-checked.
 
-**Success Response (200):** one `BillResponseDto` (same shape as above).
+**Success Response (200):** one `BillResponseDto`.
 
-**Error Responses:** `403` (wrong role or not your queue), `404` (no bill for this queue entry).
+**Error Responses:** `403` (not a patient, or another patient's bill), `404` (no such bill).
 
 ---
 
 ### 27. Pay a Bill (sandbox)
 
 ```
-POST /api/bills/{id}/pay
+POST /api/queue/bills/{id}/pay
 ```
 
-**Auth:** the owning PATIENT (or ADMIN)
+**Auth:** the owning PATIENT
 
-**Description:** Sandbox payment — marks the bill `PAID` and records `paidAt`. Idempotent: paying an already-`PAID` bill succeeds (no error).
+**Request Body:** `{ "paymentMethod": "card" }`
+
+**Description:** Sandbox payment — marks the bill `PAID` and records the payment method. Idempotent: paying an already-`PAID` bill succeeds (no error).
 
 **Success Response (200):** updated `BillResponseDto` with `"status": "PAID"`.
 
-**Error Responses:** `403` (not the owner), `404` (no such bill).
+**Error Responses:** `400` (paymentMethod required), `403` (not the owner), `404` (no such bill).
 
 ---
 
