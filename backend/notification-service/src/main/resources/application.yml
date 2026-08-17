@@ -51,6 +51,17 @@ eureka:
 notifications:
   max-page-size: 50
 
+app:
+  jwt:
+    # Shared HS256 secret — validates the JWT on the STOMP CONNECT frame of
+    # the real-time socket (browsers cannot set headers on the WS handshake,
+    # so auth happens here instead of the gateway).
+    secret: ${JWT_SECRET:CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
+  cors:
+    # Origins allowed to open the /ws socket. Same value the gateway uses for
+    # CORS; the real auth check is the token on the CONNECT frame.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3030,http://localhost:5173}
+
 # Web Push (VAPID) delivery. Both keys are base64url strings from
 # `npx web-push generate-vapid-keys` (the public key is also baked into the
 # frontend build as VITE_VAPID_PUBLIC_KEY). Empty keys → delivery disabled

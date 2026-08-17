@@ -269,6 +269,7 @@ services:
       MYSQL_PORT: 3306
       MYSQL_USER: ${MYSQL_USER:-root}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      JWT_SECRET: ${JWT_SECRET:-CareQTempSecretKeyForDevelopmentOnlyChangeInProduction2024}
       # RabbitMQ consumer.
       RABBITMQ_HOST: rabbitmq
       # Web Push (VAPID). Optional — without the keys, push delivery

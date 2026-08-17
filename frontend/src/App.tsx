@@ -4,6 +4,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ToastHost from './components/ToastHost';
 import ProtectedRoute from './components/ProtectedRoute';
+import { useNotificationSocket } from './hooks/useNotificationSocket';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -21,6 +22,15 @@ import AdminAnalytics from './pages/AdminAnalytics';
 import AdminDepartmentManager from './pages/AdminDepartmentManager';
 import AdminDoctorManager from './pages/AdminDoctorManager';
 import AdminUserManager from './pages/AdminUserManager';
+
+/**
+ * Null-rendering bridge that keeps the real-time notification socket alive
+ * for the whole authenticated session (inside Auth + Notification providers).
+ */
+function NotificationSocketBridge() {
+  useNotificationSocket();
+  return null;
+}
 
 function App() {
   return (
@@ -143,6 +153,7 @@ function App() {
           </Routes>
         </div>
         <ToastHost />
+        <NotificationSocketBridge />
         </ThemeProvider>
       </NotificationProvider>
     </AuthProvider>

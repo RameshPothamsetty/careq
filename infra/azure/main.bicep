@@ -796,6 +796,7 @@ resource notificationServiceApp 'Microsoft.App/containerApps@2025-02-02-preview'
             memory: '1.0Gi'
           }
           env: concat(mysqlEnv, [
+            { name: 'JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'RABBITMQ_HOST', value: 'careq-rabbitmq' }
             { name: 'RABBITMQ_PORT', value: '5672' }
             { name: 'RABBITMQ_USERNAME', secretRef: 'rabbitmq-user' }

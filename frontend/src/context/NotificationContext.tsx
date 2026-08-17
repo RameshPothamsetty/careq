@@ -31,6 +31,8 @@ interface NotificationContextType {
   /** Toasts currently visible (auto-dismissing). */
   toasts: ToastItem[];
   dismissToast: (id: string) => void;
+  /** Fires an auto-dismissing toast (used by the real-time socket). */
+  pushToast: (title: string, message: string, kind: ToastItem['kind']) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
@@ -80,9 +82,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const pushToast = useCallback((title: string, message: string, kind: ToastItem['kind']) => {
+    addEvent({ title, message, kind });
+  }, [addEvent]);
+
   const value = useMemo<NotificationContextType>(
-    () => ({ toasts, dismissToast }),
-    [toasts, dismissToast],
+    () => ({ toasts, dismissToast, pushToast }),
+    [toasts, dismissToast, pushToast],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

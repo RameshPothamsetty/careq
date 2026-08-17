@@ -3,6 +3,7 @@ package com.careq.notification.service;
 import com.careq.notification.dto.QueueEventDto;
 import com.careq.notification.entity.NotificationEntry;
 import com.careq.notification.repository.NotificationEntryRepository;
+import com.careq.notification.dto.NotificationResponseDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,8 +15,10 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Consumer tests — the four known event types must persist a notification with
@@ -33,11 +36,14 @@ class NotificationConsumerTest {
     @Mock
     private WebPushDeliveryService webPushDeliveryService;
 
+    @Mock
+    private WebSocketNotifier webSocketNotifier;
+
     private NotificationConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new NotificationConsumer(repository, webPushDeliveryService);
+        consumer = new NotificationConsumer(repository, webPushDeliveryService, webSocketNotifier);
     }
 
     @Test
@@ -99,6 +105,24 @@ class NotificationConsumerTest {
         NotificationEntry saved = captureSaved();
         verify(webPushDeliveryService).deliverAsync(
                 PATIENT, "queue.called", saved.getMessage());
+    }
+
+    @Test
+    void onQueueEvent_Persisted_AlsoBroadcastsOverWebSocket() {
+        when(repository.save(any(NotificationEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        consumer.onQueueEvent(event("queue.called", null, "NORMAL"));
+
+        ArgumentCaptor<NotificationResponseDto> captor = ArgumentCaptor.forClass(NotificationResponseDto.class);
+        verify(webSocketNotifier).notify(eq(PATIENT), captor.capture());
+        assertThat(captor.getValue().getType()).isEqualTo("queue.called");
+        assertThat(captor.getValue().getMessage()).contains("has called you");
+    }
+
+    @Test
+    void onQueueEvent_UnknownType_DropsWithoutWebSocketBroadcast() {
+        consumer.onQueueEvent(event("queue.unknown", 1, "NORMAL"));
+
+        verify(webSocketNotifier, never()).notify(any(), any());
     }
 
     @Test

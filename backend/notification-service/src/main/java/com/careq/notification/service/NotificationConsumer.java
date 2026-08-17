@@ -1,6 +1,7 @@
 package com.careq.notification.service;
 
 import com.careq.notification.config.RabbitConfig;
+import com.careq.notification.dto.NotificationResponseDto;
 import com.careq.notification.dto.QueueEventDto;
 import com.careq.notification.entity.NotificationEntry;
 import com.careq.notification.repository.NotificationEntryRepository;
@@ -22,11 +23,14 @@ public class NotificationConsumer {
 
     private final NotificationEntryRepository repository;
     private final WebPushDeliveryService webPushDeliveryService;
+    private final WebSocketNotifier webSocketNotifier;
 
     public NotificationConsumer(NotificationEntryRepository repository,
-                                WebPushDeliveryService webPushDeliveryService) {
+                                WebPushDeliveryService webPushDeliveryService,
+                                WebSocketNotifier webSocketNotifier) {
         this.repository = repository;
         this.webPushDeliveryService = webPushDeliveryService;
+        this.webSocketNotifier = webSocketNotifier;
     }
 
     @RabbitListener(queues = RabbitConfig.NOTIFICATION_QUEUE)
@@ -45,13 +49,18 @@ public class NotificationConsumer {
         try {
             // The message column is VARCHAR(500) and doctorName can be up to
             // 255 chars — guard against a DataIntegrityViolation at the DB.
-            repository.save(new NotificationEntry(event.getRecipientUserId(), event.getEventType(), truncate(message, 500)));
+            NotificationEntry saved = repository.save(
+                    new NotificationEntry(event.getRecipientUserId(), event.getEventType(), truncate(message, 500)));
             log.debug("Persisted notification type={} for user {}", event.getEventType(), event.getRecipientUserId());
 
             // fire-and-forget Web Push. The in-app row is the source
             // of truth; delivery is async, best-effort and never blocks this
             // consumer (see WebPushDeliveryService for the fail-open contract).
             webPushDeliveryService.deliverAsync(event.getRecipientUserId(), event.getEventType(), message);
+
+            // Real-time push to any open tab subscribed to this user's topic.
+            // No subscribers → harmless no-op; failures are logged and swallowed.
+            webSocketNotifier.notify(event.getRecipientUserId(), NotificationResponseDto.fromEntity(saved));
         } catch (Exception e) {
             // Never redeliver-loop on a poisoned message (Spring AMQP's default
             // is to requeue a throwing listener forever, blocking the queue).

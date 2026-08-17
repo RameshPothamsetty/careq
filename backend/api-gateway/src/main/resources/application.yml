@@ -39,6 +39,14 @@ spring:
           predicates:
             - Path=/api/notifications/**
 
+        # WebSocket (STOMP) route for real-time notifications. Spring Cloud
+        # Gateway natively proxies WS/WSS when the uri scheme is ws://; the
+        # token is presented on the STOMP CONNECT frame (not the handshake).
+        - id: notification-ws
+          uri: lb:ws://notification-service
+          predicates:
+            - Path=/ws/**
+
         # ── OpenAPI aggregation routes ───────────────────────────────
         # Each downstream service's /v3/api-docs is exposed through the
         # gateway as /v3/api-docs/{service}, so one Swagger UI at

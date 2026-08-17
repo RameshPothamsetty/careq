@@ -69,6 +69,15 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        // Skip the WebSocket handshake — browsers cannot set HTTP headers on
+        // a WS upgrade, so the token cannot be presented here. Auth for the
+        // /ws route happens at the STOMP CONNECT frame inside
+        // notification-service (WsAuthChannelInterceptor), which is the
+        // actual security boundary.
+        if (path.startsWith("/ws")) {
+            return chain.filter(exchange);
+        }
+
         // Skip Swagger / OpenAPI routes  — the centralized docs UI is
         // public in this dev/demo setup so it can be browsed and tested without
         // a token. Swagger UI + aggregated specs + static assets are all covered.
