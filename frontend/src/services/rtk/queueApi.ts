@@ -13,6 +13,8 @@ import type {
   LiveQueueOverview,
   AnalyticsSummary,
   DoctorAnalyticsSummary,
+  ChatPayload,
+  ChatResponse,
 } from '../api';
 
 /**
@@ -43,6 +45,17 @@ export const queueApi = createApi({
     doctorSuggestions: builder.mutation<DoctorSuggestionResponse, DoctorSuggestionPayload>({
       query: (body) => ({
         url: '/api/queue/doctor-suggestions',
+        method: 'POST',
+        body,
+      }),
+    }),
+
+    // AI chat assistant — heuristic intents over live queue/catalog data.
+    // A mutation so it only fires on send; replies carry optional doctor
+    // suggestions the chat UI renders as tappable chips.
+    sendChatMessage: builder.mutation<ChatResponse, ChatPayload>({
+      query: (body) => ({
+        url: '/api/queue/chat',
         method: 'POST',
         body,
       }),
@@ -147,6 +160,7 @@ export const queueApi = createApi({
 export const {
   useJoinQueueMutation,
   useDoctorSuggestionsMutation,
+  useSendChatMessageMutation,
   useAutoAssignMutation,
   useGetMyQueueStatusQuery,
   useGetMyQueueHistoryQuery,

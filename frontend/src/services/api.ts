@@ -140,6 +140,25 @@ interface DoctorSuggestionResponse {
   suggestions: DoctorSuggestion[];
 }
 
+// ---- AI chat assistant ----
+
+interface ChatPayload {
+  message: string;
+}
+
+/**
+ * POST /api/queue/chat response — the assistant's reply plus optional
+ * ranked doctor suggestions (FIND_DOCTOR intents) for the UI to render
+ * as tappable chips.
+ */
+interface ChatResponse {
+  intent: string;
+  reply: string;
+  suggestions: DoctorSuggestion[];
+  suggestedDepartment: string | null;
+  emergency: boolean;
+}
+
 // ---- Auto-assign (Phase 2) ----
 
 /** Why an auto-assign call ended the way it did. */
@@ -455,6 +474,8 @@ export type {
   DoctorSuggestionPayload,
   DoctorSuggestion,
   DoctorSuggestionResponse,
+  ChatPayload,
+  ChatResponse,
   AutoAssignPayload,
   AutoAssignReason,
   AutoAssignResponse,

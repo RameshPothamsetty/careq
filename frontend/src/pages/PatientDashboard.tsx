@@ -13,6 +13,7 @@ import {
   Sparkles,
   Award,
   Wallet,
+  MessageCircle,
 } from 'lucide-react';
 import QueuePageHeader from '../components/QueuePageHeader';
 import {
@@ -44,6 +45,13 @@ const NAV_CARDS = [
     titleKey: 'patient.navMyQueue',
     descKey: 'patient.navMyQueueDesc',
     tint: 'from-sky-500 to-sky-700',
+  },
+  {
+    to: '/patient/chat',
+    icon: <MessageCircle className="h-6 w-6 text-white" />,
+    titleKey: 'patient.navChat',
+    descKey: 'patient.navChatDesc',
+    tint: 'from-violet-500 to-violet-700',
   },
 ] as const;
 

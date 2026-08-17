@@ -147,6 +147,10 @@ export const en = {
   'patient.navMyQueue': 'My Queue',
   'patient.navMyQueueDesc':
     'Join a queue, see your live position and AI-estimated wait time',
+  'patient.navChat': 'AI Assistant',
+  'patient.navChatDesc':
+    'Ask about your queue, get doctor suggestions for your symptoms',
+  'chat.placeholder': 'Ask me about your queue, doctors, or departments…',
   'patient.accountInfo': 'Account Info',
   'patient.name': 'Name',
   'patient.role': 'Role',
@@ -411,6 +415,10 @@ const hi: Record<TranslationKey, string> = {
   'patient.navMyQueue': 'मेरी कतार',
   'patient.navMyQueueDesc':
     'कतार में शामिल हों, अपनी लाइव स्थिति और AI-अनुमानित प्रतीक्षा देखें',
+  'patient.navChat': 'AI सहायक',
+  'patient.navChatDesc':
+    'अपनी कतार के बारे में पूछें, लक्षणों के लिए डॉक्टर सुझाव पाएं',
+  'chat.placeholder': 'कतार, डॉक्टर या विभागों के बारे में पूछें…',
   'patient.accountInfo': 'खाता जानकारी',
   'patient.name': 'नाम',
   'patient.role': 'भूमिका',
@@ -666,6 +674,10 @@ const te: Record<TranslationKey, string> = {
   'patient.navMyQueue': 'నా క్యూ',
   'patient.navMyQueueDesc':
     'క్యూలో చేరండి, మీ లైవ్ స్థానం మరియు AI-అంచనా వేచి సమయం చూడండి',
+  'patient.navChat': 'AI సహాయకుడు',
+  'patient.navChatDesc':
+    'మీ క్యూ గురించి అడగండి, లక్షణాలకు డాక్టర్ సూచనలు పొందండి',
+  'chat.placeholder': 'మీ క్యూ, డాక్టర్లు లేదా విభాగాల గురించి అడగండి…',
   'patient.accountInfo': 'ఖాతా సమాచారం',
   'patient.name': 'పేరు',
   'patient.role': 'పాత్ర',

@@ -3,6 +3,8 @@ package com.careq.queue.controller;
 import com.careq.queue.dto.AnalyticsSummaryDto;
 import com.careq.queue.dto.AutoAssignRequestDto;
 import com.careq.queue.dto.AutoAssignResponseDto;
+import com.careq.queue.dto.ChatRequestDto;
+import com.careq.queue.dto.ChatResponseDto;
 import com.careq.queue.dto.DoctorAnalyticsSummaryDto;
 import com.careq.queue.dto.DoctorSuggestionRequestDto;
 import com.careq.queue.dto.DoctorSuggestionResponseDto;
@@ -14,6 +16,7 @@ import com.careq.queue.dto.QueueStatusResponseDto;
 import com.careq.queue.exception.ErrorResponseDto;
 import com.careq.queue.exception.RoleGuard;
 import com.careq.queue.service.AutoAssignService;
+import com.careq.queue.service.ChatService;
 import com.careq.queue.service.DoctorRecommendationService;
 import com.careq.queue.service.QueueService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,13 +58,16 @@ public class QueueController {
     private final QueueService queueService;
     private final DoctorRecommendationService doctorRecommendationService;
     private final AutoAssignService autoAssignService;
+    private final ChatService chatService;
 
     public QueueController(QueueService queueService,
                            DoctorRecommendationService doctorRecommendationService,
-                           AutoAssignService autoAssignService) {
+                           AutoAssignService autoAssignService,
+                           ChatService chatService) {
         this.queueService = queueService;
         this.doctorRecommendationService = doctorRecommendationService;
         this.autoAssignService = autoAssignService;
+        this.chatService = chatService;
     }
 
     /** Patient joins the queue for a doctor. Triggers AI triage. Returns entry with predicted wait. */
@@ -156,6 +162,31 @@ public class QueueController {
         return response.isAssigned()
                 ? ResponseEntity.status(HttpStatus.CREATED).body(response)
                 : ResponseEntity.ok(response);
+    }
+
+    /** CareQ AI assistant — heuristic intent engine over live queue/catalog data. */
+    @Operation(summary = "AI chat assistant (Patient)",
+            description = "A conversational assistant that answers from live data: queue status, doctor " +
+                    "recommendations for symptoms (same ranking pipeline as auto-assign) and the department " +
+                    "catalog. Heuristic intents — no separate LLM call; the ranking pipeline degrades " +
+                    "gracefully when GROQ_API_KEY is absent. Never invents data: unknown messages get a " +
+                    "friendly fallback listing capabilities, and urgent symptoms carry an emergency warning.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Assistant reply (intent + text + optional suggestions)",
+                    content = @Content(schema = @Schema(implementation = ChatResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed (message required)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class))),
+            @ApiResponse(responseCode = "403", description = "Caller is not a PATIENT",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDto.class)))
+    })
+    @PostMapping("/chat")
+    public ResponseEntity<ChatResponseDto> chat(
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") String userId,
+            @Parameter(hidden = true) @RequestHeader("X-User-Role") String role,
+            @Valid @RequestBody ChatRequestDto request) {
+
+        RoleGuard.requireRole(role, "PATIENT");
+        return ResponseEntity.ok(chatService.chat(userId, request));
     }
 
     /** Patient's own current position + freshly recalculated predicted wait. */

@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage from './pages/ProfilePage';
 import PatientDoctorBrowser from './pages/PatientDoctorBrowser';
 import PatientQueuePage from './pages/PatientQueuePage';
+import ChatPage from './pages/ChatPage';
 import DoctorQueuePage from './pages/DoctorQueuePage';
 import AdminQueueOverview from './pages/AdminQueueOverview';
 import AdminAnalytics from './pages/AdminAnalytics';
@@ -80,6 +81,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['PATIENT']}>
                 <PatientQueuePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/patient/chat"
+            element={
+              <ProtectedRoute allowedRoles={['PATIENT']}>
+                <ChatPage />
               </ProtectedRoute>
             }
           />
