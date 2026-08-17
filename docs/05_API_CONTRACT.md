@@ -650,28 +650,27 @@ GET /api/doctors/search?q=<query>
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
 | q | String (required) | — | Free-text query (symptom, specialty, department, doctor name) |
-| limit | int | 10 | Max results (clamped to 50) |
+| availableOnly | boolean | false | Only doctors currently accepting queue joins |
+| limit | int | 10 | Max results (clamped to 1-100) |
 
-**Description:** Deterministic, RAG-style relevance retrieval — no vector store. Every catalog doctor is scored by weighted token overlap between the normalized query and their **name (3×), specialization (2×), department (2×), and qualification (1×)**; ties break alphabetically. Returns a flat, relevance-ranked list (not paginated) — one `DoctorSearchResultDto` per doctor (same fields as `DoctorCatalogResponseDto` plus `score`). Drives the patient browse screen's search box and grounds the AI chat assistant's doctor suggestions.
+**Description:** Deterministic, RAG-style relevance retrieval — no vector store. Every catalog doctor is scored by weighted token overlap between the normalized query and their **name (3×), specialization (2×), department (2×), and qualification (1×)**; ties break alphabetically. Returns a flat, relevance-ranked **array** (not paginated) — one `DoctorSearchResultDto` per doctor (same fields as `DoctorCatalogResponseDto` plus `relevanceScore` 0-100). Blank query → empty array. Drives the patient browse screen's search box and grounds the AI chat assistant's doctor suggestions.
 
 **Success Response (200):**
 ```json
-{
-  "results": [
-    {
-      "id": 1,
-      "name": "Dr. Arjun Sharma",
-      "departmentName": "Cardiology",
-      "specialization": "Interventional Cardiology",
-      "qualification": "MD, DM Cardiology",
-      "experienceYears": 12,
-      "consultationFee": 500.00,
-      "avgConsultationTimeMinutes": 15,
-      "isAvailable": true,
-      "score": 0.95
-    }
-  ]
-}
+[
+  {
+    "id": 1,
+    "name": "Dr. Arjun Sharma",
+    "departmentName": "Cardiology",
+    "specialization": "Interventional Cardiology",
+    "qualification": "MD, DM Cardiology",
+    "experienceYears": 12,
+    "consultationFee": 500.00,
+    "avgConsultationTimeMinutes": 15,
+    "isAvailable": true,
+    "relevanceScore": 92
+  }
+]
 ```
 
 ---

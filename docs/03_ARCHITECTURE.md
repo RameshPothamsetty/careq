@@ -162,8 +162,10 @@
 | `/api/users/{id}` | user-service | Yes | ADMIN only | View any profile |
 | `/api/doctors/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Doctor catalog |
 | `/api/departments/**` | doctor-service | Yes | PATIENT, DOCTOR, ADMIN | Department catalog |
-| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Queue + AI triage |
+| `/api/queue/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN | Queue + AI triage + chat (`/api/queue/chat`) |
+| `/api/bills/**` | queue-service | Yes | PATIENT, DOCTOR, ADMIN, RECEPTIONIST | Sandbox billing |
 | `/api/notifications/**` | notification-service | Yes | PATIENT, DOCTOR, ADMIN | Persisted in-app notifications |
+| `/ws/**` | notification-service | STOMP-frame JWT | PATIENT, DOCTOR, ADMIN | WebSocket real-time push |
 | `/api/eureka/**` | eureka-server | No | — (internal) | |
 
 ---
