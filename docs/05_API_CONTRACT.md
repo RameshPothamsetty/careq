@@ -1393,8 +1393,9 @@ All return `200` with `{ "service": "<name>", "status": "UP", "timestamp": <epoc
 
 ## Interactive Documentation
 
-- **Centralized Swagger UI:** `http://localhost:8080/swagger-ui.html` — the gateway aggregates every service's OpenAPI docs (`/v3/api-docs/{service}`). Click **Authorize** and paste a JWT to test authenticated endpoints directly.
-- **Per-service UI:** `http://localhost:808X/swagger-ui.html` on each service port.
-- **Postman collection:** `postman/CareQ.postman_collection.json` + `postman/CareQ.postman_environment.json` — import both; the Login request auto-captures the JWT into `{{authToken}}`.
+- **Live API base URL (production):** `https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io` — every endpoint in this document works against it with a Bearer JWT from `POST /api/auth/login`. Swagger UI is **disabled in production** (security lockdown); use the local stack below for interactive docs.
+- **Centralized Swagger UI (local/dev):** `http://localhost:8080/swagger-ui.html` — the gateway aggregates every service's OpenAPI docs (`/v3/api-docs/{service}`). Click **Authorize** and paste a JWT to test authenticated endpoints directly.
+- **Per-service UI (local/dev):** `http://localhost:808X/swagger-ui.html` on each service port.
+- **Postman collection:** `postman/CareQ.postman_collection.json` + `postman/CareQ.postman_environment.json` — import both; the Login request auto-captures the JWT into `{{authToken}}`. (For live testing, set the collection's base URL to the live gateway above.)
 
 > **Note:** Swagger UI is open in local dev, but **production deploys set `SPRINGDOC_ENABLED=false`** (CD workflow) which switches off both `/v3/api-docs/**` and `/swagger-ui/**` on every service and the gateway. The gateway still whitelists those paths so a local demo keeps working.

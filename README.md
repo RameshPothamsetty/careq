@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml/badge.svg)](https://github.com/RameshPothamsetty/careq/actions/workflows/ci.yml)
 
-> 🚀 **Live:** <https://careq-frontend.vercel.app> — frontend on **Vercel** (free Hobby plan), backend on **Azure Container Apps** backed by a **free 12-month** MySQL Flexible Server. See [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 4 for URLs, costs, and teardown.
+> 🚀 **Live:** <https://careq-frontend-eta.vercel.app> (frontend, **Vercel** free Hobby plan) · <https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io> (API gateway, **Azure Container Apps**) backed by a **free 12-month** MySQL Flexible Server. See [`docs/10_DEPLOYMENT.md`](docs/10_DEPLOYMENT.md) § 4 for URLs, costs, and teardown.
 
 **AI-powered OPD operations: predict wait times, triage patients by urgency, and run a live, role-specific view of hospital queues.**
 
@@ -215,6 +215,17 @@ node scripts/docker-smoke-test.mjs   # end-to-end validation of the Dockerized s
 | API Gateway (+ centralized Swagger UI) | http://localhost:8080/swagger-ui.html |
 | Eureka dashboard | http://localhost:8761 |
 
+### 🚀 Live (deployed)
+
+| What | URL |
+|------|-----|
+| Frontend (React SPA) | https://careq-frontend-eta.vercel.app |
+| API Gateway | https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io |
+| Gateway health | https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io/actuator/health |
+| Eureka dashboard | internal only (scale-to-zero — not exposed publicly) |
+
+> Swagger UI is **disabled in production** (security lockdown); use the local/dev stack for the interactive API docs.
+
 - The frontend bundle calls relative `/api` paths — Nginx reverse-proxies them to the gateway, so **no gateway URL is baked into the frontend**
 - Ports match the local (non-Docker) setup exactly, so switching between the two requires no relearning
 - Tear down: `docker compose down` (keep data) or `docker compose down -v` (full reset)
@@ -278,7 +289,8 @@ Every milestone's work is tracked as a GitHub Issue with a checked-off deliverab
 
 ## API Documentation & Testing
 
-- **Swagger UI (centralized):** [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) — one browsable UI aggregating all four business services' OpenAPI docs through the API Gateway. Click **Authorize** (top right) and paste a JWT from login to test authenticated endpoints live with "Try it out".
+- **Swagger UI (centralized, local/dev):** [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) — one browsable UI aggregating all four business services' OpenAPI docs through the API Gateway. Click **Authorize** (top right) and paste a JWT from login to test authenticated endpoints live with "Try it out". (Swagger is disabled on the live deployment.)
+- **Live API base URL:** `https://careq-api-gateway.salmonforest-402be170.southindia.azurecontainerapps.io` — every `/api/**` path from the docs below works against it with a Bearer JWT from `POST /api/auth/login`.
 - **Postman collection:** [`postman/CareQ.postman_collection.json`](postman/CareQ.postman_collection.json) + [`postman/CareQ.postman_environment.json`](postman/CareQ.postman_environment.json)
   1. Import **both** files into Postman (Import → select both).
   2. Select the **CareQ Local** environment (dropdown top-right).
