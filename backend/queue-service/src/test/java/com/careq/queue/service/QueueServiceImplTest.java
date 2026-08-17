@@ -64,6 +64,8 @@ class QueueServiceImplTest {
     private AiTriageService aiTriageService;
     @Mock
     private QueueEventPublisher eventPublisher;
+    @Mock
+    private BillService billService;
 
     private final QueueOrderingService orderingService = new QueueOrderingService();
 
@@ -85,7 +87,7 @@ class QueueServiceImplTest {
     void setUp() {
         queueService = new QueueServiceImpl(
                 queueEntryRepository, doctorServiceClient, aiTriageService, orderingService,
-                eventPublisher, 30, 1000);
+                eventPublisher, billService, 30, 1000);
     }
 
     @Test

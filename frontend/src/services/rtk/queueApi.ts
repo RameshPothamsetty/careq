@@ -15,6 +15,8 @@ import type {
   DoctorAnalyticsSummary,
   ChatPayload,
   ChatResponse,
+  BillResponse,
+  PayBillPayload,
 } from '../api';
 
 /**
@@ -28,7 +30,7 @@ import type {
 export const queueApi = createApi({
   reducerPath: 'queueApi',
   baseQuery: authenticatedBaseQuery,
-  tagTypes: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics'],
+  tagTypes: ['QueueStatus', 'DoctorQueue', 'LiveQueue', 'Analytics', 'Bills'],
   endpoints: (builder) => ({
     joinQueue: builder.mutation<QueueEntryResponse, JoinQueuePayload>({
       query: (body) => ({
@@ -154,6 +156,24 @@ export const queueApi = createApi({
       query: (doctorCatalogEntryId) => `/api/queue/doctor/${doctorCatalogEntryId}/analytics`,
       providesTags: ['Analytics'],
     }),
+
+    // ── Billing (sandbox) ──────────────────────────────────────────
+    // Bills are created automatically when a consultation completes; the
+    // patient lists and pays their own. Payment just marks the bill PAID
+    // (no external gateway).
+    getMyBills: builder.query<BillResponse[], void>({
+      query: () => '/api/queue/bills/my',
+      providesTags: ['Bills'],
+    }),
+
+    payBill: builder.mutation<BillResponse, { id: number; body: PayBillPayload }>({
+      query: ({ id, body }) => ({
+        url: `/api/queue/bills/${id}/pay`,
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Bills'],
+    }),
   }),
 });
 
@@ -172,4 +192,6 @@ export const {
   useGetLiveQueueOverviewQuery,
   useGetAnalyticsSummaryQuery,
   useGetDoctorAnalyticsQuery,
+  useGetMyBillsQuery,
+  usePayBillMutation,
 } = queueApi;

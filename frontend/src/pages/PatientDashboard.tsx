@@ -53,6 +53,13 @@ const NAV_CARDS = [
     descKey: 'patient.navChatDesc',
     tint: 'from-violet-500 to-violet-700',
   },
+  {
+    to: '/patient/bills',
+    icon: <Wallet className="h-6 w-6 text-white" />,
+    titleKey: 'patient.navBills',
+    descKey: 'patient.navBillsDesc',
+    tint: 'from-emerald-500 to-emerald-700',
+  },
 ] as const;
 
 /** "Today · 2:10 PM" for today's visits, "Mon, Jul 30 · 9:05 AM" otherwise. */

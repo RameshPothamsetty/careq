@@ -156,6 +156,25 @@ interface DoctorSuggestionResponse {
   suggestions: DoctorSuggestion[];
 }
 
+// ---- Billing (sandbox) ----
+
+/** A bill for a completed consultation (queue-service). */
+interface BillResponse {
+  id: number;
+  queueEntryId: number;
+  doctorName: string;
+  departmentName: string;
+  amount: number;
+  status: 'PENDING' | 'PAID';
+  paymentMethod: string | null;
+  createdAt: string;
+  paidAt: string | null;
+}
+
+interface PayBillPayload {
+  paymentMethod: string;
+}
+
 // ---- AI chat assistant ----
 
 interface ChatPayload {
@@ -496,6 +515,8 @@ export type {
   AutoAssignPayload,
   AutoAssignReason,
   AutoAssignResponse,
+  BillResponse,
+  PayBillPayload,
   QueueEntryResponse,
   QueueStatusResponse,
   OverrideTriagePayload,

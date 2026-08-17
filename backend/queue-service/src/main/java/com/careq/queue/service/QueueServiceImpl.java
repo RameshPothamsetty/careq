@@ -56,6 +56,7 @@ public class QueueServiceImpl implements QueueService {
     private final AiTriageService aiTriageService;
     private final QueueOrderingService orderingService;
     private final QueueEventPublisher eventPublisher;
+    private final BillService billService;
 
     /** A WAITING patient is "delayed" in the Admin overview when their predicted wait exceeds this. */
     private final int delayThresholdMinutes;
@@ -72,6 +73,7 @@ public class QueueServiceImpl implements QueueService {
                             AiTriageService aiTriageService,
                             QueueOrderingService orderingService,
                             QueueEventPublisher eventPublisher,
+                            BillService billService,
                             @Value("${queue.delay-threshold-minutes:30}") int delayThresholdMinutes,
                             @Value("${queue.max-doctors-to-load:1000}") int maxDoctorsToLoad) {
         this.queueEntryRepository = queueEntryRepository;
@@ -79,6 +81,7 @@ public class QueueServiceImpl implements QueueService {
         this.aiTriageService = aiTriageService;
         this.orderingService = orderingService;
         this.eventPublisher = eventPublisher;
+        this.billService = billService;
         this.delayThresholdMinutes = delayThresholdMinutes;
         this.maxDoctorsToLoad = maxDoctorsToLoad;
     }
@@ -269,6 +272,15 @@ public class QueueServiceImpl implements QueueService {
         entry.setStatus(QueueStatus.COMPLETED);
         entry.setCompletedAt(LocalDateTime.now());
         entry = queueEntryRepository.save(entry);
+
+        // consultation finished → raise the bill (same transaction, idempotent
+        // per queue entry). A billing hiccup must never fail the completion,
+        // so it is guarded: the patient can always pay later.
+        try {
+            billService.createBillForCompletedEntry(entry, doctor);
+        } catch (Exception e) {
+            log.error("Failed to create bill for completed queue entry {}: {}", entry.getId(), e.getMessage());
+        }
 
         // consultation finished.
         eventPublisher.publish(QueueEventPublisher.QUEUE_COMPLETED,
